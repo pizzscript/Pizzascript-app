@@ -331,7 +331,7 @@ async function main() {
         const postId = slug ? postIdBySlug.get(slug) : undefined;
         return postId ? { ...s, post_id: postId } : null;
       })
-      .filter((s): s is Record<string, unknown> => s !== null);
+      .filter((s): s is NonNullable<typeof s> => s !== null);
     const skipped = signals.length - resolved.length;
     if (skipped > 0) console.log(`  (skipped ${skipped} signal(s) — post not found in DB yet)`);
     await upsert("signals", resolved, "dedupe_key");

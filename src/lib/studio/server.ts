@@ -45,8 +45,10 @@ export type Studio = { mode: "live"; db: SupabaseClient; email: string } | { mod
 
 /** Resolves the admin session or redirects to login. Call inside a Suspense boundary. */
 export async function requireAdmin(): Promise<Studio> {
+  // Establishes dynamic rendering before any Date.now()/Math.random() use further down (e.g. todayIst()),
+  // which cacheComponents otherwise flags during prerendering.
+  await connection();
   if (isPreview()) {
-    await connection();
     return { mode: "preview" };
   }
   if (!process.env.SUPABASE_URL) redirect("/admin/login?error=not-configured");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { sendMagicLink } from "./actions";
+import { signInWithPassword } from "./actions";
 
 const ERRORS: Record<string, string> = {
   forbidden: "That account isn't an admin.",
@@ -10,7 +10,7 @@ const ERRORS: Record<string, string> = {
 };
 
 export function LoginForm({ error }: { error?: string }) {
-  const [state, action, pending] = useActionState(sendMagicLink, null);
+  const [state, action, pending] = useActionState(signInWithPassword, null);
   const message = state?.message ?? (error ? ERRORS[error] : null);
 
   return (
@@ -28,8 +28,12 @@ export function LoginForm({ error }: { error?: string }) {
         placeholder="you@pizzascript.com"
         className="s-input h-10"
       />
+      <label htmlFor="password" className="sr-only">
+        Password
+      </label>
+      <input id="password" name="password" type="password" required autoComplete="current-password" placeholder="Password" className="s-input h-10" />
       <button type="submit" className="s-btn s-btn--primary w-full h-10 justify-center" disabled={pending}>
-        {pending ? "Sending…" : "Send sign-in link"}
+        {pending ? "Signing in…" : "Sign in"}
       </button>
       <p role="status" className={`s-mono min-h-5 ${state?.ok ? "s-dim" : "text-[var(--s-bad)]"}`}>
         {message}

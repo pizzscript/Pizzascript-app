@@ -8,7 +8,7 @@ const KNOWN: Record<string, Set<string>> = {
   portfolio: new Set(CASE_STUDIES.map((s) => s.slug)),
 };
 
-const PUBLIC_ADMIN = ["/admin/login", "/admin/auth"];
+const PUBLIC_ADMIN = ["/admin/login"];
 
 /** Refreshes the Supabase session cookie and keeps signed-out visitors on the login page. */
 async function admin(request: NextRequest) {
