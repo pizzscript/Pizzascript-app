@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -36,7 +37,8 @@ export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): P
   });
 }
 
-export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">) {
+// cacheComponents requires `params` to be read inside a Suspense boundary; see the default export below.
+async function BlogPostContent({ params }: PageProps<"/blog/[slug]">) {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) notFound();
@@ -153,5 +155,13 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
         </article>
       </div>
     </>
+  );
+}
+
+export default function BlogPostPage(props: PageProps<"/blog/[slug]">) {
+  return (
+    <Suspense fallback={null}>
+      <BlogPostContent {...props} />
+    </Suspense>
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,7 +25,8 @@ export async function generateMetadata({ params }: PageProps<"/portfolio/[slug]"
   });
 }
 
-export default async function CaseStudyPage({ params }: PageProps<"/portfolio/[slug]">) {
+// cacheComponents requires `params` to be read inside a Suspense boundary; see the default export below.
+async function CaseStudyContent({ params }: PageProps<"/portfolio/[slug]">) {
   const study = getCaseStudy((await params).slug);
   if (!study) notFound();
   const path = `/portfolio/${study.slug}`;
@@ -154,5 +156,13 @@ export default async function CaseStudyPage({ params }: PageProps<"/portfolio/[s
         </article>
       </div>
     </>
+  );
+}
+
+export default function CaseStudyPage(props: PageProps<"/portfolio/[slug]">) {
+  return (
+    <Suspense fallback={null}>
+      <CaseStudyContent {...props} />
+    </Suspense>
   );
 }

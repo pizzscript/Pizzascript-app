@@ -139,7 +139,7 @@ export async function createTopic(input: { query: string; clusterId: string | nu
     .single();
   fail(error);
   await db.from("jobs").insert({ type: "score_topic", payload: { topicId: data!.id } });
-  revalidatePath("/admin/lab");
+  revalidatePath("/admin/ideas");
   return data!.id as string;
 }
 
@@ -159,7 +159,7 @@ export async function saveScoring(settings: ScoringSettings) {
     const { score } = computeScore(t.scores, t.track, settings);
     await db.from("topics").update({ score, priority: priorityFor(score, settings) }).eq("id", t.id);
   }
-  revalidatePath("/admin/lab");
+  revalidatePath("/admin/ideas");
 }
 
 export async function sendMessage(thread: string, content: string) {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,7 +22,8 @@ export async function generateMetadata({ params }: PageProps<"/services/[slug]">
   return pageMetadata({ title: service.seo.title, description: service.seo.description, path: `/services/${service.slug}` });
 }
 
-export default async function ServicePage({ params }: PageProps<"/services/[slug]">) {
+// cacheComponents requires `params` to be read inside a Suspense boundary; see the default export below.
+async function ServiceContent({ params }: PageProps<"/services/[slug]">) {
   const service = getService((await params).slug);
   if (!service) notFound();
 
@@ -241,5 +243,13 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
         </div>
       </div>
     </>
+  );
+}
+
+export default function ServicePage(props: PageProps<"/services/[slug]">) {
+  return (
+    <Suspense fallback={null}>
+      <ServiceContent {...props} />
+    </Suspense>
   );
 }

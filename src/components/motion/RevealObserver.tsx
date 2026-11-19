@@ -17,7 +17,12 @@ export function RevealObserver() {
       { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
     );
     const observeAll = () => document.querySelectorAll(SELECTOR).forEach((el) => io.observe(el));
-    observeAll();
+    // Deferred a frame: an element already in view can fire the observer in the same tick as this
+    // effect, adding .animate-in before a still-streaming Suspense boundary finishes hydrating the
+    // same subtree — React then reports a hydration mismatch for that later-resolving chunk.
+    let startFrame = requestAnimationFrame(() => {
+      startFrame = requestAnimationFrame(observeAll);
+    });
 
     // Picks up elements from client navigations and streamed content.
     let frame = 0;
@@ -28,6 +33,7 @@ export function RevealObserver() {
     mo.observe(document.body, { childList: true, subtree: true });
 
     return () => {
+      cancelAnimationFrame(startFrame);
       cancelAnimationFrame(frame);
       mo.disconnect();
       io.disconnect();
