@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { computeScore, priorityFor } from "@/lib/studio/scoring";
 import { requireAdmin, supabaseServer } from "@/lib/studio/server";
 import type { JobType, ScoringSettings, Topic, TopicStatus } from "@/lib/studio/types";
@@ -18,12 +19,39 @@ function fail(error: { message: string } | null) {
   if (error) throw new Error(error.message);
 }
 
+/** Tells the agent server to start a pass now. Returns false when no server is configured or it can't be reached. */
+async function kickWorker(timeoutMs: number) {
+  const url = process.env.WORKER_URL;
+  const secret = process.env.WORKER_SECRET;
+  if (!url || !secret) return false;
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/run`, {
+      method: "POST",
+      headers: { "x-worker-secret": secret },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function enqueue(type: JobType, payload: Record<string, unknown> = {}) {
   const db = await live();
   const { data, error } = await db.from("jobs").insert({ type, payload, priority: type === "discuss" ? 5 : 0 }).select("id").single();
   fail(error);
+  // Fire-and-forget: the job is already queued, so a sleeping server simply picks it up when it wakes (or on the schedule).
+  after(() => kickWorker(60_000));
   revalidatePath("/admin", "layout");
   return data!.id as string;
+}
+
+/** Manual "Run agent now" — also wakes a sleeping free-tier server. */
+export async function runAgent() {
+  await live();
+  if (!process.env.WORKER_URL || !process.env.WORKER_SECRET) throw new Error("Agent server isn't configured (WORKER_URL / WORKER_SECRET).");
+  if (!(await kickWorker(55_000))) throw new Error("Couldn't reach the agent server. If it was asleep, try again in a minute.");
+  revalidatePath("/admin", "layout");
 }
 
 export async function jobStatuses(ids: string[]) {

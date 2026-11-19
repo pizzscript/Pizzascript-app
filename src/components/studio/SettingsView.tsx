@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { addFact, approveBatch, deleteFact, saveScoring, saveSetting, setFactVerified, signOut } from "@/app/admin/actions";
+import { addFact, approveBatch, deleteFact, runAgent, saveScoring, saveSetting, setFactVerified, signOut } from "@/app/admin/actions";
 import { SCORE_FACTORS, type Batch, type Fact, type ScheduleSettings, type ScoreFactor, type ScoringSettings } from "@/lib/studio/types";
 import { useStudio } from "./StudioProvider";
 import { PageHead } from "./ui";
@@ -96,6 +96,12 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
                 title="Autopilot"
                 text="A post publishes on its own only when it passes the SEO check and its batch (or the post itself) is approved. Approved batches also prepare posts due in the next 3 days. Anything else waits for you and shows up as an alert."
               />
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="button" className="s-btn" disabled={busy} onClick={() => run("Agent started", () => runAgent())}>
+                  Run agent now
+                </button>
+                <span className="s-faint text-[13px]">Starts the agent server immediately. Queued jobs also start it automatically.</span>
+              </div>
               {batches.length === 0 ? (
                 <p className="s-dim">No batches yet.</p>
               ) : (

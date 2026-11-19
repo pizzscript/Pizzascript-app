@@ -49,6 +49,8 @@ Anything else raises a P0 "missed slot" signal on the Pass.
 
 ## Agent worker
 
+**Agent server (recommended):** `npm run worker:server` starts `worker/server.ts`, an HTTP server with `POST /run` (header `x-worker-secret`) and `GET /health`. Host it as a Render free **Web Service** (build `npm ci`, start `npm run worker:server`; env: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `GEMINI_API_KEY`, `GSC_*`, `SITE_URL`, `REVALIDATE_SECRET`, `WORKER_SECRET`). The admin (Vercel) needs `WORKER_URL` + `WORKER_SECRET`; every queued job and the **Run agent now** button (Settings → Autopilot) call `/run`. Free instances sleep after ~15 min idle, so time-based duties (09:00 publish, 06:30 briefing) need a pinger hitting `/run` on a schedule (e.g. cron-job.org, or the GitHub Actions workflow).
+
 `npm run worker` (always-on loop, for local use) or `npm run worker -- --once` (one pass: schedule + drain queue,
 then exit — what GitHub Actions runs). `.github/workflows/agent.yml` runs `--once` every 15 minutes, free on
 GitHub's Actions minutes; trigger a run manually any time from the Actions tab (`workflow_dispatch`).

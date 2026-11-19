@@ -13,6 +13,7 @@
     "css:import": "node scripts/port-legacy-css.mjs ../website",
     "seed:studio": "tsx --env-file-if-exists=.env.local scripts/seed-studio.ts",
     "worker": "tsx --env-file-if-exists=.env.local worker/index.ts",
+    "worker:server": "tsx --env-file-if-exists=.env.local worker/server.ts",
     "check:studio": "tsx scripts/check-studio-logic.ts"
   },
   "dependencies": {
