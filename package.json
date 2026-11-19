@@ -6,21 +6,45 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "migrate:blog": "tsx --env-file-if-exists=.env.local scripts/migrate-blog.ts",
+    "assets:import": "node scripts/optimize-assets.mjs ../website",
+    "css:import": "node scripts/port-legacy-css.mjs ../website",
+    "seed:studio": "tsx --env-file-if-exists=.env.local scripts/seed-studio.ts",
+    "worker": "tsx --env-file-if-exists=.env.local worker/index.ts",
+    "check:studio": "tsx scripts/check-studio-logic.ts"
   },
   "dependencies": {
+    "@google/genai": "^3.6.0",
+    "@gsap/react": "^2.1.2",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0",
+    "google-auth-library": "^11.3.4",
+    "gsap": "^3.15.1",
+    "lenis": "^1.3.27",
+    "lottie-web": "^5.13.0",
+    "lucide-react": "^1.75.0",
     "next": "16.4.6",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "sanitize-html": "^2.18.2",
+    "sharp": "^0.35.5",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "node-html-parser": "^9.0.7",
     "tailwindcss": "4.3.3",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20.9"
   }
 }

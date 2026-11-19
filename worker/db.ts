@@ -1,0 +1,92 @@
+import { createClient } from "@supabase/supabase-js";
+import { DEFAULT_SCORING } from "../src/lib/studio/scoring";
+import type { Fact, LinkPlan, ScheduleSettings, ScoringSettings, Signal, StudioPost, Topic, Cluster, Batch } from "../src/lib/studio/types";
+import { env } from "./env";
+
+export const db = createClient(env.supabaseUrl, env.supabaseSecretKey, { auth: { persistSession: false } });
+
+export function check<T>(result: { data: T; error: { message: string } | null }, what: string): T {
+  if (result.error) throw new Error(`${what}: ${result.error.message}`);
+  return result.data;
+}
+
+export async function setting<T>(key: string, fallback: T): Promise<T> {
+  const { data } = await db.from("settings").select("value").eq("key", key).maybeSingle();
+  return (data?.value as T) ?? fallback;
+}
+
+export const settings = {
+  scoring: () => setting<ScoringSettings>("scoring", DEFAULT_SCORING),
+  schedule: () => setting<ScheduleSettings>("schedule", { timezone: "Asia/Kolkata", publishAt: "09:00", briefingAt: "06:30", perDay: 1 }),
+  banned: () => setting<string[]>("banned_phrases", []),
+  neverCover: () => setting<string[]>("never_cover", []),
+  wordRanges: () => setting<Record<string, [number, number]>>("word_ranges", {}),
+};
+
+export async function getPost(id: string) {
+  return check(await db.from("posts").select("*").eq("id", id).single(), "post") as StudioPost;
+}
+
+export async function allPosts() {
+  return check(await db.from("posts").select("*"), "posts") as StudioPost[];
+}
+
+export async function allTopics() {
+  return check(await db.from("topics").select("*"), "topics") as Topic[];
+}
+
+export async function allClusters() {
+  return check(await db.from("clusters").select("*").order("position"), "clusters") as Cluster[];
+}
+
+export async function allBatches() {
+  return check(await db.from("batches").select("*"), "batches") as Batch[];
+}
+
+/** Only facts the owner marked verified may ever be cited by the agent. */
+export async function allFacts() {
+  return check(await db.from("facts").select("*").eq("verified", true), "facts") as Fact[];
+}
+
+export async function linkPlan() {
+  return check(await db.from("link_plan").select("*"), "link_plan") as LinkPlan[];
+}
+
+export async function openSignals() {
+  return check(await db.from("signals").select("*").eq("status", "open"), "signals") as Signal[];
+}
+
+export async function enqueue(type: string, payload: Record<string, unknown> = {}, delaySeconds = 0) {
+  check(
+    await db.from("jobs").insert({ type, payload, run_after: new Date(Date.now() + delaySeconds * 1000).toISOString() }),
+    `enqueue ${type}`,
+  );
+}
+
+/** Signals are de-duplicated by key so recurring checks don't spam the Pass. */
+export async function raiseSignal(signal: Omit<Signal, "id" | "status" | "created_at"> & { dedupe_key: string }) {
+  const { error } = await db.from("signals").upsert({ ...signal, status: "open" }, { onConflict: "dedupe_key", ignoreDuplicates: true });
+  if (error) throw new Error(`signal: ${error.message}`);
+}
+
+export async function saveVersion(post: StudioPost, bodyHtml: string, note: string, extra: Partial<StudioPost> = {}) {
+  const version = (post.version ?? 0) + 1;
+  check(
+    await db.from("post_versions").insert({
+      post_id: post.id,
+      version,
+      title: extra.title ?? post.title,
+      body_html: bodyHtml,
+      cover_image_url: extra.cover_image_url ?? post.cover_image_url,
+      note,
+      author: "agent",
+    }),
+    "version",
+  );
+  check(await db.from("posts").update({ ...extra, body_html: bodyHtml, version, audit: null }).eq("id", post.id), "post update");
+  return version;
+}
+
+export function todayIst() {
+  return new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+}

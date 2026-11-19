@@ -1,0 +1,1879 @@
+{
+  "generatedAt": "2026-11-18T12:25:51.370Z",
+  "clusters": [
+    {
+      "id": "custom-builds",
+      "name": "Web Development & Custom Builds",
+      "audience": "client",
+      "target_t1": 60,
+      "position": 0
+    },
+    {
+      "id": "performance",
+      "name": "Web Performance Optimization",
+      "audience": "both",
+      "target_t1": 70,
+      "position": 1
+    },
+    {
+      "id": "tech-seo",
+      "name": "Technical SEO for JS Sites",
+      "audience": "both",
+      "target_t1": 65,
+      "position": 2
+    },
+    {
+      "id": "scroll-motion",
+      "name": "Scroll, Animation & Interactive",
+      "audience": "client",
+      "target_t1": 60,
+      "position": 3
+    },
+    {
+      "id": "ai-workflows",
+      "name": "AI-Assisted Web Development",
+      "audience": "both",
+      "target_t1": 80,
+      "position": 4
+    },
+    {
+      "id": "deployment",
+      "name": "Deployment & Infrastructure",
+      "audience": "developer",
+      "target_t1": 65,
+      "position": 5
+    },
+    {
+      "id": "case-studies",
+      "name": "Case Studies & Project Results",
+      "audience": "client",
+      "target_t1": 0,
+      "position": 6
+    }
+  ],
+  "batches": [
+    {
+      "id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "name": "Batch 2",
+      "approved_at": null,
+      "created_at": "2026-11-18T12:25:51.365Z"
+    }
+  ],
+  "topics": [
+    {
+      "id": "65149bbb-12e3-5d4a-ad0c-be06e4b13a86",
+      "slug": "why-custom-code-vs-wordpress",
+      "query": "why custom website code vs wordpress",
+      "cluster_id": "custom-builds",
+      "track": 1,
+      "role": "spoke",
+      "intent": "informational",
+      "audience": "both",
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 25,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "c3d2f532-6e27-54c1-a71d-5a60d7d5b591",
+      "slug": "react-vs-nextjs-for-business",
+      "query": "react vs nextjs for business site",
+      "cluster_id": "custom-builds",
+      "track": 1,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 85,
+          "reason": "Keyword file: High volume"
+        },
+        "difficulty": {
+          "value": 45,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "in_production",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "209b0631-5451-5ef2-adec-639a6104243b",
+      "slug": "optimize-react-performance",
+      "query": "how to optimize React website performance",
+      "cluster_id": "performance",
+      "track": 1,
+      "role": "pillar",
+      "intent": "informational",
+      "audience": "both",
+      "scores": {
+        "volume": {
+          "value": 85,
+          "reason": "Keyword file: High volume"
+        },
+        "difficulty": {
+          "value": 42,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "3f3489eb-247c-5188-a39d-79f81094c8ad",
+      "slug": "vite-bundle-optimization",
+      "query": "vite config build bundle optimization",
+      "cluster_id": "performance",
+      "track": 1,
+      "role": "spoke",
+      "intent": "informational",
+      "audience": "both",
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 28,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "19266dbb-59d8-50a6-a726-0cb5d19226f6",
+      "slug": "react-route-lazy-loading",
+      "query": "react lazy loading routes bundle splitting",
+      "cluster_id": "performance",
+      "track": 1,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 20,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "candidate",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "0dfa57f8-b790-53a1-a65a-540c9d45daa8",
+      "slug": "pre-render-react-seo",
+      "query": "how to pre render react app for seo",
+      "cluster_id": "tech-seo",
+      "track": 1,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 32,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "in_production",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "6f864362-b82b-5c35-aa91-aab2ac274a90",
+      "slug": "gsap-scrolltrigger-react",
+      "query": "how to implement gsap scrolltrigger react",
+      "cluster_id": "scroll-motion",
+      "track": 1,
+      "role": "spoke",
+      "intent": "informational",
+      "audience": "both",
+      "scores": {
+        "volume": {
+          "value": 85,
+          "reason": "Keyword file: High volume"
+        },
+        "difficulty": {
+          "value": 35,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "9defd22b-264c-51de-ac3c-1dc9ebff3c29",
+      "slug": "lenis-smooth-scroll-react",
+      "query": "lenis smooth scroll react integration guide",
+      "cluster_id": "scroll-motion",
+      "track": 1,
+      "role": "spoke",
+      "intent": "informational",
+      "audience": "both",
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 15,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "67a301fa-e098-5e7a-aa33-40a6a9d290fb",
+      "slug": "ai-assisted-web-development",
+      "query": "ai assisted web development workflows",
+      "cluster_id": "ai-workflows",
+      "track": 1,
+      "role": "pillar",
+      "intent": "informational",
+      "audience": "both",
+      "scores": {
+        "volume": {
+          "value": 85,
+          "reason": "Keyword file: High volume"
+        },
+        "difficulty": {
+          "value": 28,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "de947b51-0fc1-5f6a-a2a8-882aa1343a74",
+      "slug": "cursor-ai-setup-react",
+      "query": "cursor ai editor react setup tips",
+      "cluster_id": "ai-workflows",
+      "track": 1,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 15,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "in_production",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "779ac81b-0eb1-5aa5-a114-8b199649605a",
+      "slug": "cloudflare-vs-vercel",
+      "query": "cloudflare vs vercel hosting comparison",
+      "cluster_id": "deployment",
+      "track": 1,
+      "role": "spoke",
+      "intent": "informational",
+      "audience": "both",
+      "scores": {
+        "volume": {
+          "value": 85,
+          "reason": "Keyword file: High volume"
+        },
+        "difficulty": {
+          "value": 38,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "ed94e802-4ec6-59fc-aeef-84c449a08be5",
+      "slug": "react-router-hosting-cloudflare",
+      "query": "react router hosting cloudflare pages rewrite",
+      "cluster_id": "deployment",
+      "track": 1,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 15,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "in_production",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "bc75a5b8-15c0-526d-aa99-90d6ce729760",
+      "slug": "custom-web-development-pune",
+      "query": "custom web development company pune",
+      "cluster_id": "custom-builds",
+      "track": 2,
+      "role": "pillar",
+      "intent": "commercial",
+      "audience": "client",
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 35,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "4883821a-05d2-5fa9-a093-bd4e84addd57",
+      "slug": "web-engineering-studio-pune",
+      "query": "web engineering studio pune",
+      "cluster_id": "custom-builds",
+      "track": 2,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 30,
+          "reason": "Keyword file: Low volume"
+        },
+        "difficulty": {
+          "value": 15,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "candidate",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "74fd0884-d15a-59d6-a1f3-f0870bf6fdb3",
+      "slug": "react-development-cost-india",
+      "query": "custom React development cost India",
+      "cluster_id": "custom-builds",
+      "track": 2,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 40,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "in_production",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "cb358324-8ace-52b2-afec-ca8d8140e94e",
+      "slug": "lighthouse-100-react",
+      "query": "how to achieve lighthouse 100 react",
+      "cluster_id": "performance",
+      "track": 2,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 35,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "in_production",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "1e27d228-7463-5462-a902-1999a76ae37c",
+      "slug": "speed-optimization-service-india",
+      "query": "website speed optimization service india",
+      "cluster_id": "performance",
+      "track": 2,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 30,
+          "reason": "Keyword file: Low volume"
+        },
+        "difficulty": {
+          "value": 15,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "candidate",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "807cea32-3e91-50c5-a430-499aea64d2b6",
+      "slug": "react-spa-seo",
+      "query": "react spa seo best practices",
+      "cluster_id": "tech-seo",
+      "track": 2,
+      "role": "pillar",
+      "intent": "informational",
+      "audience": "both",
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 38,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "2a972335-6680-5c10-a0df-dea7516a942b",
+      "slug": "technical-seo-pune",
+      "query": "technical seo services pune",
+      "cluster_id": "tech-seo",
+      "track": 2,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 30,
+          "reason": "Keyword file: Low volume"
+        },
+        "difficulty": {
+          "value": 18,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "candidate",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "72176548-eed6-5b75-af6e-367261d29f88",
+      "slug": "interactive-agency-india",
+      "query": "interactive website design agency india",
+      "cluster_id": "scroll-motion",
+      "track": 2,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 30,
+          "reason": "Keyword file: Low volume"
+        },
+        "difficulty": {
+          "value": 22,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "in_production",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "36718f33-1fbb-570f-a382-b8eaa460d958",
+      "slug": "edge-caching-cloudflare",
+      "query": "edge caching html cloudflare redirects",
+      "cluster_id": "deployment",
+      "track": 2,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {
+        "volume": {
+          "value": 60,
+          "reason": "Keyword file: Med volume"
+        },
+        "difficulty": {
+          "value": 28,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": false
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "candidate",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "343c83b1-94e3-5bea-a2e4-39e918289e17",
+      "slug": "case-study-orion-pharma",
+      "query": "orion pharma india corporate website build",
+      "cluster_id": "case-studies",
+      "track": 2,
+      "role": "spoke",
+      "intent": "commercial",
+      "audience": "client",
+      "scores": {
+        "volume": {
+          "value": 30,
+          "reason": "Keyword file: Low volume"
+        },
+        "difficulty": {
+          "value": 5,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": true
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "90205b16-c177-5f6f-acca-e1f1714d72f7",
+      "slug": "case-study-my-design-academia",
+      "query": "my design academia conversion optimized site",
+      "cluster_id": "case-studies",
+      "track": 2,
+      "role": "spoke",
+      "intent": "commercial",
+      "audience": "client",
+      "scores": {
+        "volume": {
+          "value": 30,
+          "reason": "Keyword file: Low volume"
+        },
+        "difficulty": {
+          "value": 5,
+          "reason": "Keyword file difficulty"
+        },
+        "caseStudy": true
+      },
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "published",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "2079de10-1705-5750-a528-ba13e39f0364",
+      "slug": "prevent-scroll-jitter-gsap",
+      "query": "prevent scroll jitter gsap mobile devices",
+      "cluster_id": "scroll-motion",
+      "track": 1,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {},
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "in_production",
+      "reason": null,
+      "source": "seed"
+    },
+    {
+      "id": "fd153339-7abb-5511-a213-dc39df9e134e",
+      "slug": "custom-cursor-react-gsap",
+      "query": "custom cursor react gsap cursor component",
+      "cluster_id": "scroll-motion",
+      "track": 1,
+      "role": "spoke",
+      "intent": null,
+      "audience": null,
+      "scores": {},
+      "score": null,
+      "priority": null,
+      "filters": {},
+      "status": "in_production",
+      "reason": null,
+      "source": "seed"
+    }
+  ],
+  "posts": [
+    {
+      "id": "cf8fe920-3e8e-59de-a9c1-29bae4f1bc32",
+      "slug": "ai-assisted-web-development",
+      "status": "published",
+      "title": "AI Assisted Web Development Workflows that Scale",
+      "excerpt": "Integrating AI code assistants without structural validation workflows leads to code regression and style conflicts. Here is how to structure your pipeline.",
+      "body_html": "<p>Integrating AI coding assistants into active development cycles without structured context boundary limits\nleads to style conflicts and code regressions. Establishing strict human-in-the-loop review cycles paired with\nautomated testing ensures high code quality and release consistency.</p>\n<p>AI coding assistants like Cursor and GitHub Copilot are changing how developers write code. However, pasting\nAI-generated blocks directly into a codebase without validation can lead to security vulnerabilities and style\nconflicts. To use AI tools effectively, you need structured workflows that treat generative code as a draft\nrequiring validation.</p>\n<h2>1. Managing Context Limits & Prompt Structuring</h2>\n<p>A common mistake when using AI coding tools is providing the assistant with too much context. When you load a\nwhole codebase into the model, the generated code can conflict with existing styles and introduce bugs. Focus\nthe assistant on a specific task by restricting context to the relevant modules:</p>\n<pre><code>// Example instructions file (.cursorrules) to guide the AI assistant\n# React Style Rules\n- Use TypeScript for all components and utilities.\n- Write functional components with explicit prop interfaces.\n- Do not import heavy libraries statically; use dynamic imports.\n- Maintain semantic markup (h2, h3, articles) to support SEO indexability.\n- Always include cleanup return hooks in useLayoutEffect calls.</code></pre>\n<p>Using a configuration file like `.cursorrules` provides the AI assistant with project guidelines, keeping the\ngenerated code consistent with your project requirements.</p>\n<h2>2. Human-Supervised Integration Loops</h2>\n<p>Instead of letting the AI assistant run commands or apply edits directly to your code, structure your\nworkflow around a feedback loop:</p>\n<pre><code>AI Assistant Proposes Draft Edits\n  └── Human Developer Reviews Code\n       ├── REJECT ──> Refine prompt context\n       └── ACCEPT\n            └── Run Automated Test Suite (Lint & Build checks)\n                 ├── FAIL ──> Fix errors in editor\n                 └── PASS ──> Commit change to main branch</code></pre>\n<p>This workflow keeps the developer in control of the codebase, ensuring that all generated code is reviewed\nand tested before deployment.</p>\n<div class=\"highlight-box\">\n<h4>AI Workflow Best Practices</h4>\n<ul>\n<li>Provide only the required files to the assistant to stay within context limits.</li>\n<li>Write clear, single-purpose prompts rather than vague, multi-step requests.</li>\n<li>Always run build checks (<code>npm run build</code>) to confirm generated code compiles correctly.</li>\n</ul>\n</div>\n<p>AI tools can help speed up development, but they don't replace clean coding practices. For a comparison of\ncustom coding vs template-driven setups, see our article, <a href=\"/blog/why-custom-code-vs-wordpress\">Why\nCustom Website Code Beats WordPress Page Builders</a>.</p>\n<p>\nWe combine modern AI workflows with expert engineering to build high-performance web applications. Learn more\nabout our services on our <a href=\"/services/custom-website-development\">Custom Website\nDevelopment Service</a> page, or contact us to discuss your project.\n</p>",
+      "cover_image_alt": "Clean flow diagram illustrating human developer supervision loops managing automated AI code generation modules.",
+      "seo_title": "AI Assisted Web Development Workflows that Scale",
+      "seo_description": "Learn how to build productive AI-assisted web development workflows. Structure code review loops, use automated testing, and maintain code quality.",
+      "og_image_url": null,
+      "category": "AI-Assisted Web Development",
+      "tags": [
+        "AI Assisted Coding",
+        "Cursor AI editor",
+        "Developer Workflows",
+        "Automated Testing"
+      ],
+      "reading_minutes": 2,
+      "word_count": 419,
+      "seo_plan": {
+        "targetQuery": "ai assisted web development workflows",
+        "secondaryQueries": [
+          "cursor ai code generator productivity",
+          "automated test scripts ai code quality"
+        ],
+        "cluster": "AI-Assisted Web Development",
+        "track": "1",
+        "type": "pillar",
+        "audience": "both",
+        "intent": "informational",
+        "depth": "C",
+        "internalLinksTo": [
+          "why-custom-code-vs-wordpress"
+        ],
+        "internalLinksFrom": [],
+        "servicePageLink": "https://www.pizzascript.com/services/custom-website-development"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "67a301fa-e098-5e7a-aa33-40a6a9d290fb",
+      "cluster_id": "ai-workflows",
+      "track": 1,
+      "role": "pillar",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/custom-website-development",
+        "audience": "both",
+        "depth": "C"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "87eb9af7-93c1-5d40-a738-254eac4cf090",
+      "slug": "case-study-my-design-academia",
+      "status": "published",
+      "title": "Case Study: Rebuilding My Design Academia for 150% Lead Growth",
+      "excerpt": "How we refactored a slow WordPress template into a high-performance React application for Pune's premier design entrance coaching institute.",
+      "body_html": "<p>Rebuilding the digital presence of My Design Academia in Pune resulted in a 150% increase in monthly student\nenrollment inquiries within 90 days of launch. By replacing a bloated page-builder template with a bespoke,\nstatically generated React architecture, we eliminated layout shifting and cut mobile loading times from 6.4\nseconds down to 0.8 seconds.</p>\n<p>My Design Academia, based in Viman Nagar, Pune, prepares aspirants for highly competitive design entrance\nexams like NID, NIFT, UCEED, and CEED. While the institute delivered exceptional classroom outcomes, their\nprevious website was failing to capture digital inquiries. High bounce rates on mobile landing pages were\ndraining marketing spend on Google Ads, and search console indexes reported widespread layout shift errors\n(CLS) that compromised their search engine visibility.</p>\n<h2>The Challenge: Low Conversion Rates & Indexing Failures</h2>\n<p>The original website relied on WordPress templates and heavy plugins. When potential students visited from\nmobile phones, the page loads stalled, causing a high bounce rate. Additionally, Google's bots struggled to\nindex the dynamic layout shifts caused by poorly structured CSS animations, preventing the site from ranking\nfor local intent queries like \"NID entrance exam coaching in Pune.\"</p>\n<p>We audited their site performance and identified three primary bottlenecks:</p>\n<ul>\n<li><strong>Render-Blocking JS Resources</strong>: Standard block elements loaded 450KB of unnecessary styling\ncomponents before rendering any page copy.</li>\n<li><strong>Layout Shifting (CLS)</strong>: Sliders and dynamically loaded student portfolio grids lacked\ncontainer bounds, causing the screen to jump while assets loaded.</li>\n<li><strong>Friction in Inquiry Funnel</strong>: Student contact forms required seven form fields, dropping\nconversion momentum on mobile devices.</li>\n</ul>\n<h2>Our Solution: Bespoke React Engineering & Performance Optimization</h2>\n<p>We designed a custom React architecture centered on direct speed and zero-friction lead capture. Our\nengineering process prioritized speed: we replaced dynamic database calls with static site generation (SSG)\nhosted on edge servers, ensuring immediate delivery of course details.</p>\n<h3>1. Static Site Generation with Vite</h3>\n<p>To eliminate database response delays, we pre-rendered the entire site structure into optimized static\nassets. During build compilation, Vite bundles React components and tree-shakes unused classes, ensuring the\nclient downloads a minimal initial payload:</p>\n<pre><code>// build configuration segment for optimized tree-shaking\nexport default defineConfig({\n  plugins: [react()],\n  build: {\n    target: 'esnext',\n    minify: 'terser',\n    terserOptions: {\n      compress: {\n        drop_console: true,\n        pure_funcs: ['console.log']\n      }\n    }\n  }\n});</code></pre>\n<h3>2. Responsive Portfolio Grid with Zero CLS</h3>\n<p>To showcase student artwork without layout shifts, we engineered a CSS grid with strict aspect ratios and\nblur placeholders. By reserving DOM container sizes before images loaded, CLS scores dropped to zero:</p>\n<pre><code>.portfolio-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));\n  gap: 1.5rem;\n}\n\n.portfolio-item {\n  position: relative;\n  aspect-ratio: 4 / 3;\n  background-color: var(--code-bg);\n  overflow: hidden;\n  border-radius: 8px;\n}\n\n.portfolio-item img {\n  position: absolute;\n  inset: 0;\n  width: 100%;\n  height: 100%;\n  object-fit: cover;\n}</code></pre>\n<h3>3. Streamlined Conversion Pipeline</h3>\n<p>We redesigned the registration form from a multi-field questionnaire into a simple three-input capture block\n(Name, Phone, Target Exam). We also implemented serverless routing via API routes, ensuring student\nregistrations were captured instantly even under poor network conditions.</p>\n<div class=\"highlight-box\">\n<h4>Performance & Business Outcomes</h4>\n<ul>\n<li><strong>Lead growth</strong>: 150% increase in qualified parent and student inquiries.</li>\n<li><strong>Page load speed</strong>: Reduced from 6.4s to 0.8s on 3G connections.</li>\n<li><strong>Lighthouse Score</strong>: 98/100 Mobile Performance.</li>\n<li><strong>Local SEO ranking</strong>: Jumped to page 1 for Pune entrance training keywords.</li>\n</ul>\n</div>\n<h2>SEO and Link Infrastructure</h2>\n<p>Achieving stable search indexation for React applications requires careful meta tag routing. By configuring\ndynamic header mapping and canonical references, we ensured search crawlers read course details correctly. For\ndetails on optimizing client-rendered indexability, review our companion guide on <a href=\"/blog/react-spa-seo\">React SPA SEO Best Practices</a>.</p>\n<p>\nIf you're looking to convert organic traffic into paying customers with speed-remediated custom development,\nlearn more about our <a href=\"/services/custom-website-development\">Custom Website\nDevelopment Service</a> page or reach out to us today to rebuild your website pipeline.\n</p>",
+      "cover_image_alt": "Clean corporate outcomes card for My Design Academia case study on dark background, showing metrics of 150% lead growth and 0.8s load speed.",
+      "seo_title": "Case Study: Rebuilding My Design Academia for 150% Lead Growth",
+      "seo_description": "Read the case study of My Design Academia's website rebuild. Discover how bespoke React engineering and speed optimization delivered a 150% boost in student leads.",
+      "og_image_url": null,
+      "category": "Case Studies",
+      "tags": [
+        "My Design Academia Case Study",
+        "Conversion Optimization",
+        "React Web Development Pune",
+        "SEO Results"
+      ],
+      "reading_minutes": 3,
+      "word_count": 615,
+      "seo_plan": {
+        "targetQuery": "my design academia conversion optimized site",
+        "secondaryQueries": [
+          "design entrance coaching pune website",
+          "conversion optimized website engineering"
+        ],
+        "cluster": "Case Studies",
+        "track": "2",
+        "type": "spoke",
+        "audience": "client",
+        "intent": "commercial",
+        "depth": "E",
+        "internalLinksTo": [
+          "react-spa-seo"
+        ],
+        "internalLinksFrom": [
+          "why-custom-code-vs-wordpress"
+        ],
+        "servicePageLink": "https://www.pizzascript.com/services/custom-website-development"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "90205b16-c177-5f6f-acca-e1f1714d72f7",
+      "cluster_id": "case-studies",
+      "track": 2,
+      "role": "spoke",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/custom-website-development",
+        "audience": "client",
+        "depth": "E"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "41d7c145-5881-5dc8-a21b-3731ef39a1b9",
+      "slug": "case-study-orion-pharma",
+      "status": "published",
+      "title": "Case Study: Secure High-Uptime Build for Orion Pharma India",
+      "excerpt": "How we engineered a secure, static corporate presence for a leading Indian pharmaceutical exporter with zero database vulnerabilities.",
+      "body_html": "<p>Building a static corporate presence for Orion Pharma India achieved 100% uptime and eliminated vulnerability\nrisks by replacing dynamic database routing with static site architecture. Serving pre-compiled HTML directly\nfrom edge nodes reduced Time to First Byte (TTFB) to 45 milliseconds across global distribution hubs.</p>\n<p>Orion Pharma India, established in 2017, is a leading pharmaceutical exporter specializing in critical care,\noncology, gynecology, and human infertility medicines. As a pharmaceutical partner dealing with global\ndistributors, their digital platform requires high uptime and security. Their previous hosting setup suffered\nfrom frequent database crashes under high query loads, exposing them to potential data access attempts and\nsecurity flags.</p>\n<h2>The Challenge: Security Risks & Load Latency</h2>\n<p>Pharmaceutical business pages are frequent targets for injection attacks and spam scripts. The institute's\nprevious database-backed platform required regular security patches and plugin updates to remain safe.\nFurthermore, load latency for overseas distributors accessing the site from slow networks was causing them to\nlose prospective partnerships.</p>\n<p>We audited their infrastructure and identified key risk areas:</p>\n<ul>\n<li><strong>Database Vulnerabilities</strong>: Dynamic endpoints allowed potential SQL injection entry points.\n</li>\n<li><strong>Server Crash Under Traffic</strong>: Simultaneous database queries from dynamic inquiries clogged\nserver memory.</li>\n<li><strong>Slow Global Load Times</strong>: High latency for overseas partners due to server distance.</li>\n</ul>\n<h2>Our Solution: Jamstack Static Architecture</h2>\n<p>To address security and performance concerns, we rebuilt the entire platform using a secure Jamstack\narchitecture. We separated the user interface from any backend logic, pre-rendering the site into static HTML\nfiles that are served globally from edge nodes.</p>\n<h3>1. Static Compilation of Product Registries</h3>\n<p>Instead of querying a database for product details on every page request, we pre-compile the product catalog\ninto static JSON files during the build phase. React imports these files directly, removing the need for an\nactive database connection on the frontend:</p>\n<pre><code>// Dynamic catalog mapping at build time\nimport productCatalog from '../data/catalog.json';\n\nexport const ProductRegistry: React.FC = () => {\n  return (\n    &lt;div className=\"product-grid\"&gt;\n      {productCatalog.map((product) => (\n        &lt;div key={product.id} className=\"product-card\"&gt;\n          &lt;h3&gt;{product.name}&lt;/h3&gt;\n          &lt;p&gt;Category: {product.category}&lt;/p&gt;\n          &lt;span&gt;Therapeutic Area: {product.area}&lt;/span&gt;\n        &lt;/div&gt;\n      ))}\n    &lt;/div&gt;\n  );\n};</code></pre>\n<h3>2. Uptime Caching via Cloudflare Edge Routing</h3>\n<p>By hosting the pre-compiled HTML on edge nodes, the site is distributed across global data centers. If one\nserver experiences issues, other nodes handle the requests, ensuring the site remains online:</p>\n<pre><code># Cloudflare edge rule setup segment for custom redirects\n[[redirects]]\n  from = \"/*\"\n  to = \"/index.html\"\n  status = 200\n  force = true</code></pre>\n<h3>3. Secure Inquiries via Serverless Functions</h3>\n<p>To handle distributor inquiries securely without exposing database credentials, we built serverless handler\nfunctions. These functions validate input data and route messages to a secure email server without exposing\naccess keys to the client browser.</p>\n<div class=\"highlight-box\">\n<h4>Performance & Security Outcomes</h4>\n<ul>\n<li><strong>Uptime</strong>: 100% continuous uptime logged over 12 months.</li>\n<li><strong>Security</strong>: Zero vulnerabilities detected during third-party audits.</li>\n<li><strong>Global Speed</strong>: Time to First Byte (TTFB) reduced to 45ms at edge nodes.</li>\n<li><strong>Zero Maintenance</strong>: The static build requires no plugin updates or database monitoring.\n</li>\n</ul>\n</div>\n<h2>Performance Tuning & Optimization</h2>\n<p>Pairing secure architecture with lightweight layout components ensures fast load times across all devices.\nFor a guide on optimizing Vite compilation bundles and code splitting, see our article, <a href=\"/blog/optimize-react-performance\">How to Optimize React Website Performance</a>.</p>\n<p>\nWe build secure, high-performance web platforms for growing businesses. Learn more about our maintenance plans\non our <a href=\"/services/website-maintenance\">Website Maintenance Service</a> page, or\nreach out to our team to discuss your project.\n</p>",
+      "cover_image_alt": "Clean editorial results card for Orion Pharma India case study on charcoal background showing 100% uptime and sub-second load times.",
+      "seo_title": "Case Study: Secure High-Uptime Build for Orion Pharma India",
+      "seo_description": "Read the case study of Orion Pharma India's website build. Discover how our custom static engineering achieved 100% uptime and secure global asset delivery.",
+      "og_image_url": null,
+      "category": "Case Studies",
+      "tags": [
+        "Orion Pharma India Case Study",
+        "Static Site Architecture",
+        "Uptime Performance",
+        "Security Audit"
+      ],
+      "reading_minutes": 3,
+      "word_count": 548,
+      "seo_plan": {
+        "targetQuery": "orion pharma india corporate website build",
+        "secondaryQueries": [
+          "pharma exporter corporate website security",
+          "static site uptime hosting architecture"
+        ],
+        "cluster": "Case Studies",
+        "track": "2",
+        "type": "spoke",
+        "audience": "client",
+        "intent": "commercial",
+        "depth": "E",
+        "internalLinksTo": [
+          "optimize-react-performance"
+        ],
+        "internalLinksFrom": [],
+        "servicePageLink": "https://www.pizzascript.com/services/website-maintenance"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "343c83b1-94e3-5bea-a2e4-39e918289e17",
+      "cluster_id": "case-studies",
+      "track": 2,
+      "role": "spoke",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/website-maintenance",
+        "audience": "client",
+        "depth": "E"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "da548193-29fa-5916-a9b3-9152a54f1285",
+      "slug": "cloudflare-vs-vercel",
+      "status": "published",
+      "title": "Cloudflare Pages vs Vercel: React Hosting Comparison",
+      "excerpt": "A technical hosting comparison between Cloudflare Pages and Vercel, evaluating routing latency, middleware, and build setups.",
+      "body_html": "<p>Cloudflare Pages serves static React assets directly from edge data centers without routing requests through\ncentralized serverless middleware, reducing global Time to First Byte (TTFB) to under 50 milliseconds. Vercel\nremains a strong option for SSR applications due to its optimized serverless integration, but it can introduce\ncold start latency for static sites.</p>\n<p>Choosing a hosting provider for your React application is key to maintaining fast load times. While legacy\nshared servers are slow, modern serverless platforms like Cloudflare Pages and Vercel offer global\ndistribution. However, they manage assets and routing differently, which affects loading speed and operational\ncosts.</p>\n<h2>1. Architecture and Asset Caching</h2>\n<p>Cloudflare Pages is built on Cloudflare's global edge CDN network, which includes data centers in over 300\ncities worldwide. When you deploy a static React site to Cloudflare Pages, your assets are distributed\ndirectly to all edge locations, allowing users to download them from the nearest node with minimal latency.\n</p>\n<p>Vercel relies on centralized server clusters (typically AWS regions like us-east-1) and routes requests\nthrough its own Edge Network. While static files are cached at edge locations, cache misses require routing\nrequests back to the primary server cluster, which can introduce routing delays for global users.</p>\n<h2>2. Configuring Client-Side Routing (SPAs)</h2>\n<p>To host a React Single Page Application (SPA) that uses client-side routing (like\n<code>react-router-dom</code>), you must configure your hosting provider to redirect all requests to your\nentry file (<code>index.html</code>). If you don't set this up, refreshing the page on a sub-route will return\na 404 error.</p>\n<p>You can configure these routing rewrites by adding a configuration file to your project root:</p>\n<pre><code>// For Cloudflare Pages: Create a '_redirects' file in the public build folder\n/*  /index.html  200\n\n// For Vercel: Create a 'vercel.json' file in the project root\n{\n  \"rewrites\": [\n    { \"source\": \"/(.*)\", \"destination\": \"/index.html\" }\n  ]\n}</code></pre>\n<p>Both setups ensure that routing requests are handled by the React application in the browser, preventing\nserver-side 404 errors and keeping navigation seamless for visitors.</p>\n<div class=\"highlight-box\">\n<h4>Vercel vs. Cloudflare Pages Matrix</h4>\n<ul>\n<li><strong>Global Edge Network</strong>: Cloudflare (Direct edge distribution) vs. Vercel (Edge cache with\nregional origins).</li>\n<li><strong>Serverless Cost Limits</strong>: Cloudflare Pages (Unlimited free requests) vs. Vercel\n(Usage-based limits).</li>\n<li><strong>React SPA Routing</strong>: Configured via <code>_redirects</code> (Cloudflare) vs.\n<code>vercel.json</code> (Vercel).</li>\n<li><strong>Build Performance</strong>: Vercel (Fast build triggers) vs. Cloudflare (Slightly slower build\nqueues).</li>\n</ul>\n</div>\n<h2>3. Choosing the Right Provider: Decision Tree</h2>\n<p>Use this decision framework to select the right hosting path for your application:</p>\n<pre><code>Does your React application require dynamic server-side rendering (SSR)?\n  ├── YES ──> Choose Vercel (Optimized for dynamic Node runtimes)\n  └── NO\n       └── Do you require global caching with no serverless request limits?\n            ├── YES ──> Choose Cloudflare Pages (Static Edge Caching)\n            └── NO  ──> Vercel (Jamstack pipeline)</code></pre>\n<p>For statically generated React sites, Cloudflare Pages offers a fast, cost-effective hosting solution. For a\nguide on optimizing your Vite build bundles before deploying to either platform, see our article, <a href=\"/blog/optimize-react-performance\">How to Optimize React Website Performance</a>.</p>\n<p>\nWe build optimized, edge-hosted websites that load instantly. Learn more about our web engineering\ncapabilities on our <a href=\"/services/custom-website-development\">Custom Website\nDevelopment Service</a> page, or contact us to discuss your hosting strategy.\n</p>",
+      "cover_image_alt": "Technical visual comparison layout comparing Cloudflare global network edge routing against Vercel serverless build integrations.",
+      "seo_title": "Cloudflare Pages vs Vercel: React Hosting Comparison",
+      "seo_description": "Read our technical comparison of Cloudflare Pages vs Vercel hosting. Compare serverless edge routing, build configurations, and hosting options for React.",
+      "og_image_url": null,
+      "category": "Deployment & Infrastructure",
+      "tags": [
+        "Cloudflare Pages",
+        "Vercel Hosting",
+        "React Deployments",
+        "Edge Middleware"
+      ],
+      "reading_minutes": 3,
+      "word_count": 515,
+      "seo_plan": {
+        "targetQuery": "cloudflare vs vercel hosting comparison",
+        "secondaryQueries": [
+          "react router hosting cloudflare pages rewrite",
+          "vercel serverless functions edge middleware"
+        ],
+        "cluster": "Deployment & Infrastructure",
+        "track": "1",
+        "type": "spoke",
+        "audience": "both",
+        "intent": "informational",
+        "depth": "D",
+        "internalLinksTo": [
+          "optimize-react-performance"
+        ],
+        "internalLinksFrom": [],
+        "servicePageLink": "https://www.pizzascript.com/services/custom-website-development"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "779ac81b-0eb1-5aa5-a114-8b199649605a",
+      "cluster_id": "deployment",
+      "track": 1,
+      "role": "spoke",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/custom-website-development",
+        "audience": "both",
+        "depth": "D"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "5a56cc4d-f855-5531-a7ae-69d672aa0b5a",
+      "slug": "custom-web-development-pune",
+      "status": "published",
+      "title": "Custom Web Development in Pune — Why Custom React Beats Template Page Builders",
+      "excerpt": "Custom-engineered React websites load in under 1 second, transforming slow page-builder templates into high-converting customer acquisition channels for Pune businesses.",
+      "body_html": "<p>A website that takes five seconds to load on a mobile device loses over 40% of its visitors before the first pixel even renders. For businesses seeking a custom web development company in Pune, choosing between a bloated WordPress template and custom-engineered React code is a direct choice between user leakage and conversion growth.</p>\n<p>Pune has grown into a hub for tech companies, SaaS startups, and high-growth manufacturing firms. Yet, many local businesses still rely on generic page builders (like Elementor or Divi) to establish their digital presence. While these builders allow rapid assembly, they compile layers of nested divs and duplicate scripts that overload mobile browsers. A custom frontend engineered with React and TypeScript eliminates this bloat, rendering instantly on any mobile connection.</p>\n<h2>1. The Mathematics of Site Speed and Customer Lead Leakage</h2>\n<p>Page speed is not a vanity metric; it is a financial driver. When users click an ad or a local organic search listing, they expect immediate feedback. Every millisecond of delay increases user frustration, leading to high bounce rates and wasted marketing spend.</p>\n<p>The correlation between page speed and conversion is well-documented. According to performance audits, a site loading in under 1 second converts at three times the rate of a site taking 5 seconds. In Pune's competitive commercial landscape, local companies targeting keywords like <code>custom web development company pune</code> need high-performance frontends to capture leads before they bounce to competitors.</p>\n<pre><code>[Page Load Time] ──> [Conversion Result]\n  ├── 0.8 seconds  ──> 7.9% Conversion Rate (High Customer Trust)\n  ├── 3.0 seconds  ──> 3.2% Conversion Rate (User Leakage Starts)\n  └── 5.2 seconds  ──> 1.1% Conversion Rate (40%+ Traffic Bounced)</code></pre>\n<p>For a business generating 10,000 monthly visits, shifting from a 5.2-second load time to a custom-engineered 0.8-second load time can lift monthly customer leads from 110 to 790 without increasing ad spend. Custom React builds achieve this by optimizing the Critical Rendering Path, ensuring content renders instantly.</p>\n<h2>2. DOM Bloat: The Core Technical Bottleneck of Visual Page Builders</h2>\n<p>Why do WordPress and template site builders perform so poorly on mobile devices? The answer lies in how visual builders construct layouts. To allow non-technical editing, builders generate highly nested container trees (known as DOM bloat) to wrap basic headings and paragraphs.</p>\n<p>When a mobile browser downloads a page, the device’s CPU must parse and compile this HTML tree into a DOM structure. If the DOM tree exceeds 1,500 nodes, low-end mobile processors choke. This causes thread blocking, rendering delays, and jerky touch scrolling.</p>\n<pre><code>&lt;!-- Bloated WordPress Builder Structure for a single Call-to-Action button --&gt;\n&lt;div class=\"elementor-element elementor-widget elementor-widget-button\"&gt;\n  &lt;div class=\"elementor-widget-container\"&gt;\n    &lt;div class=\"elementor-button-wrapper\"&gt;\n      &lt;a href=\"/contact\" class=\"elementor-button-link elementor-size-md\"&gt;\n        &lt;span class=\"elementor-button-content-wrapper\"&gt;\n          &lt;span class=\"elementor-button-text\"&gt;Get Started&lt;/span&gt;\n        &lt;/span&gt;\n      &lt;/a&gt;\n    &lt;/div&gt;\n  &lt;/div&gt;\n&lt;/div&gt;\n\n&lt;!-- Semantic Custom React / HTML equivalent --&gt;\n&lt;a href=\"/contact\" class=\"btn-primary\"&gt;Get Started&lt;/a&gt;</code></pre>\n<p>Bespoke React structures contain only the semantic elements needed to style and run the component. By discarding visual wrapper divs, a custom-coded page reduces total DOM size by over 70%, allowing instant render speeds on mobile devices.</p>\n<h2>3. Case Study: Rebuilding My Design Academia for 150% Lead Growth</h2>\n<p>The differences between templates and custom code are demonstrated in our rebuild of <strong>My Design Academia</strong>, a design education studio based in Pune. Their original site was built on WordPress and Elementor. It suffered from slow mobile speeds, taking over 6 seconds to load, and had a low search engine visibility.</p>\n<p>We replaced their entire template setup with a custom React frontend, compiling static assets with Vite and hosting them on edge CDNs. The results were immediate:</p>\n<div class=\"highlight-box\">\n<h4>Performance Upgrade Metrics: My Design Academia</h4>\n<ul>\n<li><strong>Lighthouse Mobile Score</strong>: Lifted from 32 (Red) to 98 (Green).</li>\n<li><strong>Mobile Page Load Time</strong>: Dropped from 6.4 seconds to 0.9 seconds.</li>\n<li><strong>Total DOM Nodes</strong>: Reduced from 2,130 nodes to 410 nodes.</li>\n<li><strong>Business Outcome</strong>: A 150% increase in student enrollment leads in the first month post-launch.</li>\n</ul>\n</div>\n<p>By optimizing the mobile load speed, the site ranked higher on local Pune searches and kept organic visitors on the page, transforming search traffic into active customer inquiries. Read the full details in our <a href=\"/blog/case-study-my-design-academia\">My Design Academia Case Study</a>.</p>\n<h2>4. The Hidden Costs of Template Maintenance: Plugins, Security, and Edge Caching</h2>\n<p>Visual page builders often appear cost-effective initially. However, long-term maintenance costs tell a different story. Templates rely on multiple third-party plugins to support simple features like contact forms, SEO markup, image compression, and caching.</p>\n<p>This reliance creates a complex dependency system. Every new plugin introduces security vulnerabilities and code conflicts. In contrast, custom React applications rely on direct frontend compilation. By encoding logic into the component structure, custom builds require zero security or caching plugins, ensuring a secure and stable build.</p>\n<h3>Static Site Generation (SSG) and Edge CDN Delivery</h3>\n<p>Traditional CMS sites require a database lookup every time a user visits a page. This server-side execution increases load times under heavy traffic. Custom React builds pre-render pages into static HTML files during compilation. These static files are distributed to global edge CDNs, allowing visitors to load the site from the closest edge server instantly.</p>\n<h2>5. A Technical Checklist for Pune Businesses Choosing a Web Development Partner</h2>\n<p>When evaluating a web design company in Pune, look beyond mockups. Ask technical questions to ensure your website is built for speed and conversions:</p>\n<ul>\n<li><strong>What is the target mobile DOM size?</strong> If the partner cannot answer, or says over 1,500, they are using bloated page templates.</li>\n<li><strong>How is the CSS compiled?</strong> Look for partners using modern utility frameworks like Tailwind CSS, which compile only the styles actually used, keeping file sizes light.</li>\n<li><strong>Is the site statically pre-rendered?</strong> Ensure the site is built using static compilation (Vite static export or Next.js static generation) to deliver pages instantly from global CDNs.</li>\n</ul>\n<p>\nAt Pizzascript, we build custom, high-converting websites for businesses. Learn more about our custom engineering on our <a href=\"/services/custom-website-development\">Custom Website Development Service</a> page or read our React vs. Next.js Framework Comparison to see which tech stack fits your project.\n</p>",
+      "cover_image_alt": "A side-by-side comparison scorecard on a dark chocolate background comparing page load speeds and business conversions: a 5.2s load speed leads to poor conversions, while a custom-engineered 0.8s load speed leads to a +150% increase in customer leads.",
+      "seo_title": "Custom Web Development in Pune — Why Custom React Beats Templates",
+      "seo_description": "Looking for a custom web development company in Pune? Learn why bespoke React and TypeScript builds outperform slow WordPress templates and drive customer conversions.",
+      "og_image_url": null,
+      "category": "Web Development & Custom Builds",
+      "tags": [
+        "Custom Web Development Company Pune",
+        "React Development Agency India",
+        "Bespoke Web Design Pune",
+        "Page Speed Conversion"
+      ],
+      "reading_minutes": 5,
+      "word_count": 978,
+      "seo_plan": {
+        "targetQuery": "custom web development company pune",
+        "secondaryQueries": [
+          "web design company pune",
+          "react development agency india"
+        ],
+        "cluster": "Web Development & Custom Builds",
+        "track": "2",
+        "type": "pillar",
+        "audience": "client",
+        "intent": "commercial",
+        "depth": "A",
+        "internalLinksTo": [
+          "react-vs-nextjs-for-business",
+          "case-study-my-design-academia"
+        ],
+        "internalLinksFrom": [
+          "react-vs-nextjs-for-business",
+          "react-development-cost-india"
+        ],
+        "servicePageLink": "https://www.pizzascript.com/services/custom-website-development"
+      },
+      "published_at": "2026-07-27T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "bc75a5b8-15c0-526d-aa99-90d6ce729760",
+      "cluster_id": "custom-builds",
+      "track": 2,
+      "role": "pillar",
+      "stage": "live",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": null,
+      "approved_at": "2026-07-27T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/custom-website-development",
+        "audience": "client",
+        "depth": "A"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "3644928a-c11b-5091-a4cd-f710a403e5f7",
+      "slug": "gsap-scrolltrigger-react",
+      "status": "published",
+      "title": "How to Implement GSAP ScrollTrigger in React Safely",
+      "excerpt": "Failing to clean up GSAP ScrollTrigger animations on component unmount causes scroll collision bugs and severe browser memory leaks. Here is the fix.",
+      "body_html": "<p>Failing to clean up GSAP ScrollTrigger animations during React component unmount cycles leaves orphaned\ntrigger event listeners in memory, causing severe scroll lag and layout calculation conflicts. Using GSAP's\ncontext scoping API ensures that all animation triggers are disposed of automatically when a component\nunmounts.</p>\n<p>React's component lifecycle conflicts with GSAP's animation updates. React creates and destroys DOM nodes\ndynamically, while GSAP targets elements directly on the DOM and attaches event listeners to window scroll\nevents. If React destroys an element but GSAP continues to track its scroll position, the browser throws\nlayout errors, causing animation glitches and memory leaks.</p>\n<h2>1. The React Animation Cleanup Problem</h2>\n<p>In vanilla JavaScript, you initialize animations directly and clean them up manually. In React, you must\nmanage animations within component lifecycles using the <code>useLayoutEffect</code> hook. This hook executes\nsynchronously after DOM mutations but before the browser paints the screen, preventing animation flash.</p>\n<p>To ensure clean garbage collection, we use <code>gsap.context()</code>. This helper groups all GSAP\nanimations created within a specific component scope, making it easy to revert and clean up all animations in\na single function call:</p>\n<pre><code>import React, { useLayoutEffect, useRef } from 'react';\nimport { gsap } from 'gsap';\nimport { ScrollTrigger } from 'gsap/ScrollTrigger';\n\ngsap.registerPlugin(ScrollTrigger);\n\nexport const AnimatedHero: React.FC = () => {\n  const containerRef = useRef&lt;HTMLDivElement&gt;(null);\n\n  useLayoutEffect(() => {\n    // Initialize GSAP Context scope\n    const ctx = gsap.context(() => {\n      \n      gsap.from('.fade-item', {\n        opacity: 0,\n        y: 50,\n        stagger: 0.2,\n        scrollTrigger: {\n          trigger: '.fade-item',\n          start: 'top 80%',\n          end: 'bottom 20%',\n          scrub: true\n        }\n      });\n      \n    }, containerRef); // Scope selectors to this container ref only\n\n    // Clean up all animations on unmount\n    return () => ctx.revert();\n  }, []);\n\n  return (\n    &lt;div ref={containerRef} className=\"hero-container\"&gt;\n      &lt;h1 className=\"fade-item\"&gt;High Performance Animations&lt;/h1&gt;\n      &lt;p className=\"fade-item\"&gt;Smooth, layout-safe transitions.&lt;/p&gt;\n    &lt;/div&gt;\n  );\n};</code></pre>\n<p>Defining `containerRef` as the context scope ensures that GSAP only selects sub-elements within this\ncomponent. This avoids selecting components on other pages, which can cause target errors. The return function\ncalls <code>ctx.revert()</code>, removing all scroll listeners and restoring elements to their pre-animated\nstates.</p>\n<h2>2. Handling React's Strict Mode Double Mount</h2>\n<p>In development mode, React's Strict Mode mounts components, unmounts them, and remounts them immediately to\ndetect side effects and memory leaks. If you do not configure cleanup correctly, your scroll triggers will\ninitialize twice, causing animations to overlap and trigger at the wrong scroll positions.</p>\n<p>Because `ctx.revert()` runs on unmount, it handles this double-mounting process automatically. This keeps\nyour development and production environments consistent and prevents rendering conflicts.</p>\n<div class=\"highlight-box\">\n<h4>Best Practices for GSAP in React</h4>\n<ul>\n<li>Always use <code>useLayoutEffect</code> instead of <code>useEffect</code> to prevent animation layout\nshifts.</li>\n<li>Scope selectors using <code>gsap.context(..., containerRef)</code>.</li>\n<li>Always return a cleanup function that calls <code>ctx.revert()</code>.</li>\n<li>Do not animate CSS properties that trigger browser layout cycles (like <code>top</code>,\n<code>left</code>, or <code>margin</code>). Use hardware-accelerated transforms (like <code>x</code>,\n<code>y</code>, and <code>scale</code>).</li>\n</ul>\n</div>\n<h2>3. Re-calculating Triggers on Layout Changes</h2>\n<p>If your application content loads dynamically (like fetching data or rendering conditional components), the\npage height changes. This invalidates GSAP's scroll position calculations, causing triggers to fire at the\nwrong scroll positions.</p>\n<p>To fix this, call <code>ScrollTrigger.refresh()</code> whenever your component state changes or new data is\nrendered, ensuring GSAP recalculates trigger positions based on the updated document layout.</p>\n<p>For more advanced interaction configurations, smooth scroll libraries can improve performance. Learn how to\ncombine GSAP with smooth scrolling in our companion guide, <a href=\"/blog/lenis-smooth-scroll-react\">Lenis\nSmooth Scroll React Integration Guide</a>.</p>\n<p>\nIf you're looking to build an interactive digital experience, we can help. Learn more about our custom work on\nour <a href=\"/services/custom-website-development\">Custom Website Development\nService</a> page, or contact us to discuss your design.\n</p>",
+      "cover_image_alt": "Technical visual of React component timeline showing animation initialization in mount and garbage collection cleanup in unmount.",
+      "seo_title": "How to Implement GSAP ScrollTrigger in React Safely",
+      "seo_description": "Learn how to implement GSAP ScrollTrigger in React. Prevent memory leaks, handle element references, and manage animation cleanup with clean code examples.",
+      "og_image_url": null,
+      "category": "Scroll, Animation & Interactive",
+      "tags": [
+        "GSAP ScrollTrigger",
+        "React Lifecycle",
+        "gsap.context",
+        "Animation Cleanup"
+      ],
+      "reading_minutes": 3,
+      "word_count": 587,
+      "seo_plan": {
+        "targetQuery": "how to implement gsap scrolltrigger react",
+        "secondaryQueries": [
+          "gsap react context cleanup memory leak",
+          "scrolltrigger react lifecycle animation bug"
+        ],
+        "cluster": "Scroll, Animation & Interactive",
+        "track": "1",
+        "type": "spoke",
+        "audience": "both",
+        "intent": "informational",
+        "depth": "A",
+        "internalLinksTo": [
+          "lenis-smooth-scroll-react"
+        ],
+        "internalLinksFrom": [],
+        "servicePageLink": "https://www.pizzascript.com/services/custom-website-development"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "6f864362-b82b-5c35-aa91-aab2ac274a90",
+      "cluster_id": "scroll-motion",
+      "track": 1,
+      "role": "spoke",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/custom-website-development",
+        "audience": "both",
+        "depth": "A"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "3830c0ee-2995-57e8-abbb-d7d83c41a881",
+      "slug": "lenis-smooth-scroll-react",
+      "status": "published",
+      "title": "Lenis Smooth Scroll React Integration Guide",
+      "excerpt": "A step-by-step guide to integrating Lenis smooth scroll in React applications, with full code for syncing GSAP ScrollTrigger.",
+      "body_html": "<p>Integrating Lenis smooth scroll into React layouts using requestAnimationFrame hooks prevents scroll stutter\nwhile keeping animations synced with hardware refresh rates. This lightweight setup provides fluid scrolling\ndynamics without breaking native keyboard navigation or accessibility features.</p>\n<p>Smooth scrolling enhances the feel of modern websites, but many legacy libraries override native browser\nscrolling completely. This \"scroll hijacking\" often breaks keyboard shortcuts, blocks reader accessibility\nsettings, and causes layout jumps. Lenis avoids these issues by working with the browser's native scroll\nmechanics rather than overriding them, offering a lightweight, accessible smooth scroll solution.</p>\n<h2>1. Initializing Lenis in React Context</h2>\n<p>To implement smooth scrolling across your application, initialize Lenis inside a global context wrapper or\nlayout component. We run this setup within a <code>useEffect</code> hook, configuring the\nrequestAnimationFrame render loop to update the scroll position on every frame:</p>\n<pre><code>import React, { useEffect, useRef } from 'react';\nimport Lenis from '@studio-freight/lenis';\n\nexport const SmoothScrollProvider: React.FC&lt;{ children: React.ReactNode }&gt; = ({ children }) => {\n  const lenisRef = useRef&lt;Lenis | null&gt;(null);\n\n  useEffect(() => {\n    // Initialize Lenis with custom smooth properties\n    const lenis = new Lenis({\n      duration: 1.2,\n      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),\n      orientation: 'vertical',\n      gestureOrientation: 'vertical',\n      smoothWheel: true,\n      wheelMultiplier: 1\n    });\n\n    lenisRef.current = lenis;\n\n    // Set up requestAnimationFrame render loop\n    function raf(time: number) {\n      lenis.raf(time);\n      requestAnimationFrame(raf);\n    }\n\n    requestAnimationFrame(raf);\n\n    // Clean up instance on unmount\n    return () => {\n      lenis.destroy();\n    };\n  }, []);\n\n  return &lt;&gt;{children}&lt;/&gt;;\n};</code></pre>\n<p>This layout wrapper initializes Lenis globally, applying smooth scroll dynamics to all child components and\nautomatically cleaning up the animation instance when the layout unmounts.</p>\n<h2>2. Syncing Lenis with GSAP ScrollTrigger</h2>\n<p>If you use GSAP ScrollTrigger animations alongside smooth scrolling, you must link the two libraries. If you\ndon't sync them, GSAP will calculate trigger positions based on the browser's raw scroll state while Lenis\nrenders smooth visual interpolations, causing animations to lag or jump.</p>\n<p>You can sync them by configuring ScrollTrigger to listen directly to Lenis's scroll updates:</p>\n<pre><code>import { gsap } from 'gsap';\nimport { ScrollTrigger } from 'gsap/ScrollTrigger';\n\ngsap.registerPlugin(ScrollTrigger);\n\n// Connect Lenis updates directly to GSAP ScrollTrigger\nlenis.on('scroll', ScrollTrigger.update);\n\n// Configure GSAP to use Lenis for scroll mapping\nScrollTrigger.scrollerProxy(document.body, {\n  scrollTop(value) {\n    return arguments.length ? lenis.scrollTo(value, { immediate: true }) : lenis.scroll;\n  },\n  getBoundingClientRect() {\n    return {\n      top: 0,\n      left: 0,\n      width: window.innerWidth,\n      height: window.innerHeight\n    };\n  },\n  pinType: document.body.style.transform ? \"transform\" : \"fixed\"\n});</code></pre>\n<p>This integration binds GSAP's layout calculations directly to Lenis's smooth scrolling values, ensuring\nanimations trigger smoothly and match the user's scroll speed precisely.</p>\n<div class=\"highlight-box\">\n<h4>Lenis Integration Checklist</h4>\n<ul>\n<li>Always clean up the Lenis instance by calling <code>lenis.destroy()</code> on unmount.</li>\n<li>Set up `ScrollTrigger.update` inside the scroll event callback to prevent animation lag.</li>\n<li>Ensure the root document elements do not have conflicting <code>overflow: hidden</code> rules in CSS.\n</li>\n</ul>\n</div>\n<h2>3. Accessibility & Native Navigation</h2>\n<p>Lenis maintains browser accessibility features out of the box. Keyboards, mouse wheels, and touchpads trigger\nsmooth scroll animations naturally, keeping the user experience consistent across all inputs.</p>\n<p>For more details on managing GSAP lifecycles within React component mounts, review our guide, <a href=\"/blog/gsap-scrolltrigger-react\">How to Implement GSAP ScrollTrigger in React Safely</a>.</p>\n<p>\nWe build fluid, interactive web experiences that prioritize speed and accessibility. Learn more about our web\ndesign services on our <a href=\"/services/custom-website-development\">Custom Website\nDevelopment Service</a> page, or contact our team to discuss your project.\n</p>",
+      "cover_image_alt": "Technical visual of render frame loop showing smooth scrolling interpolation steps synced with GSAP updates.",
+      "seo_title": "Lenis Smooth Scroll React Integration Guide",
+      "seo_description": "Learn how to integrate Lenis smooth scroll in React. Sync scroll triggers, optimize render loops, and maintain accessibility metrics.",
+      "og_image_url": null,
+      "category": "Scroll, Animation & Interactive",
+      "tags": [
+        "Lenis Smooth Scroll",
+        "React Animation",
+        "GSAP ScrollTrigger Sync",
+        "Render Loop"
+      ],
+      "reading_minutes": 3,
+      "word_count": 543,
+      "seo_plan": {
+        "targetQuery": "lenis smooth scroll react integration guide",
+        "secondaryQueries": [
+          "smooth scrolling react lenis implementation",
+          "sync gsap scrolltrigger lenis"
+        ],
+        "cluster": "Scroll, Animation & Interactive",
+        "track": "1",
+        "type": "spoke",
+        "audience": "both",
+        "intent": "informational",
+        "depth": "A",
+        "internalLinksTo": [
+          "gsap-scrolltrigger-react"
+        ],
+        "internalLinksFrom": [],
+        "servicePageLink": "https://www.pizzascript.com/services/custom-website-development"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "9defd22b-264c-51de-ac3c-1dc9ebff3c29",
+      "cluster_id": "scroll-motion",
+      "track": 1,
+      "role": "spoke",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/custom-website-development",
+        "audience": "both",
+        "depth": "A"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "2c6a9a95-8364-5fb9-abee-5146ee1900a5",
+      "slug": "optimize-react-performance",
+      "status": "published",
+      "title": "How to Optimize React Website Performance (Lighthouse Remediation)",
+      "excerpt": "React applications built on standard Vite setups frequently score below 50 on mobile Lighthouse audits. Here is exactly how to split your bundles and achieve sub-second loads.",
+      "body_html": "<p>React applications built on standard Vite setups frequently score below 50 on mobile Lighthouse audits. This\nperformance lag is rarely caused by React's rendering engine itself. Instead, it stems from default bundler\nconfigurations that generate oversized JavaScript chunks, blocking the browser's main thread and driving Total\nBlocking Time (TBT) into red metrics.</p>\n<p>When you run <code>npm run build</code> in a standard Vite configuration, the bundler compiles all your\ndependencies into a single, massive <code>index-[hash].js</code> file. On high-bandwidth desktop connections,\nthis file loads quickly. However, on mobile networks, downloading and parsing a 500KB bundle delays the First\nContentful Paint (FCP) and stalls interactivity. We can fix this by introducing dynamic code splitting, custom\nasset mapping, and strict rendering controls.</p>\n<h2>1. The Vite Bundle Problem: Splitting Vendor Chunks</h2>\n<p>A key source of React application bloat is the inclusion of heavy third-party packages (like React DOM,\nRouter, or animation libraries) inside the primary application bundle. When a user lands on your home page,\nthey do not need to download the code for your entire app. They only require the dependencies that render that\nspecific screen.</p>\n<p>We can modify Vite's build settings to separate third-party vendor dependencies into distinct cached chunks.\nThis is achieved by editing <code>vite.config.ts</code> and configuring Rollup's manual chunking options:</p>\n<pre><code>import { defineConfig } from 'vite';\nimport react from '@vitejs/plugin-react';\n\nexport default defineConfig({\n  plugins: [react()],\n  build: {\n    rollupOptions: {\n      output: {\n        manualChunks(id) {\n          // Group third-party node_modules dependencies\n          if (id.includes('node_modules')) {\n            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {\n              return 'vendor-core';\n            }\n            if (id.includes('gsap') || id.includes('lenis')) {\n              return 'vendor-motion';\n            }\n            return 'vendor-libs';\n          }\n        }\n      }\n    },\n    chunkSizeWarningLimit: 600\n  }\n});</code></pre>\n<p>This configuration divides your compiled application assets into logical modules. Core library components\n(React and React Router) compile into <code>vendor-core.js</code>, scroll libraries (GSAP, Lenis) compile into\n<code>vendor-motion.js</code>, and all other lightweight libraries fall into <code>vendor-libs.js</code>. The\nbrowser can download these modules in parallel and cache them cache-control headers, ensuring repeat visits do\nnot download unchanged dependencies.</p>\n<h2>2. Dynamic Routing & Component Lazy Loading</h2>\n<p>Splitting your vendor modules resolves library bloat, but your main application code still needs to be\nchunked. Every page route in your application should be loaded on demand. By default, importing routes\nstatically bundles every component into one script. We can replace this with React's native lazy loading API.\n</p>\n<p>The code below demonstrates how to configure your router so that users only request route-specific assets\nwhen navigating to that URL path:</p>\n<pre><code>import React, { Suspense, lazy } from 'react';\nimport { BrowserRouter as Router, Routes, Route } from 'react-router-dom';\n\n// Lazy load layout and page components\nconst Home = lazy(() => import('./pages/Home'));\nconst Services = lazy(() => import('./pages/Services'));\nconst CaseStudies = lazy(() => import('./pages/CaseStudies'));\n\nconst LoadingFallback = () => (\n  &lt;div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}&gt;\n    &lt;span&gt;Loading...&lt;/span&gt;\n  &lt;/div&gt;\n);\n\nfunction App() {\n  return (\n    &lt;Router&gt;\n      &lt;Suspense fallback={&lt;LoadingFallback /&gt;}&gt;\n        &lt;Routes&gt;\n          &lt;Route path=\"/\" element={&lt;Home /&gt;} /&gt;\n          &lt;Route path=\"/services\" element={&lt;Services /&gt;} /&gt;\n          &lt;Route path=\"/portfolio\" element={&lt;CaseStudies /&gt;} /&gt;\n        &lt;/Routes&gt;\n      &lt;/Suspense&gt;\n    &lt;/Router&gt;\n  );\n}\n\nexport default App;</code></pre>\n<p>Using dynamic <code>import()</code> statements signals Vite to split each page component into its own chunk\nduring compilation. The browser only fetches the <code>Home.js</code> payload initially. The additional pages\nare retrieved in the background or during link navigation, reducing the initial loading payload by up to 75%.\n</p>\n<h2>3. Core Web Vitals Remediation: CLS, LCP, and TBT</h2>\n<p>While bundle splitting addresses load latency, achieving a 95+ score on Lighthouse requires resolving layout\nstability (Cumulative Layout Shift) and render speeds (Largest Contentful Paint).</p>\n<h3>Cumulative Layout Shift (CLS)</h3>\n<p>Layout shifts occur when the browser downloads assets (like images or dynamic ad blocks) and rearranges the\nsurrounding elements on the screen. To eliminate this, always declare explicit height and width dimensions on\nyour image containers or images:</p>\n<pre><code>&lt;!-- BAD: Causes shift as the image downloads --&gt;\n&lt;img src=\"https://blog.pizzascript.com/images/project.webp\" alt=\"Client Portfolio\" /&gt;\n\n&lt;!-- GOOD: reserves space on the DOM immediately --&gt;\n&lt;img \n  src=\"https://blog.pizzascript.com/images/project.webp\" \n  alt=\"Client Portfolio\" \n  width=\"1200\" \n  height=\"630\" \n  loading=\"lazy\" \n/&gt;</code></pre>\n<h3>Largest Contentful Paint (LCP)</h3>\n<p>Your hero banner image is typically the Largest Contentful Paint target. While lazy loading is recommended\nfor images further down the page, you must not lazy load your hero banner. Instead, prioritize it using the\n<code>fetchpriority</code> attribute:</p>\n<pre><code>&lt;!-- Preload critical LCP banner elements --&gt;\n&lt;img \n  src=\"https://blog.pizzascript.com/images/hero-banner.webp\" \n  alt=\"Hero Background\" \n  width=\"1920\" \n  height=\"1080\" \n  fetchpriority=\"high\" \n/&gt;</code></pre>\n<h3>Total Blocking Time (TBT)</h3>\n<p>TBT measures the duration between page interactivity and user input response. It is directly tied to\nJavaScript compilation times. By loading heavy modules lazily and deferring analytics wrappers (like Google\nTag Manager) until after the main thread is idle, TBT scores can be pushed into the green range (under 150ms).\n</p>\n<div class=\"highlight-box\">\n<h4>Key Performance checklist for React</h4>\n<ul>\n<li>Never import entire icon libraries statically. Use tree-shaken imports.</li>\n<li>Avoid executing complex loops or state changes during the initial mount cycle.</li>\n<li>Compress all visual elements to WebP or AVIF formats.</li>\n</ul>\n</div>\n<h2>4. Production Audits and Bundle Budgeting</h2>\n<p>Never rely on development servers when auditing performance metrics. Development builds contain hot reload\nwrappers and unminified source code maps that increase bundle sizes and skew metrics. Always test production\nbundles locally:</p>\n<pre><code># Build production bundle\nnpm run build\n\n# Serve compiled files locally\nnpx serve -s dist</code></pre>\n<p>Run your Lighthouse audits inside a private/incognito window to ensure extensions or developer caches do not\naffect measurements. Additionally, you should implement the <code>rollup-plugin-visualizer</code> plugin to\nconstantly monitor module sizes and prevent bundle bloat as your codebase grows.</p>\n<p>While optimization seems straightforward, structural routing conflicts and legacy package configurations can\ncomplicate efforts. Achieving search visibility requires pairing speed with indexability, which is why\noptimizing your build pipeline must sit alongside sound search architecture. Learn more about structural\nindexability in our companion article on <a href=\"/blog/react-spa-seo\">React SPA SEO Best Practices</a>.</p>\n<p>\nIf your business is losing conversions and ranking spots due to a slow, bloated website, we can help. At\nPizzascript, we refactor codebases to achieve sub-second speeds. Learn more about our speed remediation\nprocess on our <a href=\"/services/website-speed-optimization\">Website Speed\nOptimization Service</a> page, or contact us directly to schedule a performance audit.\n</p>",
+      "cover_image_alt": "Side-by-side comparison of a website Lighthouse scorecard, demonstrating the before state with a score of 45 (red metrics) and the after state with a score of 98 (green metrics).",
+      "seo_title": "How to Optimize React Website Performance (Lighthouse 95+)",
+      "seo_description": "Learn how to optimize React website performance on Vite. Split your bundles, reduce TBT, fix CLS, and achieve a 95+ Lighthouse score with real code.",
+      "og_image_url": null,
+      "category": "Web Performance Optimization",
+      "tags": [
+        "React Performance",
+        "Vite Bundle Optimization",
+        "Core Web Vitals",
+        "Lighthouse Score"
+      ],
+      "reading_minutes": 5,
+      "word_count": 988,
+      "seo_plan": {
+        "targetQuery": "how to optimize React website performance",
+        "secondaryQueries": [
+          "vite config build bundle optimization",
+          "react lazy loading routes bundle splitting",
+          "reduce total blocking time in react spa"
+        ],
+        "cluster": "Web Performance Optimization",
+        "track": "1",
+        "type": "pillar",
+        "audience": "both",
+        "intent": "informational",
+        "depth": "A",
+        "internalLinksTo": [
+          "react-spa-seo"
+        ],
+        "internalLinksFrom": [],
+        "servicePageLink": "https://www.pizzascript.com/services/website-speed-optimization"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "209b0631-5451-5ef2-adec-639a6104243b",
+      "cluster_id": "performance",
+      "track": 1,
+      "role": "pillar",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/website-speed-optimization",
+        "audience": "both",
+        "depth": "A"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "a6508d5b-4ecb-5649-ab24-386a40f38e02",
+      "slug": "react-spa-seo",
+      "status": "published",
+      "title": "React SPA SEO Best Practices: Indexing Single Page Apps",
+      "excerpt": "Google crawls client-rendered JavaScript applications in a two-stage process that can delay your search indexation by weeks. Here is how to fix it.",
+      "body_html": "<p>Google's indexing process for client-rendered JavaScript applications runs in two stages, delaying the\nindexation of dynamic text elements by up to three weeks while waiting for browser emulation resources. By\npre-rendering your page templates into static HTML assets, you ensure search crawlers access and index your\ncontent instantly.</p>\n<p>Single Page Applications (SPAs) built with React are popular for their fast, fluid user experiences. However,\nbecause they render content on the client side using JavaScript, they present unique challenges for SEO. When\na search engine bot requests a standard client-rendered React site, it receives a blank HTML document\ncontaining a <code>&lt;div id=\"root\"&gt;&lt;/div&gt;</code> and a script bundle. If the bot does not run the\nJavaScript, the page appears empty, resulting in poor search rankings.</p>\n<h2>1. The Two-Wave Indexing Bottleneck</h2>\n<p>Google crawls and indexes websites using a two-stage process. During the first stage, the crawler parses the\nstatic HTML to extract links and build an initial index. If the page is an empty client-rendered shell, Google\nputs it in a queue for the Web Rendering Service (WRS). WRS renders the page using a headless browser to\nexecute the JavaScript, but this rendering queue can delay indexation by weeks.</p>\n<p>To prevent this delay, you must serve fully rendered HTML directly from your server. We have three main\nrendering options:</p>\n<ul>\n<li><strong>Server-Side Rendering (SSR)</strong>: Renders pages on the server for each request. Ideal for\nhighly dynamic sites, but increases hosting costs and server load times.</li>\n<li><strong>Static Site Generation (SSG)</strong>: Compiles React components into static HTML files during the\nbuild build step. Recommended for blogs and marketing portfolios because files can be served instantly from\nglobal edge networks.</li>\n<li><strong>Pre-rendering</strong>: Captures rendered HTML at build time using a headless browser. A\nlightweight alternative to full SSG setups.</li>\n</ul>\n<h2>2. Configuring Dynamic Meta Tags in React</h2>\n<p>To rank in search results, every page needs unique title and description tags. Since React updates these tags\ndynamically in the browser, you need to configure your components to update metadata safely without memory\nleaks. We recommend using the <code>react-helmet-async</code> library:</p>\n<pre><code>import React from 'react';\nimport { Helmet, HelmetProvider } from 'react-helmet-async';\n\ninterface SEOProps {\n  title: string;\n  description: string;\n  slug: string;\n}\n\nexport const SEO: React.FC&lt;SEOProps&gt; = ({ title, description, slug }) => {\n  const canonicalUrl = `https://www.pizzascript.com/blog/${slug}`;\n  \n  return (\n    &lt;HelmetProvider&gt;\n      &lt;Helmet&gt;\n        &lt;title&gt;{title}&lt;/title&gt;\n        &lt;meta name=\"description\" content={description} /&gt;\n        &lt;link rel=\"canonical\" href={canonicalUrl} /&gt;\n        &lt;meta property=\"og:title\" content={title} /&gt;\n        &lt;meta property=\"og:description\" content={description} /&gt;\n        &lt;meta property=\"og:url\" content={canonicalUrl} /&gt;\n      &lt;/Helmet&gt;\n    &lt;/HelmetProvider&gt;\n  );\n};</code></pre>\n<p>Using <code>react-helmet-async</code> ensures that metadata updates are thread-safe and won't conflict during\nconcurrent route changes. When paired with pre-rendering tools, these tags are compiled directly into the\nstatic HTML files, making them immediately readable by search bots.</p>\n<h2>3. Handling Routing and Status Codes</h2>\n<p>Client-side routing (like <code>react-router-dom</code>) presents another challenge: when a user requests a\nroute that does not exist, the router renders a 404 component, but the server still returns a 200 success\nstatus code. Search engines index these \"soft 404\" pages, which can dilute your domain authority.</p>\n<p>To resolve this, configure your hosting provider (Vercel, Cloudflare, Netlify) to rewrite routing requests to\nthe entry point (<code>index.html</code>) and manage status codes at the edge:</p>\n<pre><code>// vercel.json rewrite configuration to support client-side routing\n{\n  \"rewrites\": [\n    { \"source\": \"/(.*)\", \"destination\": \"/index.html\" }\n  ]\n}</code></pre>\n<div class=\"highlight-box\">\n<h4>Technical SEO Checklist for React SPAs</h4>\n<ul>\n<li>Serve pre-rendered static HTML rather than a blank <code>#root</code> shell.</li>\n<li>Validate your schema data structure using Google's Rich Results Test.</li>\n<li>Implement clean navigation links (<code>&lt;a href=\"/blog\"&gt;</code>) instead of click handlers to help\ncrawlers discover your content.</li>\n</ul>\n</div>\n<h2>4. Measuring SEO Success</h2>\n<p>To monitor your site's indexability, check Google Search Console regularly. Compare the \"URL Inspection\" live\ntest results with the indexed version to confirm Google parses your JavaScript content correctly. Inspecting\nsitemap performance is also key; see how we used dynamic sitemaps to optimize search crawls in our <a href=\"/blog/case-study-my-design-academia\">My Design Academia Case Study</a>.</p>\n<p>\nIf you need to optimize your website's search engine visibility, we can help. Learn more about our technical\napproach on our <a href=\"/services/seo-friendly-websites\">SEO-Friendly Website\nEngineering Service</a> page, or reach out to our team to request a search indexation audit.\n</p>",
+      "cover_image_alt": "Technical diagram showing Google's two-stage search indexing process: instant parsing of static HTML, followed by delayed JavaScript execution.",
+      "seo_title": "React SPA SEO Best Practices: Indexing Single Page Apps",
+      "seo_description": "Master React SPA SEO best practices. Learn how to optimize client-rendered single page applications for Google search crawls with pre-rendering and clean metadata.",
+      "og_image_url": null,
+      "category": "Technical SEO for JS Sites",
+      "tags": [
+        "React SPA SEO",
+        "JavaScript Rendering",
+        "React Helmet Async",
+        "Sitemap Config"
+      ],
+      "reading_minutes": 3,
+      "word_count": 673,
+      "seo_plan": {
+        "targetQuery": "react spa seo best practices",
+        "secondaryQueries": [
+          "javascript seo rendering client-side",
+          "react helmet async seo metadata"
+        ],
+        "cluster": "Technical SEO for JS Sites",
+        "track": "2",
+        "type": "pillar",
+        "audience": "both",
+        "intent": "informational",
+        "depth": "B",
+        "internalLinksTo": [
+          "case-study-my-design-academia"
+        ],
+        "internalLinksFrom": [
+          "optimize-react-performance",
+          "case-study-my-design-academia",
+          "case-study-orion-pharma"
+        ],
+        "servicePageLink": "https://www.pizzascript.com/services/seo-friendly-websites"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "807cea32-3e91-50c5-a430-499aea64d2b6",
+      "cluster_id": "tech-seo",
+      "track": 2,
+      "role": "pillar",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/seo-friendly-websites",
+        "audience": "both",
+        "depth": "B"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "4933b7b6-c011-58e6-abca-e5d307f417f9",
+      "slug": "vite-bundle-optimization",
+      "status": "published",
+      "title": "Vite Config Build: Advanced Bundle Optimization Guide",
+      "excerpt": "Vite's default build config creates large bundles that slow down page load times. Here are the configuration settings to optimize your builds.",
+      "body_html": "<p>Configuring Vite's build options to target dynamic chunk budgets instead of default single-file compiles can\nreduce initial JavaScript payloads by up to 60%. Optimizing Rollup output parameters and tree-shaking patterns\nprevents unused packages from bloating your production bundles.</p>\n<p>Vite's development speed relies on native ES modules, but its production build utilizes Rollup to bundle and\noptimize assets. While Vite provides a clean default config, standard setups often generate large bundle\nwarning flags. We can fix this by tuning Rollup's manual chunking options to split vendor assets and optimize\noverall load performance.</p>\n<h2>1. Fine-Tuning Rollup Output Options</h2>\n<p>Vite exposes Rollup's options directly within the <code>vite.config.ts</code> configuration. By defining a\ncustom chunking structure, we can organize compiled files into logical modules, ensuring browsers only\ndownload the assets required for the active route:</p>\n<pre><code>import { defineConfig } from 'vite';\nimport react from '@vitejs/plugin-react';\n\nexport default defineConfig({\n  plugins: [react()],\n  build: {\n    target: 'es2022', // Target modern browsers for clean code output\n    cssCodeSplit: true, // Split CSS assets by route\n    sourcemap: false, // Turn off production sourcemaps to save build space\n    rollupOptions: {\n      output: {\n        // Customize asset naming conventions\n        entryFileNames: 'assets/js/[name]-[hash].js',\n        chunkFileNames: 'assets/js/chunks/[name]-[hash].js',\n        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',\n        \n        // Define module chunks manually\n        manualChunks(id) {\n          if (id.includes('node_modules')) {\n            return id.toString().split('node_modules/')[1].split('/')[0].toString();\n          }\n        }\n      }\n    }\n  }\n});</code></pre>\n<p>This dynamic manual chunking configuration automatically splits every npm package in\n<code>node_modules</code> into a separate javascript file. For large apps, this ensures that updating a single\ndependency won't invalidate the browser cache for other libraries, improving returning visitor speeds.</p>\n<h2>2. Treeshaking and Dead-Code Elimination</h2>\n<p>Tree-shaking is the process of removing unused exports from your final bundle. To make this work, import only\nthe specific modules you need instead of entire library namespaces. For example, avoid importing heavy layout\nlayouts statically:</p>\n<pre><code>// BAD: Imports the entire icon library\nimport * as Icons from 'react-icons/fa';\n\n// GOOD: Imports only the required icon component\nimport { FaBeer } from 'react-icons/fa';</code></pre>\n<p>Using granular imports allows Rollup to trace your code dependencies accurately, excluding unused code from\nthe final compilation and saving valuable bundle size.</p>\n<div class=\"highlight-box\">\n<h4>Vite Build Tuning Guidelines</h4>\n<ul>\n<li><strong>Minify settings</strong>: Use Terser minification for cleaner build output size reduction.</li>\n<li><strong>Target options</strong>: Target modern browser standards (like <code>esnext</code>) to avoid\ncompiling heavy polyfills.</li>\n<li><strong>Asset splitting</strong>: Ensure CSS code-splitting is enabled to prevent loading layout styles\nfor inactive pages.</li>\n</ul>\n</div>\n<h2>3. Monitoring Bundle Health</h2>\n<p>To identify optimization targets, we recommend installing the <code>rollup-plugin-visualizer</code> plugin,\nwhich generates an interactive map of your final bundle structure. This makes it easy to spot heavy\ndependencies and optimize your build pipeline:</p>\n<pre><code>import { visualizer } from 'rollup-plugin-visualizer';\n\nexport default defineConfig({\n  plugins: [\n    react(),\n    visualizer({\n      filename: 'bundle-stats.html',\n      open: false\n    })\n  ]\n});</code></pre>\n<p>Reviewing these bundle maps regularly helps you maintain strict asset size budgets as your application\nexpands. For a comprehensive performance tuning checklist, see our guide, <a href=\"/blog/optimize-react-performance\">How to Optimize React Website Performance</a>.</p>\n<p>\nWe build optimized web platforms that achieve near-perfect performance scores. Learn more about our\noptimization services on our <a href=\"/services/website-speed-optimization\">Website\nSpeed Optimization Service</a> page, or reach out to our team to request a performance audit.\n</p>",
+      "cover_image_alt": "Technical UI diagram showing Rollup compiler module mapping and chunk division output.",
+      "seo_title": "Vite Config Build: Advanced Bundle Optimization Guide",
+      "seo_description": "Learn how to optimize your Vite build configuration. Use Rollup chunk splitting, minify code, and reduce bundle size for faster React websites.",
+      "og_image_url": null,
+      "category": "Web Performance Optimization",
+      "tags": [
+        "Vite Config Build",
+        "Rollup Optimization",
+        "Bundle Size",
+        "Tree Shaking"
+      ],
+      "reading_minutes": 3,
+      "word_count": 504,
+      "seo_plan": {
+        "targetQuery": "vite config build bundle optimization",
+        "secondaryQueries": [
+          "rollup manual chunks vite configuration",
+          "reduce bundle size react vite rollup"
+        ],
+        "cluster": "Web Performance Optimization",
+        "track": "1",
+        "type": "spoke",
+        "audience": "both",
+        "intent": "informational",
+        "depth": "A",
+        "internalLinksTo": [
+          "optimize-react-performance"
+        ],
+        "internalLinksFrom": [],
+        "servicePageLink": "https://www.pizzascript.com/services/website-speed-optimization"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "3f3489eb-247c-5188-a39d-79f81094c8ad",
+      "cluster_id": "performance",
+      "track": 1,
+      "role": "spoke",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/website-speed-optimization",
+        "audience": "both",
+        "depth": "A"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "9649d72e-1b9e-58a6-af52-7e43f5a83df1",
+      "slug": "why-custom-code-vs-wordpress",
+      "status": "published",
+      "title": "Why Custom Website Code Beats WordPress Page Builders",
+      "excerpt": "WordPress page builders compile layers of nested divs and duplicate scripts that block the mobile main thread. Here is the technical comparison.",
+      "body_html": "<p>Websites built with WordPress page builders compile up to fifteen layers of nested layout containers for a\nsingle block of text, swelling DOM sizes and blocking mobile browsers. By discarding these page builder\noverheads in favor of bespoke React components, you ensure faster rendering speeds and superior mobile search\nvisibility.</p>\n<p>WordPress is the most common CMS, but its dependence on visual editors (like Elementor, Divi, or WPBakery)\nhas turned it into a performance bottleneck for modern businesses. Visual builders allow non-developers to\narrange components, but this visual convenience results in messy, bloated code structures. A single text\nelement on a builder page generates nested layers of layout divs, styling wrappers, and duplicate script\nblocks that slow down load times on mobile devices.</p>\n<h2>1. The Technical Overhead: Visual Builders vs. Bespoke Code</h2>\n<p>Visual page builders translate editor choices into database queries and inline CSS styling classes. The\nresulting code is bloated and hard for search engines to scan:</p>\n<pre><code>&lt;!-- Typical bloated page builder structure for a simple heading --&gt;\n&lt;div class=\"elementor-element elementor-widget\" data-element_type=\"widget\"&gt;\n  &lt;div class=\"elementor-widget-container\"&gt;\n    &lt;div class=\"elementor-heading-title-wrapper\"&gt;\n      &lt;h2 class=\"elementor-heading-title elementor-size-default\"&gt;\n        Our Services\n      &lt;/h2&gt;\n    &lt;/div&gt;\n  &lt;/div&gt;\n&lt;/div&gt;\n\n&lt;!-- Bespoke semantic custom HTML equivalent --&gt;\n&lt;h2&gt;Our Services&lt;/h2&gt;</code></pre>\n<p>The page builder code is five times larger than the semantic custom markup. When applied across an entire\npage with hundreds of components, the DOM size climbs past 2,000 nodes, exhausting mobile CPU capacity during\nparsing and layout layout cycles. Custom websites built on clean semantic templates load only the required DOM\nmarkup, keeping bundle sizes light.</p>\n<h2>2. Performance & Maintenance Trade-Offs</h2>\n<p>Choosing between custom builds and template-driven CMS solutions involves balancing speed, flexibility, and\nmaintenance overheads:</p>\n<h3>Vulnerability & Plugin Overhead</h3>\n<p>WordPress installations require multiple plugins for simple features like caching, image optimization, or\nforms. Every plugin introduces potential security vulnerabilities and compatibility conflicts during updates.\nA custom React website compiled with Vite requires zero plugins; features are engineered directly into the\napplication logic, keeping the site secure and stable.</p>\n<h3>Server Caching Limitations</h3>\n<p>WordPress relies on database lookups to compile pages, requiring dynamic server execution on every visit.\nWhile caching plugins can help, they add complexity and can fail under high traffic. Bespoke static sites\n(SSG) pre-render directly into HTML files at build time, serving visitors instantly from edge CDNs like\nCloudflare or Vercel.</p>\n<div class=\"highlight-box\">\n<h4>Comparison Matrix: Custom React vs. WordPress</h4>\n<ul>\n<li><strong>DOM Size</strong>: React (~400 nodes) vs. WordPress Builder (>1800 nodes).</li>\n<li><strong>Plugins Needed</strong>: React (0) vs. WordPress (15-30).</li>\n<li><strong>Hosting Location</strong>: React (Global CDN Edge) vs. WordPress (Database server).</li>\n<li><strong>Mobile Load Speeds</strong>: React (&lt;1.0s) vs. WordPress Builder (3s - 7s).</li>\n</ul>\n</div>\n<h2>3. Choosing the Right Platform: Decision Tree</h2>\n<p>Use this decision framework to align your project requirements with the right development path:</p>\n<pre><code>Is your primary goal conversion speed and organic search rankings?\n  ├── YES ──> Choose Custom React / Vite (Edge Hosted)\n  └── NO\n       └── Do you require frequent design edits by non-technical staff?\n            ├── YES ──> WordPress (Gutenberg / Blocks — limit plugins)\n            └── NO  ──> Headless CMS with custom frontend</code></pre>\n<p>For B2B SaaS, startups, and lead generation portfolios, custom website code is the clear choice. We\ndemonstrated this conversion boost in our <a href=\"/blog/case-study-my-design-academia\">My Design Academia\nCase Study</a>, where transitioning from a slow WordPress site led to a 150% increase in student leads.</p>\n<p>\nAt Pizzascript, we build custom sites that load instantly and convert visitors. Learn more about our approach\non our <a href=\"/services/custom-website-development\">Custom Website Development\nService</a> page or contact us to discuss your project.\n</p>",
+      "cover_image_alt": "Technical layout comparison card between clean React DOM elements and bloated nested WordPress Elementor divs.",
+      "seo_title": "Why Custom Website Code Beats WordPress Page Builders",
+      "seo_description": "Understand why custom website code outperforms WordPress page builders. Compare DOM size, code bloat, site performance, and long-term search visibility.",
+      "og_image_url": null,
+      "category": "Web Development & Custom Builds",
+      "tags": [
+        "Custom Website Code",
+        "WordPress Page Builders",
+        "Elementor Code Bloat",
+        "DOM Size"
+      ],
+      "reading_minutes": 3,
+      "word_count": 566,
+      "seo_plan": {
+        "targetQuery": "why custom website code vs wordpress",
+        "secondaryQueries": [
+          "wordpress vs custom website performance",
+          "elementor code bloat lighthouse"
+        ],
+        "cluster": "Web Development & Custom Builds",
+        "track": "1",
+        "type": "spoke",
+        "audience": "both",
+        "intent": "informational",
+        "depth": "D",
+        "internalLinksTo": [
+          "case-study-my-design-academia"
+        ],
+        "internalLinksFrom": [],
+        "servicePageLink": "https://www.pizzascript.com/services/custom-website-development"
+      },
+      "published_at": "2026-06-10T09:00:00+05:30",
+      "cover_image_url": null,
+      "topic_id": "65149bbb-12e3-5d4a-ad0c-be06e4b13a86",
+      "cluster_id": "custom-builds",
+      "track": 1,
+      "role": "spoke",
+      "stage": "live",
+      "batch_id": null,
+      "scheduled_for": null,
+      "approved_at": "2026-06-10T09:00:00+05:30",
+      "brief": {
+        "servicePage": "/services/custom-website-development",
+        "audience": "both",
+        "depth": "D"
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 1
+    },
+    {
+      "id": "142a8cf8-c679-5e57-a649-c907cd282400",
+      "slug": "react-vs-nextjs-for-business",
+      "status": "draft",
+      "title": "React vs Nextjs for Business",
+      "excerpt": "",
+      "body_html": "",
+      "cover_image_alt": null,
+      "cover_image_url": null,
+      "seo_title": null,
+      "seo_description": null,
+      "og_image_url": null,
+      "category": "Web Development & Custom Builds",
+      "tags": [],
+      "reading_minutes": null,
+      "word_count": null,
+      "seo_plan": {
+        "targetQuery": "react vs nextjs for business site"
+      },
+      "published_at": null,
+      "topic_id": "c3d2f532-6e27-54c1-a71d-5a60d7d5b591",
+      "cluster_id": "custom-builds",
+      "track": 1,
+      "role": "spoke",
+      "stage": "brief",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": "2026-11-19T03:30:00.000Z",
+      "approved_at": null,
+      "brief": {
+        "servicePage": "/services/custom-website-development",
+        "linksTo": [
+          "/blog/custom-web-development-pune"
+        ]
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 0
+    },
+    {
+      "id": "debd7bea-600b-578c-a1d3-df0367c27ba9",
+      "slug": "prevent-scroll-jitter-gsap",
+      "status": "draft",
+      "title": "Prevent Scroll Jitter Gsap",
+      "excerpt": "",
+      "body_html": "",
+      "cover_image_alt": null,
+      "cover_image_url": null,
+      "seo_title": null,
+      "seo_description": null,
+      "og_image_url": null,
+      "category": "Scroll, Animation & Interactive",
+      "tags": [],
+      "reading_minutes": null,
+      "word_count": null,
+      "seo_plan": {
+        "targetQuery": "prevent scroll jitter gsap mobile devices"
+      },
+      "published_at": null,
+      "topic_id": "2079de10-1705-5750-a528-ba13e39f0364",
+      "cluster_id": "scroll-motion",
+      "track": 1,
+      "role": "spoke",
+      "stage": "brief",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": "2026-11-20T03:30:00.000Z",
+      "approved_at": null,
+      "brief": {
+        "linksTo": [
+          "/blog/gsap-scrolltrigger-react",
+          "/blog/lenis-smooth-scroll-react"
+        ]
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 0
+    },
+    {
+      "id": "c4507836-9725-5253-a867-6623a59523dd",
+      "slug": "custom-cursor-react-gsap",
+      "status": "draft",
+      "title": "Custom Cursor React Gsap",
+      "excerpt": "",
+      "body_html": "",
+      "cover_image_alt": null,
+      "cover_image_url": null,
+      "seo_title": null,
+      "seo_description": null,
+      "og_image_url": null,
+      "category": "Scroll, Animation & Interactive",
+      "tags": [],
+      "reading_minutes": null,
+      "word_count": null,
+      "seo_plan": {
+        "targetQuery": "custom cursor react gsap cursor component"
+      },
+      "published_at": null,
+      "topic_id": "fd153339-7abb-5511-a213-dc39df9e134e",
+      "cluster_id": "scroll-motion",
+      "track": 1,
+      "role": "spoke",
+      "stage": "brief",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": "2026-11-21T03:30:00.000Z",
+      "approved_at": null,
+      "brief": {
+        "linksTo": [
+          "/blog/prevent-scroll-jitter-gsap"
+        ]
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 0
+    },
+    {
+      "id": "aeac2985-738e-5a61-aeb0-46a685c8007b",
+      "slug": "interactive-agency-india",
+      "status": "draft",
+      "title": "Interactive Agency India",
+      "excerpt": "",
+      "body_html": "",
+      "cover_image_alt": null,
+      "cover_image_url": null,
+      "seo_title": null,
+      "seo_description": null,
+      "og_image_url": null,
+      "category": "Scroll, Animation & Interactive",
+      "tags": [],
+      "reading_minutes": null,
+      "word_count": null,
+      "seo_plan": {
+        "targetQuery": "interactive website design agency india"
+      },
+      "published_at": null,
+      "topic_id": "72176548-eed6-5b75-af6e-367261d29f88",
+      "cluster_id": "scroll-motion",
+      "track": 2,
+      "role": "spoke",
+      "stage": "brief",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": "2026-11-22T03:30:00.000Z",
+      "approved_at": null,
+      "brief": {
+        "servicePage": "/services/website-redesign",
+        "linksTo": [
+          "/blog/custom-cursor-react-gsap"
+        ]
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 0
+    },
+    {
+      "id": "a46507e5-92a4-5b13-a9e2-c8531fa59a99",
+      "slug": "react-development-cost-india",
+      "status": "draft",
+      "title": "React Development Cost India",
+      "excerpt": "",
+      "body_html": "",
+      "cover_image_alt": null,
+      "cover_image_url": null,
+      "seo_title": null,
+      "seo_description": null,
+      "og_image_url": null,
+      "category": "Web Development & Custom Builds",
+      "tags": [],
+      "reading_minutes": null,
+      "word_count": null,
+      "seo_plan": {
+        "targetQuery": "custom React development cost India"
+      },
+      "published_at": null,
+      "topic_id": "74fd0884-d15a-59d6-a1f3-f0870bf6fdb3",
+      "cluster_id": "custom-builds",
+      "track": 2,
+      "role": "spoke",
+      "stage": "brief",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": "2026-11-23T03:30:00.000Z",
+      "approved_at": null,
+      "brief": {
+        "servicePage": "/services/custom-website-development",
+        "linksTo": [
+          "/blog/custom-web-development-pune"
+        ]
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 0
+    },
+    {
+      "id": "d9895d84-1e87-5cd8-a5fa-d1c80c161fc3",
+      "slug": "lighthouse-100-react",
+      "status": "draft",
+      "title": "Lighthouse 100 React",
+      "excerpt": "",
+      "body_html": "",
+      "cover_image_alt": null,
+      "cover_image_url": null,
+      "seo_title": null,
+      "seo_description": null,
+      "og_image_url": null,
+      "category": "Web Performance Optimization",
+      "tags": [],
+      "reading_minutes": null,
+      "word_count": null,
+      "seo_plan": {
+        "targetQuery": "how to achieve lighthouse 100 react"
+      },
+      "published_at": null,
+      "topic_id": "cb358324-8ace-52b2-afec-ca8d8140e94e",
+      "cluster_id": "performance",
+      "track": 2,
+      "role": "spoke",
+      "stage": "brief",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": "2026-11-24T03:30:00.000Z",
+      "approved_at": null,
+      "brief": {
+        "servicePage": "/services/website-speed-optimization",
+        "linksTo": []
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 0
+    },
+    {
+      "id": "6e5e8b53-33c8-5fe7-a13a-5d5e33c0e728",
+      "slug": "pre-render-react-seo",
+      "status": "draft",
+      "title": "pre Render React seo",
+      "excerpt": "",
+      "body_html": "",
+      "cover_image_alt": null,
+      "cover_image_url": null,
+      "seo_title": null,
+      "seo_description": null,
+      "og_image_url": null,
+      "category": "Technical SEO for JS Sites",
+      "tags": [],
+      "reading_minutes": null,
+      "word_count": null,
+      "seo_plan": {
+        "targetQuery": "how to pre render react app for seo"
+      },
+      "published_at": null,
+      "topic_id": "0dfa57f8-b790-53a1-a65a-540c9d45daa8",
+      "cluster_id": "tech-seo",
+      "track": 1,
+      "role": "spoke",
+      "stage": "brief",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": "2026-11-25T03:30:00.000Z",
+      "approved_at": null,
+      "brief": {
+        "servicePage": "/services/seo-friendly-websites",
+        "linksTo": [
+          "/blog/react-spa-seo"
+        ]
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 0
+    },
+    {
+      "id": "e78cc5e8-1fac-5c02-a744-8567573410be",
+      "slug": "cursor-ai-setup-react",
+      "status": "draft",
+      "title": "Cursor ai Setup React",
+      "excerpt": "",
+      "body_html": "",
+      "cover_image_alt": null,
+      "cover_image_url": null,
+      "seo_title": null,
+      "seo_description": null,
+      "og_image_url": null,
+      "category": "AI-Assisted Web Development",
+      "tags": [],
+      "reading_minutes": null,
+      "word_count": null,
+      "seo_plan": {
+        "targetQuery": "cursor ai editor react setup tips"
+      },
+      "published_at": null,
+      "topic_id": "de947b51-0fc1-5f6a-a2a8-882aa1343a74",
+      "cluster_id": "ai-workflows",
+      "track": 1,
+      "role": "spoke",
+      "stage": "brief",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": "2026-11-26T03:30:00.000Z",
+      "approved_at": null,
+      "brief": {
+        "linksTo": [
+          "/blog/ai-assisted-web-development"
+        ]
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 0
+    },
+    {
+      "id": "b0b14304-c4c6-5cbb-a397-a7a237d56ca9",
+      "slug": "react-router-hosting-cloudflare",
+      "status": "draft",
+      "title": "React Router Hosting Cloudflare",
+      "excerpt": "",
+      "body_html": "",
+      "cover_image_alt": null,
+      "cover_image_url": null,
+      "seo_title": null,
+      "seo_description": null,
+      "og_image_url": null,
+      "category": "Deployment & Infrastructure",
+      "tags": [],
+      "reading_minutes": null,
+      "word_count": null,
+      "seo_plan": {
+        "targetQuery": "react router hosting cloudflare pages rewrite"
+      },
+      "published_at": null,
+      "topic_id": "ed94e802-4ec6-59fc-aeef-84c449a08be5",
+      "cluster_id": "deployment",
+      "track": 1,
+      "role": "spoke",
+      "stage": "brief",
+      "batch_id": "88765bd6-caf7-5f42-a1d5-5340a3e7a7cb",
+      "scheduled_for": "2026-11-27T03:30:00.000Z",
+      "approved_at": null,
+      "brief": {
+        "servicePage": "/services/website-maintenance",
+        "linksTo": [
+          "/blog/cloudflare-vs-vercel"
+        ]
+      },
+      "audit": null,
+      "image_prompt": null,
+      "version": 0
+    }
+  ],
+  "link_plan": [
+    {
+      "id": "ea5a1b38-72ae-5cb4-ab97-856cbf00ce38",
+      "from_slug": "custom-web-development-pune",
+      "to_path": "/services/custom-website-development",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "95c0a820-b8ee-5e0d-af9b-9deb24c92bd7",
+      "from_slug": "react-vs-nextjs-for-business",
+      "to_path": "/blog/custom-web-development-pune",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "ce32338f-e21b-537d-a40e-179757543db0",
+      "from_slug": "react-vs-nextjs-for-business",
+      "to_path": "/services/custom-website-development",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "53c8182d-15ec-52b1-a5c6-42c8f5218de7",
+      "from_slug": "prevent-scroll-jitter-gsap",
+      "to_path": "/blog/gsap-scrolltrigger-react",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "1572c417-09d4-5fcf-a410-7eeef4e6562f",
+      "from_slug": "prevent-scroll-jitter-gsap",
+      "to_path": "/blog/lenis-smooth-scroll-react",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "7dd9635d-5422-587c-a968-c19701022b68",
+      "from_slug": "custom-cursor-react-gsap",
+      "to_path": "/blog/prevent-scroll-jitter-gsap",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "395005fc-b914-516e-a467-8ef2b593d023",
+      "from_slug": "interactive-agency-india",
+      "to_path": "/blog/custom-cursor-react-gsap",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "daf8c475-f4a1-52b1-a6c5-b13ed49cb99b",
+      "from_slug": "interactive-agency-india",
+      "to_path": "/services/website-redesign",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "2c9956e7-d907-5fde-a963-a743cf6fbeeb",
+      "from_slug": "react-development-cost-india",
+      "to_path": "/blog/custom-web-development-pune",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "363fcd43-777a-57e0-a27a-a600a7b145b9",
+      "from_slug": "react-development-cost-india",
+      "to_path": "/services/custom-website-development",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "c166df3b-cae2-5480-aca0-b0956dcbb8bb",
+      "from_slug": "lighthouse-100-react",
+      "to_path": "/services/website-speed-optimization",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "6970ac10-77ac-577d-a482-4ad513f306af",
+      "from_slug": "pre-render-react-seo",
+      "to_path": "/blog/react-spa-seo",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "1c4d43c7-6b43-5516-a876-e2e52962bb1f",
+      "from_slug": "pre-render-react-seo",
+      "to_path": "/services/seo-friendly-websites",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "80d31957-0063-5049-a60a-dfbebe96ced3",
+      "from_slug": "cursor-ai-setup-react",
+      "to_path": "/blog/ai-assisted-web-development",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "eeb206ce-cb55-5677-acbf-3edd976f203f",
+      "from_slug": "react-router-hosting-cloudflare",
+      "to_path": "/blog/cloudflare-vs-vercel",
+      "anchor": null,
+      "status": "planned"
+    },
+    {
+      "id": "06defd54-b820-5538-a2f4-0890b4503432",
+      "from_slug": "react-router-hosting-cloudflare",
+      "to_path": "/services/website-maintenance",
+      "anchor": null,
+      "status": "planned"
+    }
+  ],
+  "facts": [
+    {
+      "id": "07be0ccb-26ae-5d54-ab2c-d23d892c0ae0",
+      "subject": "My Design Academia",
+      "statement": "Largest Contentful Paint reduced from 4.5s to 1.1s.",
+      "source": "/portfolio/my-design-academia (unverified — confirm with client data)"
+    },
+    {
+      "id": "9ba9ad08-1f70-54d7-ac25-414c804b04d2",
+      "subject": "My Design Academia",
+      "statement": "Mobile conversion rates increased by 42% in the first 60 days.",
+      "source": "/portfolio/my-design-academia (unverified — confirm with client data)"
+    },
+    {
+      "id": "1b2baeff-9643-5e93-ae9f-f7a70b83e9e9",
+      "subject": "My Design Academia",
+      "statement": "100% of target service pages indexed on the first search engine crawl wave.",
+      "source": "/portfolio/my-design-academia (unverified — confirm with client data)"
+    },
+    {
+      "id": "b68af9ad-bae4-58c1-ab5d-7b06725e3225",
+      "subject": "My Design Academia",
+      "statement": "Eliminated layout shift (CLS score reduced to 0.01).",
+      "source": "/portfolio/my-design-academia (unverified — confirm with client data)"
+    },
+    {
+      "id": "19bb617e-b1bf-5a36-aa7e-e70c046b4ac5",
+      "subject": "Orion Pharma India",
+      "statement": "Page load times reduced globally by 65%.",
+      "source": "/portfolio/orion-pharma-india (unverified — confirm with client data)"
+    },
+    {
+      "id": "8e3f2008-6579-5efd-a1a0-dff74e9163a1",
+      "subject": "Orion Pharma India",
+      "statement": "Achieved 100% responsive test completion across all major mobile/tablet devices.",
+      "source": "/portfolio/orion-pharma-india (unverified — confirm with client data)"
+    },
+    {
+      "id": "bbe42f13-2343-5975-a784-1c6e5ecf0299",
+      "subject": "Orion Pharma India",
+      "statement": "Streamlined catalog layout leading to a 35% increase in international inquiries.",
+      "source": "/portfolio/orion-pharma-india (unverified — confirm with client data)"
+    },
+    {
+      "id": "21e8ec1f-2a08-5d4c-a739-8c8978b73cb4",
+      "subject": "Orion Pharma India",
+      "statement": "All key drug category landing pages successfully indexed on major search engines.",
+      "source": "/portfolio/orion-pharma-india (unverified — confirm with client data)"
+    }
+  ],
+  "signals": [
+    {
+      "id": "bf24e659-ee40-5709-a6ca-71c7f7dae640",
+      "kind": "low_ctr",
+      "title": "lenis-smooth-scroll-react ranks #8 but gets 0% CTR on 67 impressions",
+      "detail": {
+        "page": "/blog/lenis-smooth-scroll-react",
+        "impressions": 67,
+        "position": 8,
+        "ctr": 0
+      },
+      "priority": "P1",
+      "post_id": "3830c0ee-2995-57e8-abbb-d7d83c41a881",
+      "topic_id": null,
+      "status": "open",
+      "dedupe_key": "low_ctr:lenis-smooth-scroll-react"
+    }
+  ]
+}

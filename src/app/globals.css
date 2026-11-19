@@ -1,26 +1,341 @@
 @import "tailwindcss";
+@import "../styles/legacy-site.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---- Skip link ---- */
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: -120px;
+  z-index: var(--z-top);
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  background: var(--color-oven-orange);
+  color: #0b0604;
+  font-weight: 600;
+  transition: top 150ms var(--ease-smooth);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 16px;
+  color: #0b0604;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+main:focus {
+  outline: none;
+}
+
+/* The logo used to fade in after the Lottie player loaded; it is a plain image now. */
+.navbar-logo .logo-lottie,
+.fp-nav-logo .logo-lottie {
+  opacity: 1;
+}
+
+/* ---- Hero ---- */
+/* CSS sticky replaces the old GSAP pin: same visual, composited, no pin-spacer reflows. */
+.hero-scroll-driver > .hero-sticky {
+  position: sticky;
+  top: 0;
+}
+
+.hero-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 768px) {
+  .hero-poster {
+    mask-image: linear-gradient(to top, transparent 0%, black 30%);
+    -webkit-mask-image: linear-gradient(to top, transparent 0%, black 30%);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* The desktop hero is a visual-only scroll sequence; keep its heading available to assistive tech and crawlers. */
+@media (min-width: 769px) {
+  .hero-mobile-overlay {
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .hero-mobile-ctas {
+    display: none;
+  }
+}
+
+/* ---- Scroll sequences: both layouts are server-rendered, CSS picks one ---- */
+.seq-desktop {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .seq-mobile {
+    display: none !important;
+  }
+
+  .seq-desktop {
+    display: grid;
+  }
+}
+
+/* The hidden section nav slides off the right edge; clip keeps it from widening the page (sticky still works). */
+.section-nav-tracker {
+  overflow-x: clip;
+}
+
+.progress-steps,
+.progress-steps li {
+  list-style: none;
+}
+
+/* ---- Portfolio cards (static screenshots replace live iframes) ---- */
+.portfolio-card__shot {
+  object-fit: cover;
+  object-position: top;
+  transition: transform 600ms var(--ease-cinematic);
+}
+
+.portfolio-card:hover .portfolio-card__shot {
+  transform: scale(1.04);
+}
+
+.portfolio-card__tags {
+  list-style: none;
+}
+
+/* ---- Forms ---- */
+.form-input[aria-invalid="true"],
+.form-select[aria-invalid="true"] {
+  border-color: #ef4444;
+}
+
+.visually-hidden-field {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* ---- Landing page (freelance-pune) ---- */
+dialog.fp-modal-overlay {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  border: 0;
+}
+
+dialog.fp-modal-overlay:not([open]) {
+  display: none;
+}
+
+dialog.fp-modal-overlay::backdrop {
+  background: transparent;
+}
+
+.fp-page .fp-form-error-msg {
+  font-size: 12px;
+}
+
+.fp-page li > .fp-win-box {
+  height: 100%;
+}
+
+a.wa-ball-wrapper {
+  display: block;
+  color: inherit;
+}
+
+/* ---- Breadcrumbs ---- */
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.breadcrumb li + li::before {
+  content: "/";
+  margin-right: 0.5rem;
+  color: var(--color-smoke);
+}
+
+/* ---- Blog article typography ---- */
+.prose-blog {
+  color: #c9bcb3;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+
+.prose-blog > * + * {
+  margin-top: 1.25em;
+}
+
+.prose-blog h2 {
+  margin-top: 2.5em;
+  padding-left: 1rem;
+  border-left: 4px solid var(--color-oven-orange);
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.5vw + 0.5rem, 2rem);
+  line-height: 1.25;
+  color: var(--color-cream);
+}
+
+.prose-blog h3 {
+  margin-top: 2em;
+  font-family: var(--font-body);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--color-oven-glow);
+}
+
+.prose-blog h4 {
+  font-family: var(--font-body);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--color-cream);
+}
+
+.prose-blog p,
+.prose-blog li {
+  color: #c9bcb3;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.prose-blog a {
+  color: var(--color-oven-glow);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose-blog a:hover {
+  color: var(--color-cream);
+}
+
+.prose-blog strong {
+  color: var(--color-cream);
+}
+
+.prose-blog ul,
+.prose-blog ol {
+  padding-left: 0;
+}
+
+.prose-blog ul > li {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.prose-blog ul > li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--color-oven-orange);
+}
+
+.prose-blog ol {
+  counter-reset: item;
+}
+
+.prose-blog ol > li {
+  position: relative;
+  padding-left: 2rem;
+  counter-increment: item;
+}
+
+.prose-blog ol > li::before {
+  content: counter(item) ".";
+  position: absolute;
+  left: 0;
+  color: var(--color-oven-orange);
+  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+.prose-blog li + li {
+  margin-top: 0.6em;
+}
+
+.prose-blog code {
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  background: #2c1810;
+  color: #ff9a6b;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.875em;
+}
+
+.prose-blog pre {
+  position: relative;
+  overflow-x: auto;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(255, 248, 240, 0.1);
+  border-radius: var(--radius-md);
+  background: #140b06;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.prose-blog pre code {
+  padding: 0;
+  background: transparent;
+  color: var(--color-cream);
+  font-size: inherit;
+}
+
+.prose-blog blockquote,
+.prose-blog .highlight-box,
+.prose-blog .callout {
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(255, 248, 240, 0.1);
+  border-left: 4px solid var(--color-oven-orange);
+  border-radius: var(--radius-sm);
+  background: rgba(44, 24, 16, 0.5);
+}
+
+.prose-blog .highlight-box h4 {
+  margin-bottom: 0.75rem;
+}
+
+.prose-blog img {
+  border-radius: var(--radius-md);
+}
+
+.prose-blog table {
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.prose-blog th,
+.prose-blog td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 248, 240, 0.1);
+  text-align: left;
+}
+
+.prose-blog th {
+  color: var(--color-cream);
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.35rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-smoke-light);
+  background: rgba(255, 248, 240, 0.05);
+}
+
+.code-copy-btn:hover {
+  color: var(--color-cream);
 }
