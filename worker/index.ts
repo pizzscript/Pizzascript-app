@@ -1,8 +1,8 @@
 /**
  * Pizzascript content agent worker.
  *
- *   npm run worker            # long-running: polls jobs + runs the IST schedule (Render background worker)
- *   npm run worker -- --once  # runs the schedule once, drains the queue, exits (cron / GitHub Actions)
+ *   npm run worker            # long-running: polls jobs + runs the IST schedule (local use only)
+ *   npm run worker -- --once  # runs the schedule once, drains the queue, exits (GitHub Actions)
  */
 import type { JobType, RewritePayload } from "../src/lib/studio/types";
 import { db, enqueue, setting, todayIst } from "./db";

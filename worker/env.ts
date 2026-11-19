@@ -16,5 +16,5 @@ export const env = {
   gscSite: process.env.GSC_SITE_URL ?? "sc-domain:pizzascript.com",
   siteUrl: process.env.SITE_URL ?? "https://www.pizzascript.com",
   revalidateSecret: process.env.REVALIDATE_SECRET,
-  workerId: process.env.RENDER_INSTANCE_ID ?? `worker-${process.pid}`,
+  workerId: process.env.GITHUB_RUN_ID ?? `worker-${process.pid}`,
 };
