@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
+import { jobPriority } from "../src/lib/studio/jobs";
 import { DEFAULT_SCORING } from "../src/lib/studio/scoring";
-import type { Fact, LinkPlan, ScheduleSettings, ScoringSettings, Signal, StudioPost, Topic, Cluster, Batch } from "../src/lib/studio/types";
+import type { Batch, Cluster, Fact, JobType, LinkPlan, ScheduleSettings, ScoringSettings, Signal, StudioPost, Topic } from "../src/lib/studio/types";
 import { env } from "./env";
 
 export const db = createClient(env.supabaseUrl, env.supabaseSecretKey, { auth: { persistSession: false } });
@@ -58,7 +59,9 @@ export async function openSignals() {
 
 export async function enqueue(type: string, payload: Record<string, unknown> = {}, delaySeconds = 0) {
   check(
-    await db.from("jobs").insert({ type, payload, run_after: new Date(Date.now() + delaySeconds * 1000).toISOString() }),
+    await db
+      .from("jobs")
+      .insert({ type, payload, priority: jobPriority(type as JobType, "agent"), run_after: new Date(Date.now() + delaySeconds * 1000).toISOString() }),
     `enqueue ${type}`,
   );
 }

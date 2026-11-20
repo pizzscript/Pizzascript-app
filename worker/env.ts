@@ -16,5 +16,10 @@ export const env = {
   gscSite: process.env.GSC_SITE_URL ?? "sc-domain:pizzascript.com",
   siteUrl: process.env.SITE_URL ?? "https://www.pizzascript.com",
   revalidateSecret: process.env.REVALIDATE_SECRET,
+  /** Deployments whose blog cache to refresh after publishing (comma-separated). Defaults to SITE_URL. */
+  revalidateUrls: (process.env.REVALIDATE_URLS ?? process.env.SITE_URL ?? "https://www.pizzascript.com")
+    .split(",")
+    .map((u) => u.trim().replace(/\/$/, ""))
+    .filter(Boolean),
   workerId: process.env.GITHUB_RUN_ID ?? `worker-${process.pid}`,
 };

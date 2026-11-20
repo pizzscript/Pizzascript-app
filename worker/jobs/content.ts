@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { auditPost, internalLinks, joinSections, plainText, splitSections, wordCount } from "../../src/lib/studio/content";
+import { auditPost, internalLinks, joinSections, plainText, splitSections, wordCount, wordRangeFor } from "../../src/lib/studio/content";
 import { computeScore, priorityFor } from "../../src/lib/studio/scoring";
 import type { Brief, RewritePayload, StudioPost, Topic, TopicFilters, TopicScores } from "../../src/lib/studio/types";
 import { allClusters, allFacts, allPosts, allTopics, check, db, enqueue, getPost, linkPlan, raiseSignal, saveVersion, settings } from "../db";
@@ -9,11 +9,6 @@ import { AGENT, FILTERS, HTML_FORMAT, IMAGE_PROTOCOL, SERVICE_PAGES, STRATEGY, W
 import { revalidate } from "./publish";
 
 const BUCKET = "blog-images";
-
-function wordRangeFor(post: Pick<StudioPost, "role" | "track">, ranges: Record<string, [number, number]>): [number, number] {
-  const key = post.role === "pillar" ? "pillar" : post.role === "case-study" ? "case-study" : post.role === "edge" ? "edge" : post.role === "trend" ? "trend" : post.track === 1 ? "track1" : "spoke";
-  return ranges[key] ?? [1200, 2000];
-}
 
 function inventory(posts: StudioPost[], topics: Topic[]) {
   const live = posts.filter((p) => p.stage === "live").map((p) => `- /blog/${p.slug} | T${p.track ?? "?"} ${p.role ?? "spoke"} | "${p.title}" | query: ${p.seo_plan?.targetQuery ?? "?"}`);
@@ -415,6 +410,8 @@ export async function runAudit({ postId }: { postId: string }) {
   if (audit.ok && stage === "audit" && post.scheduled_for && (post.approved_at || batchApproved)) stage = "slotted";
 
   check(await db.from("posts").update({ audit, stage }).eq("id", postId), "audit save");
+  // Passing now clears any earlier "SEO check failed" alert for this post.
+  if (audit.ok) await db.from("signals").update({ status: "acted" }).eq("dedupe_key", `audit:${post.id}`).eq("status", "open");
   if (!audit.ok && post.stage !== "live") {
     const failing = audit.checks.filter((c) => !c.pass);
     await db.from("signals").delete().eq("dedupe_key", `audit:${post.id}`);

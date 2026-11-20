@@ -119,3 +119,9 @@ export function auditPost(
 
   return { ok: checks.every((c) => c.pass), ranAt: new Date().toISOString(), checks };
 }
+
+/** Target word range for a post — by role first (pillar, case study, edge, trend), then by track. Used by the editor, the SEO check job and publishing, so all three agree. */
+export function wordRangeFor(post: Pick<StudioPost, "role" | "track">, ranges: Record<string, [number, number]>): [number, number] {
+  const key = post.role === "pillar" ? "pillar" : post.role === "case-study" ? "case-study" : post.role === "edge" ? "edge" : post.role === "trend" ? "trend" : post.track === 1 ? "track1" : "spoke";
+  return ranges[key] ?? [1200, 2000];
+}

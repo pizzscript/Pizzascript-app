@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- banners come from Supabase Storage at arbitrary sizes. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Code2, ExternalLink, ImagePlus, RefreshCw, Sparkles, WandSparkles } from "lucide-react";
+import { ChevronRight, Code2, ExternalLink, ImagePlus, Loader2, RefreshCw, Sparkles, WandSparkles } from "lucide-react";
 import { approvePost, enqueue, restoreVersion, saveBody, slotPost, updatePost, updateTaxonomy } from "@/app/admin/actions";
 import { istDate } from "@/lib/studio/briefing";
 import { wordCount } from "@/lib/studio/content";
@@ -11,6 +11,15 @@ import type { AgentMessage, Audit, Cluster, Fact, PostVersion, RewritePayload, S
 import { AgentThread } from "./AgentThread";
 import { useStudio } from "./StudioProvider";
 import { SeoBadge, StatusBadge, formatDate } from "./ui";
+
+const RUNNING_LABEL = {
+  write_brief: "Writing brief…",
+  write_draft: "Writing draft…",
+  generate_image: "Generating banner…",
+  run_audit: "Running SEO check…",
+  rewrite: "Rewriting…",
+  fix_title: "Rewriting title…",
+} as const;
 
 const JOB_LABEL = { write_brief: "Brief", write_draft: "Draft", generate_image: "Banner", run_audit: "Audit" } as const;
 
@@ -89,6 +98,8 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
         : post.stage === "image"
           ? ({ type: "run_audit", label: "Run SEO check" } as const)
           : null;
+  // A job for this post that's queued or running — the main button shows it instead of offering to start another.
+  const activeJob = pending.find((p) => p.postId === post.id && p.type && p.type in RUNNING_LABEL);
 
   return (
     <div>
@@ -119,15 +130,26 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
               <ExternalLink size={16} aria-hidden="true" /> View live
             </a>
           )}
-          {nextStep && (
-            <button
-              type="button"
-              className="s-btn s-btn--primary"
-              disabled={busy}
-              onClick={() => run(JOB_LABEL[nextStep.type], () => enqueue(nextStep.type, { postId: post.id, topicId: post.topic_id ?? undefined }))}
-            >
-              <WandSparkles size={16} aria-hidden="true" /> {nextStep.label}
+          {activeJob ? (
+            <button type="button" className="s-btn s-btn--primary" disabled aria-live="polite">
+              <Loader2 size={16} className="animate-spin" aria-hidden="true" /> {RUNNING_LABEL[activeJob.type as keyof typeof RUNNING_LABEL]}
             </button>
+          ) : (
+            nextStep && (
+              <button
+                type="button"
+                className="s-btn s-btn--primary"
+                disabled={busy}
+                onClick={() =>
+                  run(JOB_LABEL[nextStep.type], () => enqueue(nextStep.type, { postId: post.id, topicId: post.topic_id ?? undefined }), {
+                    type: nextStep.type,
+                    postId: post.id,
+                  })
+                }
+              >
+                <WandSparkles size={16} aria-hidden="true" /> {nextStep.label}
+              </button>
+            )
           )}
         </div>
       </div>
@@ -393,10 +415,23 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
                 <button
                   type="button"
                   className="s-btn s-btn--sm"
-                  disabled={busy || !post.body_html}
-                  onClick={() => run("Banner", () => enqueue("generate_image", { postId: post.id, prompt: meta.image_prompt || undefined }))}
+                  disabled={busy || !post.body_html || activeJob?.type === "generate_image"}
+                  onClick={() =>
+                    run("Banner", () => enqueue("generate_image", { postId: post.id, prompt: meta.image_prompt || undefined }), {
+                      type: "generate_image",
+                      postId: post.id,
+                    })
+                  }
                 >
-                  <ImagePlus size={15} aria-hidden="true" /> {post.cover_image_url ? "Regenerate banner" : "Generate banner"}
+                  {activeJob?.type === "generate_image" ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" aria-hidden="true" /> Generating banner…
+                    </>
+                  ) : (
+                    <>
+                      <ImagePlus size={15} aria-hidden="true" /> {post.cover_image_url ? "Regenerate banner" : "Generate banner"}
+                    </>
+                  )}
                 </button>
               </div>
             </Panel>

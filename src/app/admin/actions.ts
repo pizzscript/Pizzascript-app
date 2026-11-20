@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { jobPriority } from "@/lib/studio/jobs";
 import { computeScore, priorityFor } from "@/lib/studio/scoring";
 import { requireAdmin, supabaseServer } from "@/lib/studio/server";
 import type { JobType, ScoringSettings, Topic, TopicStatus } from "@/lib/studio/types";
@@ -39,7 +40,7 @@ function startJobs() {
 
 export async function enqueue(type: JobType, payload: Record<string, unknown> = {}) {
   const db = await live();
-  const { data, error } = await db.from("jobs").insert({ type, payload, priority: type === "discuss" ? 5 : 0 }).select("id").single();
+  const { data, error } = await db.from("jobs").insert({ type, payload, priority: jobPriority(type, "admin") }).select("id").single();
   fail(error);
   startJobs();
   revalidatePath("/admin", "layout");

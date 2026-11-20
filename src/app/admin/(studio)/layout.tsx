@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { CmsShell } from "@/components/studio/CmsShell";
 import { StudioProvider } from "@/components/studio/StudioProvider";
+import { jobLabel } from "@/lib/studio/jobs";
 import { getStudio } from "@/lib/studio/session";
 import { verdictFor } from "@/lib/studio/types";
 
@@ -11,8 +12,11 @@ async function Shell({ children }: { children: React.ReactNode }) {
     alerts: data.signals.length,
     ideas: data.topics.filter((t) => t.status === "candidate" && verdictFor(t) === "unresearched").length,
   };
+  const activeJobs = data.jobs
+    .filter((j) => j.status === "queued" || j.status === "running")
+    .map((j) => ({ id: j.id, label: jobLabel(j.type), type: j.type, postId: typeof j.payload?.postId === "string" ? j.payload.postId : undefined }));
   return (
-    <StudioProvider preview={studio.mode === "preview"}>
+    <StudioProvider preview={studio.mode === "preview"} activeJobs={activeJobs}>
       <CmsShell tickets={tickets} counts={counts} email={studio.mode === "live" ? studio.email : null}>
         {children}
       </CmsShell>

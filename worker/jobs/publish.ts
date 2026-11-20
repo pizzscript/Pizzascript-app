@@ -1,16 +1,24 @@
-import { auditPost, internalLinks } from "../../src/lib/studio/content";
+import { auditPost, internalLinks, wordRangeFor } from "../../src/lib/studio/content";
 import type { StudioPost } from "../../src/lib/studio/types";
 import { allBatches, allPosts, check, db, enqueue, linkPlan, raiseSignal, settings, todayIst } from "../db";
 import { env } from "../env";
 
 export async function revalidate(slug?: string) {
   if (!env.revalidateSecret) return;
-  const res = await fetch(`${env.siteUrl}/api/revalidate`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-revalidate-secret": env.revalidateSecret },
-    body: JSON.stringify({ slug }),
-  });
-  if (!res.ok) console.warn(`[revalidate] ${slug ?? "all"} → ${res.status}`);
+  // Every deployment that serves the blog needs its cache refreshed (e.g. the Render app and, later, the real domain).
+  for (const base of env.revalidateUrls) {
+    try {
+      const res = await fetch(`${base}/api/revalidate`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-revalidate-secret": env.revalidateSecret },
+        body: JSON.stringify({ slug }),
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (!res.ok) console.warn(`[revalidate] ${base} ${slug ?? "all"} → ${res.status}`);
+    } catch (error) {
+      console.warn(`[revalidate] ${base} unreachable: ${error instanceof Error ? error.message : error}`);
+    }
+  }
 }
 
 /**
@@ -27,10 +35,18 @@ export async function publishDue() {
   for (const post of due) {
     const approved = Boolean(post.approved_at) || (post.batch_id !== null && approvedBatches.has(post.batch_id));
     const audit = post.body_html
-      ? auditPost(post, { posts, bannedPhrases: banned, wordRange: post.brief?.wordRange ?? ranges[post.track === 1 ? "track1" : "spoke"] })
+      ? auditPost(post, { posts, bannedPhrases: banned, wordRange: post.brief?.wordRange ?? wordRangeFor(post, ranges) })
       : null;
 
     if (!approved || !audit?.ok) {
+      // Keep one open "missed slot" alert per post: close earlier days' before raising today's.
+      await db
+        .from("signals")
+        .update({ status: "acted" })
+        .eq("post_id", post.id)
+        .eq("status", "open")
+        .like("dedupe_key", `missed:${post.id}:%`)
+        .neq("dedupe_key", `missed:${post.id}:${todayIst()}`);
       const reason = !post.body_html ? `still at ${post.stage}` : !audit?.ok ? "audit failing" : "not approved";
       await raiseSignal({
         kind: "audit_failed",
@@ -52,6 +68,8 @@ export async function publishDue() {
       "publish",
     );
     if (post.topic_id) await db.from("topics").update({ status: "published" }).eq("id", post.topic_id);
+    // It's live: its "missed slot" and SEO-check alerts no longer apply.
+    await db.from("signals").update({ status: "acted" }).eq("post_id", post.id).eq("status", "open").eq("kind", "audit_failed");
     published.push(post.slug);
     await raiseBacklinks(post, posts);
   }
