@@ -7,6 +7,7 @@ import { CalendarDays, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Plus,
 import { enqueue, signOut } from "@/app/admin/actions";
 import { BrandMark } from "@/components/BrandMark";
 import { STATUS_LABEL, type Stage } from "@/lib/studio/types";
+import { AgentActivity } from "./AgentActivity";
 import { useStudio } from "./StudioProvider";
 
 const NAV = [
@@ -44,6 +45,7 @@ export function CmsShell({
   const { preview, pending, run } = useStudio();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const titles = useMemo(() => new Map(tickets.map((t) => [t.id, t.title])), [tickets]);
 
   const [lastPath, setLastPath] = useState(pathname);
   if (lastPath !== pathname) {
@@ -101,6 +103,7 @@ export function CmsShell({
             })}
           </ul>
         </nav>
+        <AgentActivity titles={titles} />
         <div className="mt-auto pt-4 border-t s-line space-y-2">
           <a href="/" target="_blank" rel="noopener noreferrer" className="cms-nav-link">
             View site ↗
@@ -116,8 +119,15 @@ export function CmsShell({
 
       <div className="min-w-0">
         <header className="cms-top">
-          <button type="button" className="s-btn s-btn--ghost s-btn--icon cms-menu-btn" onClick={() => setMenuOpen(true)} aria-label="Open menu" aria-expanded={menuOpen}>
+          <button
+            type="button"
+            className="s-btn s-btn--ghost s-btn--icon cms-menu-btn relative"
+            onClick={() => setMenuOpen(true)}
+            aria-label={pending.length ? `Open menu (agent working on ${pending.length} task${pending.length > 1 ? "s" : ""})` : "Open menu"}
+            aria-expanded={menuOpen}
+          >
             <Menu size={20} aria-hidden="true" />
+            {pending.length > 0 && <span className="cms-menu-dot animate-pulse" aria-hidden="true" />}
           </button>
           <button
             type="button"
@@ -129,11 +139,6 @@ export function CmsShell({
             <kbd className="s-mono text-[11px] hidden sm:inline">Ctrl K</kbd>
           </button>
           <div className="ml-auto flex items-center gap-3">
-            {pending.length > 0 && (
-              <span className="s-chip s-chip--accent" role="status">
-                <span className="s-dot animate-pulse" /> Agent: {pending.map((p) => p.label).join(", ")}
-              </span>
-            )}
             {preview && (
               <span className="s-chip s-chip--warn" title="Connect Supabase to make changes">
                 Preview · read-only

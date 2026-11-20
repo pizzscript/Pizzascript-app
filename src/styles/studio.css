@@ -717,3 +717,59 @@ details.s-panel > div {
     transition: none !important;
   }
 }
+
+/* ── Agent activity panel (sidebar) ── */
+.agent-panel {
+  margin-top: 16px;
+  padding: 12px 10px;
+  border: 1px solid var(--s-line);
+  border-radius: 12px;
+  background: var(--s-raised);
+}
+
+.agent-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--s-text);
+}
+
+.agent-panel-title .s-dot {
+  color: var(--s-accent);
+}
+
+.agent-panel-title .s-dot[data-idle="true"] {
+  color: var(--s-faint);
+}
+
+.agent-panel-title:last-child {
+  margin-bottom: 0;
+}
+
+.agent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--s-text);
+}
+
+a.agent-row:hover {
+  background: var(--s-line);
+}
+
+/* Small activity dot on the mobile menu button, since the panel lives in the drawer there. */
+.cms-menu-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--s-accent);
+}

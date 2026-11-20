@@ -12,11 +12,22 @@ async function Shell({ children }: { children: React.ReactNode }) {
     alerts: data.signals.length,
     ideas: data.topics.filter((t) => t.status === "candidate" && verdictFor(t) === "unresearched").length,
   };
-  const activeJobs = data.jobs
+  const initialJobs = data.jobs
     .filter((j) => j.status === "queued" || j.status === "running")
-    .map((j) => ({ id: j.id, label: jobLabel(j.type), type: j.type, postId: typeof j.payload?.postId === "string" ? j.payload.postId : undefined }));
+    .map((j) => {
+      const postId = typeof j.payload?.postId === "string" ? j.payload.postId : undefined;
+      const topicId = typeof j.payload?.topicId === "string" ? j.payload.topicId : undefined;
+      return {
+        id: j.id,
+        label: jobLabel(j.type),
+        type: j.type,
+        postId,
+        status: j.status as "queued" | "running",
+        subject: data.posts.find((p) => p.id === postId)?.title ?? data.topics.find((t) => t.id === topicId)?.query,
+      };
+    });
   return (
-    <StudioProvider preview={studio.mode === "preview"} activeJobs={activeJobs}>
+    <StudioProvider preview={studio.mode === "preview"} initialJobs={initialJobs}>
       <CmsShell tickets={tickets} counts={counts} email={studio.mode === "live" ? studio.email : null}>
         {children}
       </CmsShell>

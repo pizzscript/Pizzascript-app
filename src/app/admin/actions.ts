@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { jobPriority } from "@/lib/studio/jobs";
+import { jobLabel, jobPriority } from "@/lib/studio/jobs";
 import { computeScore, priorityFor } from "@/lib/studio/scoring";
 import { requireAdmin, supabaseServer } from "@/lib/studio/server";
 import type { JobType, ScoringSettings, Topic, TopicStatus } from "@/lib/studio/types";
@@ -53,6 +53,33 @@ export async function runAgent() {
   await live();
   if (!startJobs()) throw new Error("Jobs run on the admin server (RUN_JOBS_IN_PROCESS=1). Here they wait for the scheduled run.");
   revalidatePath("/admin", "layout");
+}
+
+/** Queued and running jobs with what they're for — the admin's agent activity panel polls this. */
+export async function activeJobs() {
+  const db = await live();
+  const { data: jobs, error } = await db
+    .from("jobs")
+    .select("id,type,status,payload,started_at,created_at")
+    .in("status", ["queued", "running"])
+    .order("created_at")
+    .limit(30);
+  fail(error);
+  const list = (jobs ?? []) as { id: string; type: JobType; status: "queued" | "running"; payload: { postId?: string; topicId?: string } }[];
+  const postIds = [...new Set(list.map((j) => j.payload?.postId).filter((x): x is string => !!x))];
+  const topicIds = [...new Set(list.map((j) => j.payload?.topicId).filter((x): x is string => !!x))];
+  const [posts, topics] = await Promise.all([
+    postIds.length ? db.from("posts").select("id,title").in("id", postIds) : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+    topicIds.length ? db.from("topics").select("id,query").in("id", topicIds) : Promise.resolve({ data: [] as { id: string; query: string }[] }),
+  ]);
+  return list.map((j) => ({
+    id: j.id,
+    type: j.type,
+    status: j.status,
+    postId: j.payload?.postId,
+    label: jobLabel(j.type),
+    subject: posts.data?.find((p) => p.id === j.payload?.postId)?.title ?? topics.data?.find((t) => t.id === j.payload?.topicId)?.query,
+  }));
 }
 
 export async function jobStatuses(ids: string[]) {

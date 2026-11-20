@@ -18,6 +18,27 @@ export function jobLabel(type: JobType) {
   return JOB_LABELS[type] ?? type;
 }
 
+/** What the agent is doing, in words, for the activity panel. */
+export const JOB_ACTIVITY: Partial<Record<JobType, string>> = {
+  daily_briefing: "Preparing today's suggestion",
+  score_topic: "Researching idea",
+  write_brief: "Writing brief",
+  write_draft: "Writing draft",
+  rewrite: "Rewriting",
+  generate_image: "Making banner",
+  run_audit: "SEO check",
+  publish_due: "Publishing",
+  insert_link: "Adding link",
+  fix_title: "Rewriting title",
+  discuss: "Replying",
+  quality_gate: "Quality check",
+  performance_check: "Performance check",
+};
+
+export function jobActivity(type: JobType) {
+  return JOB_ACTIVITY[type] ?? jobLabel(type);
+}
+
 /** Turns a raw job error (often a Gemini API JSON dump) into one plain sentence for the admin. */
 export function friendlyJobError(error: string | null | undefined): string {
   const e = error ?? "";

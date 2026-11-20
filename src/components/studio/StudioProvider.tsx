@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { jobStatuses } from "@/app/admin/actions";
+import { activeJobs, jobStatuses } from "@/app/admin/actions";
 import { friendlyJobError, jobLabel } from "@/lib/studio/jobs";
 import type { JobType } from "@/lib/studio/types";
 
@@ -18,6 +18,10 @@ export interface Tracked {
   /** Set for agent jobs so buttons can show their own progress (e.g. "Writing draft…"). */
   type?: JobType;
   postId?: string;
+  /** "running" now, or "queued" waiting its turn. */
+  status?: "queued" | "running";
+  /** Post title or idea the job is for, shown in the agent activity panel. */
+  subject?: string;
 }
 
 interface StudioContextValue {
@@ -33,15 +37,15 @@ const StudioContext = createContext<StudioContextValue | null>(null);
 
 
 
-export function StudioProvider({ preview, activeJobs = [], children }: { preview: boolean; activeJobs?: Tracked[]; children: React.ReactNode }) {
+export function StudioProvider({ preview, initialJobs = [], children }: { preview: boolean; initialJobs?: Tracked[]; children: React.ReactNode }) {
   const router = useRouter();
-  const [pending, setPending] = useState<Tracked[]>(activeJobs);
+  const [pending, setPending] = useState<Tracked[]>(initialJobs);
   // Jobs the server reports as queued/running (after a reload, or started by the schedule) join the tracked list.
-  const activeKey = activeJobs.map((j) => j.id).join(",");
+  const activeKey = initialJobs.map((j) => j.id).join(",");
   const [seenKey, setSeenKey] = useState(activeKey);
   if (activeKey !== seenKey) {
     setSeenKey(activeKey);
-    setPending((p) => [...p, ...activeJobs.filter((j) => !p.some((x) => x.id === j.id))]);
+    setPending((p) => [...p, ...initialJobs.filter((j) => !p.some((x) => x.id === j.id))]);
   }
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [busy, startTransition] = useTransition();
@@ -75,21 +79,40 @@ export function StudioProvider({ preview, activeJobs = [], children }: { preview
     [preview, toast],
   );
 
+  // Keeps the agent activity list current — including work autopilot or the schedule started in the background —
+  // and announces jobs as they finish. Polls quickly while something is going on, slowly when idle.
+  const pendingRef = useRef(pending);
   useEffect(() => {
-    if (pending.length === 0) return;
-    const timer = setInterval(async () => {
-      const statuses = await jobStatuses(pending.map((p) => p.id)).catch(() => []);
-      const finished = statuses.filter((s) => s.status === "done" || s.status === "failed");
-      if (finished.length === 0) return;
-      for (const job of finished) {
-        const name = jobLabel(job.type);
-        toast(job.status === "done" ? `${name} ready` : `${name} failed: ${friendlyJobError(job.error)}`, job.status === "done" ? "ok" : "bad");
+    pendingRef.current = pending;
+  }, [pending]);
+  useEffect(() => {
+    if (preview) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      try {
+        const active = await activeJobs();
+        const gone = pendingRef.current.filter((p) => !active.some((a) => a.id === p.id));
+        if (gone.length) {
+          const statuses = await jobStatuses(gone.map((g) => g.id)).catch(() => []);
+          for (const job of statuses.filter((s) => s.status === "done" || s.status === "failed")) {
+            const name = jobLabel(job.type);
+            toast(job.status === "done" ? `${name} ready` : `${name} failed: ${friendlyJobError(job.error)}`, job.status === "done" ? "ok" : "bad");
+          }
+          router.refresh();
+        }
+        if (!stopped) setPending(active);
+      } catch {
+        // Signed out or offline — try again next tick.
       }
-      setPending((p) => p.filter((x) => !finished.some((f) => f.id === x.id)));
-      router.refresh();
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [pending, router, toast]);
+      if (!stopped) timer = setTimeout(tick, pendingRef.current.length ? 3000 : 12000);
+    };
+    timer = setTimeout(tick, 1500);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [preview, router, toast]);
 
   const value = useMemo(() => ({ preview, pending, run, busy, toast }), [preview, pending, run, busy, toast]);
 
