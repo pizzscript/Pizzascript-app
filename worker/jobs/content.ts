@@ -321,7 +321,7 @@ export async function fixTitle({ postId }: { postId: string }) {
     .from("gsc_daily")
     .select("query,impressions,clicks,position")
     .eq("page", `/blog/${post.slug}`)
-    .gte("date", new Date(Date.now() - 28 * 86_400_000).toISOString().slice(0, 10));
+    .gte("date", new Date(Date.now() + 5.5 * 3_600_000 - 28 * 86_400_000).toISOString().slice(0, 10)); // IST date
   const queries = Object.values(
     (rows ?? []).reduce<Record<string, { query: string; impressions: number }>>((acc, r) => {
       acc[r.query] = { query: r.query, impressions: (acc[r.query]?.impressions ?? 0) + r.impressions };

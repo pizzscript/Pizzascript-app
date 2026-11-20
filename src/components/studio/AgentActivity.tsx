@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, Loader2 } from "lucide-react";
+import { AlertTriangle, Clock, Loader2 } from "lucide-react";
 import { jobActivity } from "@/lib/studio/jobs";
 import type { JobType } from "@/lib/studio/types";
 import { useStudio } from "./StudioProvider";
@@ -20,8 +20,12 @@ const MAX_ROWS = 5;
 
 /** Sidebar panel: what the agent is doing now and what's next, one line per task, duplicates grouped. */
 export function AgentActivity({ titles }: { titles: Map<string, string> }) {
-  const { pending, preview } = useStudio();
+  const { pending, preview, health } = useStudio();
   if (preview) return null;
+  const warnings = [
+    health.oldestWaitMin >= 60 ? `A task has waited ${health.oldestWaitMin >= 120 ? `${Math.round(health.oldestWaitMin / 60)} h` : `${health.oldestWaitMin} min`}` : null,
+    health.failed24h > 0 ? `${health.failed24h} failed in 24 h` : null,
+  ].filter(Boolean);
 
   const rows: Row[] = [];
   for (const job of pending) {
@@ -76,6 +80,12 @@ export function AgentActivity({ titles }: { titles: Map<string, string> }) {
           })}
           {rows.length > MAX_ROWS && <li className="s-faint text-[12px] px-2">+{rows.length - MAX_ROWS} more queued</li>}
         </ul>
+      )}
+      {warnings.length > 0 && (
+        <Link href="/admin/settings?tab=usage" className="agent-health" title="See Gemini usage and errors">
+          <AlertTriangle size={13} aria-hidden="true" className="flex-none mt-0.5" />
+          <span>{warnings.join(" · ")}</span>
+        </Link>
       )}
     </section>
   );

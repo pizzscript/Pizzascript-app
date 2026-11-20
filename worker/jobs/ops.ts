@@ -6,10 +6,12 @@ import { json, text } from "../gemini";
 import { fetchGsc, gscConfigured, type GscRow } from "../gsc";
 import { AGENT, STRATEGY, WRITING } from "../rules";
 
-const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+/** An IST calendar date, offset by whole days from today (IST). */
+const day = (offset: number) => new Date(Date.now() + 5.5 * 3_600_000 + offset * 86_400_000).toISOString().slice(0, 10);
 
+/** ISO-ish week key in IST, so the Monday report runs once per Indian week. */
 function weekKey() {
-  const d = new Date();
+  const d = new Date(Date.now() + 5.5 * 3_600_000);
   const start = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return `${d.getUTCFullYear()}w${Math.ceil(((d.getTime() - start.getTime()) / 86_400_000 + start.getUTCDay() + 1) / 7)}`;
 }

@@ -773,3 +773,16 @@ a.agent-row:hover {
   border-radius: 50%;
   background: var(--s-accent);
 }
+
+.agent-health {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--s-warn) 12%, transparent);
+  color: var(--s-warn);
+  font-size: 12px;
+  line-height: 1.35;
+}

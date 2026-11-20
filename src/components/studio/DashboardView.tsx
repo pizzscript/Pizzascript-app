@@ -4,9 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowDown, ArrowUp, Link2, MousePointerClick, RefreshCw, Search, ShieldAlert, Sparkles, Zap } from "lucide-react";
 import { approvePost, createTopic, enqueue, setSignal, slotPost } from "@/app/admin/actions";
+import type { AiCall } from "@/lib/studio/server";
 import type { AgentMessage, Briefing, Signal, SignalKind, StudioPost } from "@/lib/studio/types";
 import { AgentThread } from "./AgentThread";
 import { AutopilotToggle } from "./AutopilotToggle";
+import { UsageCard } from "./UsageCard";
 import { useStudio } from "./StudioProvider";
 import { SeoBadge, StatusBadge, formatDate } from "./ui";
 
@@ -34,6 +36,7 @@ export function DashboardView({
   today,
   upcoming,
   autopilot,
+  aiUsage,
   messages,
   stats,
 }: {
@@ -43,6 +46,7 @@ export function DashboardView({
   today: StudioPost | null;
   upcoming: StudioPost[];
   autopilot: boolean;
+  aiUsage: AiCall[];
   messages: AgentMessage[];
   stats: { live: number; drafts: number; scheduled: number; ideas: number };
 }) {
@@ -241,6 +245,8 @@ export function DashboardView({
               </ol>
             )}
           </section>
+
+          <UsageCard calls={aiUsage} />
         </div>
       </div>
     </div>

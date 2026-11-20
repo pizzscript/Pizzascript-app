@@ -24,6 +24,7 @@ async function Dashboard() {
       today={today}
       upcoming={slotted.filter((p) => p !== today).slice(0, 6)}
       autopilot={data.autopilot}
+      aiUsage={data.aiUsage}
       messages={data.messages.filter((m) => m.thread === `briefing:${date}`)}
       stats={{
         live: data.posts.filter((p) => p.stage === "live").length,

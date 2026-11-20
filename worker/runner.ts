@@ -41,6 +41,11 @@ async function runNext(): Promise<boolean> {
   if (!job) return false;
 
   const started = Date.now();
+  currentJob = job.id;
+  // Heartbeat: proves this worker is alive. If it stops (restart, sleep, crash), claim_job reclaims the job after 2 min.
+  const beat = setInterval(() => {
+    db.from("jobs").update({ heartbeat_at: new Date().toISOString() }).eq("id", job.id).then(() => {});
+  }, 30_000);
   try {
     const handler = HANDLERS[job.type];
     if (!handler) throw new Error(`Unknown job type ${job.type}`);
@@ -62,8 +67,44 @@ async function runNext(): Promise<boolean> {
       )
       .eq("id", job.id);
     console.error(`[job] ${job.type} ${retry ? "will retry" : "failed"}: ${message}`);
+  } finally {
+    clearInterval(beat);
+    currentJob = null;
   }
   return true;
+}
+
+let currentJob: string | null = null;
+
+/**
+ * On shutdown (Render redeploys or puts the instance to sleep with SIGTERM), hand the running job back to the queue
+ * straight away so the next wake-up redoes it — instead of waiting for its heartbeat to go stale.
+ */
+let shutdownHooked = false;
+function hookShutdown() {
+  if (shutdownHooked) return;
+  shutdownHooked = true;
+  const release = async () => {
+    if (!currentJob) return;
+    const id = currentJob;
+    currentJob = null;
+    await db.from("jobs").update({ status: "queued", run_after: new Date().toISOString(), error: "interrupted by server shutdown" }).eq("id", id).eq("status", "running");
+    console.log(`[job] ${id} handed back to the queue (shutdown)`);
+  };
+  for (const sig of ["SIGTERM", "SIGINT"] as const) process.once(sig, () => void release());
+}
+
+/**
+ * Render's free plan sleeps after ~15 min without incoming web traffic, even mid-job. While a pass is working, ping
+ * our own public URL every 5 min so it stays awake exactly as long as there is work; stop when the pass ends.
+ */
+function keepAwake() {
+  const base = process.env.RENDER_EXTERNAL_URL ?? process.env.AGENT_SELF_URL;
+  if (!base) return () => {};
+  const timer = setInterval(() => {
+    fetch(`${base.replace(/\/$/, "")}/api/agent/health`, { signal: AbortSignal.timeout(20_000) }).catch(() => {});
+  }, 5 * 60_000);
+  return () => clearInterval(timer);
 }
 
 function istClock() {
@@ -125,6 +166,8 @@ let rerun = false;
 export async function runOnce(budgetMs = Number(process.env.PASS_BUDGET_MS ?? 7 * 60_000)): Promise<boolean> {
   if (running) return false;
   running = true;
+  hookShutdown();
+  const stopKeepAwake = keepAwake();
   const deadline = Date.now() + budgetMs;
   try {
     await schedule();
@@ -134,6 +177,7 @@ export async function runOnce(budgetMs = Number(process.env.PASS_BUDGET_MS ?? 7 
     }
     return true;
   } finally {
+    stopKeepAwake();
     running = false;
   }
 }

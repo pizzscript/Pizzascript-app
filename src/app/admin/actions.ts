@@ -60,26 +60,53 @@ export async function activeJobs() {
   const db = await live();
   const { data: jobs, error } = await db
     .from("jobs")
-    .select("id,type,status,payload,started_at,created_at")
+    .select("id,type,status,payload,started_at,heartbeat_at,run_after,created_at")
     .in("status", ["queued", "running"])
     .order("created_at")
     .limit(30);
   fail(error);
-  const list = (jobs ?? []) as { id: string; type: JobType; status: "queued" | "running"; payload: { postId?: string; topicId?: string } }[];
+  const list = (jobs ?? []) as {
+    id: string;
+    type: JobType;
+    status: "queued" | "running";
+    payload: { postId?: string; topicId?: string };
+    started_at: string | null;
+    heartbeat_at: string | null;
+    run_after: string;
+    created_at: string;
+  }[];
+  const now = Date.now();
+
+  // Nudge: jobs are due but nothing is genuinely running (none, or only one whose worker stopped) → start the agent.
+  const due = list.some((j) => j.status === "queued" && new Date(j.run_after).getTime() <= now);
+  const alive = list.some((j) => j.status === "running" && now - new Date(j.heartbeat_at ?? j.started_at ?? 0).getTime() < 2 * 60_000);
+  if (due && !alive) startJobs();
+
+  // Health: failures in the last 24h, and how long the oldest due job has been waiting.
+  const { count: failed24h } = await db
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "failed")
+    .gte("finished_at", new Date(now - 86_400_000).toISOString());
+  const waiting = list.filter((j) => j.status === "queued" && new Date(j.run_after).getTime() <= now);
+  const oldestWaitMin = waiting.length ? Math.round((now - Math.min(...waiting.map((j) => new Date(j.created_at).getTime()))) / 60_000) : 0;
   const postIds = [...new Set(list.map((j) => j.payload?.postId).filter((x): x is string => !!x))];
   const topicIds = [...new Set(list.map((j) => j.payload?.topicId).filter((x): x is string => !!x))];
   const [posts, topics] = await Promise.all([
     postIds.length ? db.from("posts").select("id,title").in("id", postIds) : Promise.resolve({ data: [] as { id: string; title: string }[] }),
     topicIds.length ? db.from("topics").select("id,query").in("id", topicIds) : Promise.resolve({ data: [] as { id: string; query: string }[] }),
   ]);
-  return list.map((j) => ({
-    id: j.id,
-    type: j.type,
-    status: j.status,
-    postId: j.payload?.postId,
-    label: jobLabel(j.type),
-    subject: posts.data?.find((p) => p.id === j.payload?.postId)?.title ?? topics.data?.find((t) => t.id === j.payload?.topicId)?.query,
-  }));
+  return {
+    jobs: list.map((j) => ({
+      id: j.id,
+      type: j.type,
+      status: j.status,
+      postId: j.payload?.postId,
+      label: jobLabel(j.type),
+      subject: posts.data?.find((p) => p.id === j.payload?.postId)?.title ?? topics.data?.find((t) => t.id === j.payload?.topicId)?.query,
+    })),
+    health: { failed24h: failed24h ?? 0, oldestWaitMin },
+  };
 }
 
 export async function jobStatuses(ids: string[]) {

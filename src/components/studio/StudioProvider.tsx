@@ -30,6 +30,8 @@ interface StudioContextValue {
   /** Runs a server action; string results are treated as job ids and tracked until done. */
   run: (label: string, fn: () => Promise<unknown>, job?: { type: JobType; postId?: string }) => Promise<void>;
   busy: boolean;
+  /** Agent health from the activity poll: failures in the last 24h, minutes the oldest due job has waited. */
+  health: { failed24h: number; oldestWaitMin: number };
   toast: (text: string, tone?: Toast["tone"]) => void;
 }
 
@@ -48,6 +50,7 @@ export function StudioProvider({ preview, initialJobs = [], children }: { previe
     setPending((p) => [...p, ...initialJobs.filter((j) => !p.some((x) => x.id === j.id))]);
   }
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [health, setHealth] = useState({ failed24h: 0, oldestWaitMin: 0 });
   const [busy, startTransition] = useTransition();
   const nextToast = useRef(0);
 
@@ -91,7 +94,7 @@ export function StudioProvider({ preview, initialJobs = [], children }: { previe
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
       try {
-        const active = await activeJobs();
+        const { jobs: active, health: h } = await activeJobs();
         const gone = pendingRef.current.filter((p) => !active.some((a) => a.id === p.id));
         if (gone.length) {
           const statuses = await jobStatuses(gone.map((g) => g.id)).catch(() => []);
@@ -101,7 +104,10 @@ export function StudioProvider({ preview, initialJobs = [], children }: { previe
           }
           router.refresh();
         }
-        if (!stopped) setPending(active);
+        if (!stopped) {
+          setPending(active);
+          setHealth(h);
+        }
       } catch {
         // Signed out or offline — try again next tick.
       }
@@ -114,7 +120,7 @@ export function StudioProvider({ preview, initialJobs = [], children }: { previe
     };
   }, [preview, router, toast]);
 
-  const value = useMemo(() => ({ preview, pending, run, busy, toast }), [preview, pending, run, busy, toast]);
+  const value = useMemo(() => ({ preview, pending, run, busy, health, toast }), [preview, pending, run, busy, health, toast]);
 
   return (
     <StudioContext value={value}>

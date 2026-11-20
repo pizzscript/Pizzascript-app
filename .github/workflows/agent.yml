@@ -1,34 +1,58 @@
-name: Content agent
+name: Content agent doorbell
 
+# Every 30 minutes (cron is in UTC; :00 and :30 UTC are :30 and :00 IST, so 09:00 IST = 03:30 UTC is covered).
+# This workflow does NO AI work. It asks the database (one cheap call) whether anything is due — all times IST —
+# then: publishes ready posts itself (no AI), and wakes the app server on Render only if AI work is waiting.
 on:
   schedule:
-    - cron: "*/15 * * * *" # every 15 minutes, UTC
-  workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
 
 concurrency:
   group: content-agent
-  cancel-in-progress: false # never kill a run mid-job; let it finish, skip overlap instead
+  cancel-in-progress: false
 
 jobs:
-  run-once:
+  doorbell:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Ask the database what's due (IST)
+        id: check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          result=$(curl -sS --fail --max-time 30 -X POST "$SUPABASE_URL/rest/v1/rpc/agent_doorbell" \
+            -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+            -H "Content-Type: application/json" -d '{}')
+          echo "Doorbell: $result"
+          echo "wake=$(echo "$result" | jq -r '.wake')" >> "$GITHUB_OUTPUT"
+          echo "publish=$(echo "$result" | jq -r '.publish')" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.publish == 'true'
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.publish == 'true'
         with:
           node-version: "22"
           cache: "npm"
-
-      - run: npm ci
-
-      - run: npm run worker -- --once
+      - name: Publish posts that are due
+        if: steps.check.outputs.publish == 'true'
+        run: npm ci && npm run publish:due
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GSC_SERVICE_ACCOUNT_JSON: ${{ secrets.GSC_SERVICE_ACCOUNT_JSON }}
-          GSC_SITE_URL: "sc-domain:pizzascript.com"
-          SITE_URL: "https://www.pizzascript.com"
           REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+          REVALIDATE_URLS: ${{ secrets.REVALIDATE_URLS }}
+          SITE_URL: "https://www.pizzascript.com"
+
+      - name: Wake the app server for AI work
+        if: steps.check.outputs.wake == 'true'
+        env:
+          AGENT_URL: ${{ secrets.AGENT_URL }}
+          AGENT_SECRET: ${{ secrets.AGENT_SECRET }}
+        run: |
+          # A sleeping free Render instance takes ~1 min to start; allow for that.
+          curl -sS --fail --max-time 150 --retry 2 --retry-delay 10 -X POST "$AGENT_URL/api/agent/tick" -H "x-agent-secret: $AGENT_SECRET"

@@ -87,6 +87,7 @@ export interface AiCall {
   kind: "text" | "json" | "image";
   ok: boolean;
   quota_limit: number | null;
+  error?: string | null;
 }
 
 const DEFAULT_SCHEDULE: ScheduleSettings = { timezone: "Asia/Kolkata", publishAt: "09:00", briefingAt: "06:30", perDay: 1 };
@@ -196,7 +197,7 @@ export async function loadStudio(studio: Studio): Promise<StudioData> {
     rows<AiCall[]>(
       db
         .from("ai_calls")
-        .select("created_at,model,kind,ok,quota_limit")
+        .select("created_at,model,kind,ok,quota_limit,error")
         .gte("created_at", new Date(Date.now() - 7 * 86_400_000).toISOString())
         .order("created_at", { ascending: false })
         .limit(5000),
