@@ -2,7 +2,9 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { db } from "./db";
 import { env } from "./env";
 
-const ai = new GoogleGenAI({ apiKey: env.geminiApiKey });
+// Hard per-request timeout: an overloaded model can otherwise leave a request hanging for minutes and block the queue.
+// withRetry below decides what's worth retrying and how often.
+const ai = new GoogleGenAI({ apiKey: env.geminiApiKey, httpOptions: { timeout: 120_000 } });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

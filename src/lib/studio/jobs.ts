@@ -18,6 +18,17 @@ export function jobLabel(type: JobType) {
   return JOB_LABELS[type] ?? type;
 }
 
+/** Turns a raw job error (often a Gemini API JSON dump) into one plain sentence for the admin. */
+export function friendlyJobError(error: string | null | undefined): string {
+  const e = error ?? "";
+  if (/limit: 0\b/.test(e)) return "this Gemini model isn't available on your API key (free keys can't generate images).";
+  if (/429|RESOURCE_EXHAUSTED|quota/i.test(e)) return "Gemini's free quota is used up for now. It resets daily — try again later (see Settings → AI usage).";
+  if (/503|UNAVAILABLE|overloaded|high demand/i.test(e)) return "Gemini is overloaded right now. Try again in a few minutes.";
+  if (/API key|PERMISSION_DENIED|401|403/i.test(e)) return "Gemini rejected the API key. Check GEMINI_API_KEY.";
+  if (/fetch failed|ECONNRESET|ETIMEDOUT|timeout/i.test(e)) return "couldn't reach Gemini (network). It will retry.";
+  return e.length > 160 ? `${e.slice(0, 160)}…` : e || "unknown error";
+}
+
 /** Quick, non-AI jobs: run them before anything slow so a 1-second check never waits behind minutes of drafting. */
 const QUICK: JobType[] = ["run_audit", "publish_due", "insert_link"];
 

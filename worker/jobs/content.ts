@@ -1,10 +1,9 @@
-import sharp from "sharp";
 import { auditPost, internalLinks, joinSections, plainText, splitSections, wordCount, wordRangeFor } from "../../src/lib/studio/content";
 import { computeScore, priorityFor } from "../../src/lib/studio/scoring";
 import type { Brief, RewritePayload, StudioPost, Topic, TopicFilters, TopicScores } from "../../src/lib/studio/types";
 import { allClusters, allFacts, allPosts, allTopics, check, db, enqueue, getPost, linkPlan, raiseSignal, saveVersion, settings } from "../db";
-import { fallbackBanner } from "../banner";
-import { image, json } from "../gemini";
+import { makePoster } from "../poster";
+import { json } from "../gemini";
 import { AGENT, FILTERS, HTML_FORMAT, IMAGE_PROTOCOL, SERVICE_PAGES, STRATEGY, WRITING, factsBlock } from "../rules";
 import { revalidate } from "./publish";
 
@@ -232,7 +231,7 @@ Return JSON: {"title":"≤ 60 chars, includes the query naturally","seo_title":"
     reading_minutes: Math.max(1, Math.round(wordCount(draft.body_html) / 200)),
   } as Partial<StudioPost>);
 
-  // Banner next (a generated one if the key has no image quota), unless the post already has one.
+  // Banner next (a designed poster — see worker/poster), unless the post already has one.
   await enqueue(post.cover_image_url ? "run_audit" : "generate_image", { postId });
   return { words: wordCount(draft.body_html) };
 }
@@ -355,45 +354,31 @@ Return JSON {"seo_title":"≤ 60 chars","seo_description":"120–160 chars","why
 
 // ───────────────────────── generate_image ─────────────────────────
 
-export async function generateImage({ postId, prompt }: { postId: string; prompt?: string }) {
-  const post = await getPost(postId);
-  let finalPrompt = prompt ?? post.image_prompt;
-  if (!finalPrompt) {
-    const out = await json<{ prompt: string; alt: string }>(
-      `Write the banner prompt for "${post.title}" (${post.seo_plan?.targetQuery}). Angle: ${post.brief?.angle}.\n${IMAGE_PROTOCOL}\nReturn JSON {"prompt":"...","alt":"descriptive alt text"}`,
-      AGENT,
-    );
-    finalPrompt = out.prompt;
-    await db.from("posts").update({ image_prompt: out.prompt, cover_image_alt: post.cover_image_alt ?? out.alt }).eq("id", postId);
-  }
+/**
+ * Designed banner: the AI art director picks the concept (comparison, code fix, metric, cost, case study or guide;
+ * headline; tech logos; stat or snippet) and a fixed template renders it on the server — fonts, icons and layout are
+ * bundled, so it needs no image model and still works (rule-based concept) when the Gemini quota is used up.
+ */
+export async function generateImage({ postId }: { postId: string; prompt?: string }) {
+  const [post, clusters] = await Promise.all([getPost(postId), allClusters()]);
+  const categoryName = clusters.find((c) => c.id === post.cluster_id)?.name ?? "PizzaScript Blog";
+  const poster = await makePoster(post, categoryName);
 
-  // AI banner first; if the key can't make images (free tier has no image quota) or Gemini fails, use the free
-  // generated banner so the post can still pass the SEO check and publish. Regenerate later once images are available.
-  let webp: Buffer;
-  let fallback = false;
-  try {
-    const png = await image(`${finalPrompt}\n\nWidescreen 21:9 banner. Keep 20–25% empty margin on every edge.`);
-    webp = await sharp(png).resize({ width: 1600, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
-  } catch (error) {
-    console.warn(`[banner] AI image unavailable, using generated banner: ${error instanceof Error ? error.message.slice(0, 160) : error}`);
-    webp = await fallbackBanner(post.slug, post.cluster_id);
-    fallback = true;
-  }
   const objectPath = `${post.slug}/banner-${Date.now()}.webp`;
-  const { error } = await db.storage.from(BUCKET).upload(objectPath, webp, { contentType: "image/webp", upsert: false });
+  const { error } = await db.storage.from(BUCKET).upload(objectPath, poster.webp, { contentType: "image/webp", upsert: false });
   if (error) throw new Error(`upload: ${error.message}`);
   const url = db.storage.from(BUCKET).getPublicUrl(objectPath).data.publicUrl;
 
   check(
     await db
       .from("posts")
-      .update({ cover_image_url: url, image_prompt: finalPrompt, stage: post.stage === "draft" ? "image" : post.stage })
+      .update({ cover_image_url: url, cover_image_alt: poster.alt, stage: post.stage === "draft" ? "image" : post.stage })
       .eq("id", postId),
     "banner update",
   );
   await enqueue("run_audit", { postId });
   if (post.stage === "live") await revalidate(post.slug);
-  return { url, fallback };
+  return { url, type: poster.plan.type, aiDirected: poster.ai };
 }
 
 // ───────────────────────── run_audit ─────────────────────────

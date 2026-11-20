@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { jobStatuses } from "@/app/admin/actions";
-import { jobLabel } from "@/lib/studio/jobs";
+import { friendlyJobError, jobLabel } from "@/lib/studio/jobs";
 import type { JobType } from "@/lib/studio/types";
 
 interface Toast {
@@ -83,7 +83,7 @@ export function StudioProvider({ preview, activeJobs = [], children }: { preview
       if (finished.length === 0) return;
       for (const job of finished) {
         const name = jobLabel(job.type);
-        toast(job.status === "done" ? `${name} ready` : `${name} failed: ${job.error ?? "unknown error"}`, job.status === "done" ? "ok" : "bad");
+        toast(job.status === "done" ? `${name} ready` : `${name} failed: ${friendlyJobError(job.error)}`, job.status === "done" ? "ok" : "bad");
       }
       setPending((p) => p.filter((x) => !finished.some((f) => f.id === x.id)));
       router.refresh();

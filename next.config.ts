@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // The banner poster engine runs inside the admin's job runner: resvg is a native module and satori loads WASM,
+  // so both stay as plain Node packages instead of being bundled.
+  serverExternalPackages: ["@resvg/resvg-js", "satori"],
   turbopack: {
     root: process.cwd(),
     rules: {
