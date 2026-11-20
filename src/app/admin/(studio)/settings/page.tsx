@@ -17,6 +17,8 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/admin/sett
       facts={data.facts}
       batches={data.batches}
       email={studio.mode === "live" ? studio.email : null}
+      autopilot={data.autopilot}
+      aiUsage={data.aiUsage}
     />
   );
 }

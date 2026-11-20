@@ -15,7 +15,6 @@ async function Dashboard() {
     .filter((p) => p.stage !== "live" && p.scheduled_for)
     .sort((a, b) => a.scheduled_for!.localeCompare(b.scheduled_for!));
   const today = slotted.find((p) => istDate(p.scheduled_for!) === date) ?? null;
-  const batch = data.batches.find((b) => data.posts.some((p) => p.batch_id === b.id && p.stage !== "live")) ?? null;
 
   return (
     <DashboardView
@@ -24,7 +23,7 @@ async function Dashboard() {
       signals={data.signals}
       today={today}
       upcoming={slotted.filter((p) => p !== today).slice(0, 6)}
-      batch={batch}
+      autopilot={data.autopilot}
       messages={data.messages.filter((m) => m.thread === `briefing:${date}`)}
       stats={{
         live: data.posts.filter((p) => p.stage === "live").length,

@@ -75,6 +75,18 @@ export interface StudioData {
   schedule: ScheduleSettings;
   bannedPhrases: string[];
   wordRanges: Record<string, [number, number]>;
+  /** Global autopilot: every scheduled post is prepared and published automatically if it passes the SEO check. */
+  autopilot: boolean;
+  /** Gemini requests in the last 7 days, for the usage panel. */
+  aiUsage: AiCall[];
+}
+
+export interface AiCall {
+  created_at: string;
+  model: string;
+  kind: "text" | "json" | "image";
+  ok: boolean;
+  quota_limit: number | null;
 }
 
 const DEFAULT_SCHEDULE: ScheduleSettings = { timezone: "Asia/Kolkata", publishAt: "09:00", briefingAt: "06:30", perDay: 1 };
@@ -155,6 +167,8 @@ async function loadPreview(): Promise<StudioData> {
     schedule: DEFAULT_SCHEDULE,
     bannedPhrases: DEFAULT_BANNED,
     wordRanges: DEFAULT_WORD_RANGES,
+    autopilot: false,
+    aiUsage: [],
   };
 }
 
@@ -167,7 +181,7 @@ async function rows<T>(query: PromiseLike<{ data: unknown; error: { message: str
 export async function loadStudio(studio: Studio): Promise<StudioData> {
   if (studio.mode === "preview") return loadPreview();
   const { db } = studio;
-  const [clusters, batches, topics, posts, linkPlan, facts, signals, briefings, jobs, messages, settings] = await Promise.all([
+  const [clusters, batches, topics, posts, linkPlan, facts, signals, briefings, jobs, messages, settings, aiUsage] = await Promise.all([
     rows<Cluster[]>(db.from("clusters").select("*").order("position")),
     rows<Batch[]>(db.from("batches").select("*").order("created_at", { ascending: false })),
     rows<Topic[]>(db.from("topics").select("*").order("score", { ascending: false, nullsFirst: false })),
@@ -179,6 +193,14 @@ export async function loadStudio(studio: Studio): Promise<StudioData> {
     rows<Job[]>(db.from("jobs").select("*").order("created_at", { ascending: false }).limit(30)),
     rows<AgentMessage[]>(db.from("agent_messages").select("*").order("created_at").limit(200)),
     rows<{ key: string; value: unknown }[]>(db.from("settings").select("*")),
+    rows<AiCall[]>(
+      db
+        .from("ai_calls")
+        .select("created_at,model,kind,ok,quota_limit")
+        .gte("created_at", new Date(Date.now() - 7 * 86_400_000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(5000),
+    ),
   ]);
   const setting = <T,>(key: string, fallback: T) => (settings.find((s) => s.key === key)?.value as T) ?? fallback;
   return {
@@ -196,6 +218,8 @@ export async function loadStudio(studio: Studio): Promise<StudioData> {
     schedule: setting("schedule", DEFAULT_SCHEDULE),
     bannedPhrases: setting("banned_phrases", DEFAULT_BANNED),
     wordRanges: setting("word_ranges", DEFAULT_WORD_RANGES),
+    autopilot: setting<{ enabled?: boolean }>("autopilot", {}).enabled === true,
+    aiUsage,
   };
 }
 

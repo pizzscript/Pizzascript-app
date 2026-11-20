@@ -100,7 +100,7 @@ JSON shape: {"scores":{"authority":{"value":0,"reason":""},...},"caseStudy":fals
 
 // ───────────────────────── write_brief ─────────────────────────
 
-export async function writeBrief({ topicId, postId }: { topicId?: string; postId?: string }) {
+export async function writeBrief({ topicId, postId, auto }: { topicId?: string; postId?: string; auto?: boolean }) {
   let post = postId ? await getPost(postId) : null;
   const topicKey = topicId ?? post?.topic_id;
   const topic = topicKey ? (check(await db.from("topics").select("*").eq("id", topicKey).single(), "topic") as Topic) : null;
@@ -132,6 +132,11 @@ export async function writeBrief({ topicId, postId }: { topicId?: string; postId
       ) as StudioPost);
   }
   if (topic) await db.from("topics").update({ status: "in_production" }).eq("id", topic.id);
+  // From an approved idea: let the pipeline carry this post through draft, banner and SEO check on its own.
+  if (auto && !post.auto_pipeline) {
+    await db.from("posts").update({ auto_pipeline: true }).eq("id", post.id);
+    post.auto_pipeline = true;
+  }
 
   const [posts, topics, facts, ranges, plan] = await Promise.all([allPosts(), allTopics(), allFacts(), settings.wordRanges(), linkPlan()]);
   const plannedLinks = plan.filter((l) => l.from_slug === post!.slug).map((l) => l.to_path);
@@ -227,7 +232,8 @@ Return JSON: {"title":"≤ 60 chars, includes the query naturally","seo_title":"
     reading_minutes: Math.max(1, Math.round(wordCount(draft.body_html) / 200)),
   } as Partial<StudioPost>);
 
-  await enqueue(draft.image_prompt ? "generate_image" : "run_audit", { postId });
+  // Banner next (a generated one if the key has no image quota), unless the post already has one.
+  await enqueue(post.cover_image_url ? "run_audit" : "generate_image", { postId });
   return { words: wordCount(draft.body_html) };
 }
 
@@ -393,12 +399,13 @@ export async function generateImage({ postId, prompt }: { postId: string; prompt
 // ───────────────────────── run_audit ─────────────────────────
 
 export async function runAudit({ postId }: { postId: string }) {
-  const [post, posts, banned, ranges, batches] = await Promise.all([
+  const [post, posts, banned, ranges, batches, autopilot] = await Promise.all([
     getPost(postId),
     allPosts(),
     settings.banned(),
     settings.wordRanges(),
     db.from("batches").select("id,approved_at"),
+    settings.autopilot(),
   ]);
   if (!post.body_html) throw new Error("Nothing to audit yet — write the draft first.");
   const audit = auditPost(post, { posts, bannedPhrases: banned, wordRange: post.brief?.wordRange ?? wordRangeFor(post, ranges) });
@@ -407,7 +414,7 @@ export async function runAudit({ postId }: { postId: string }) {
   let stage = post.stage;
   if (audit.ok && ["draft", "image"].includes(stage)) stage = "audit";
   if (!audit.ok && stage === "slotted") stage = "audit";
-  if (audit.ok && stage === "audit" && post.scheduled_for && (post.approved_at || batchApproved)) stage = "slotted";
+  if (audit.ok && stage === "audit" && post.scheduled_for && (post.approved_at || batchApproved || autopilot)) stage = "slotted";
 
   check(await db.from("posts").update({ audit, stage }).eq("id", postId), "audit save");
   // Passing now clears any earlier "SEO check failed" alert for this post.

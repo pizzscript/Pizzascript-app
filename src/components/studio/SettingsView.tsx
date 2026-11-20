@@ -3,13 +3,17 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { addFact, approveBatch, deleteFact, runAgent, saveScoring, saveSetting, setFactVerified, signOut } from "@/app/admin/actions";
+import type { AiCall } from "@/lib/studio/server";
 import { SCORE_FACTORS, type Batch, type Fact, type ScheduleSettings, type ScoreFactor, type ScoringSettings } from "@/lib/studio/types";
+import { AutopilotToggle } from "./AutopilotToggle";
 import { useStudio } from "./StudioProvider";
+import { UsagePanel } from "./UsagePanel";
 import { PageHead } from "./ui";
 
 const TABS = [
   { id: "schedule", label: "Schedule" },
   { id: "autopilot", label: "Autopilot" },
+  { id: "usage", label: "AI usage" },
   { id: "writing", label: "Writing rules" },
   { id: "scoring", label: "Idea scoring" },
   { id: "facts", label: "Facts" },
@@ -45,9 +49,11 @@ interface Props {
   facts: Fact[];
   batches: Batch[];
   email: string | null;
+  autopilot: boolean;
+  aiUsage: AiCall[];
 }
 
-export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, batches, email }: Props) {
+export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, batches, email, autopilot, aiUsage }: Props) {
   const { run, busy, preview } = useStudio();
   const [tab, setTab] = useState<TabId>((TABS.find((t) => t.id === initialTab)?.id ?? "schedule") as TabId);
   const [sched, setSched] = useState(schedule);
@@ -59,7 +65,7 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
   return (
     <div>
       <PageHead title="Settings" />
-      <div className="grid gap-8 md:grid-cols-[200px_minmax(0,1fr)]">
+      <div className="grid gap-8 grid-cols-[minmax(0,1fr)] md:grid-cols-[200px_minmax(0,1fr)]">
         <div role="tablist" aria-label="Settings sections" aria-orientation="vertical" className="flex md:flex-col gap-1 overflow-x-auto">
           {TABS.map((t) => (
             <button
@@ -94,40 +100,49 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
             <>
               <Intro
                 title="Autopilot"
-                text="A post publishes on its own only when it passes the SEO check and its batch (or the post itself) is approved. Approved batches also prepare posts due in the next 3 days. Anything else waits for you and shows up as an alert."
+                text="When it's on, every scheduled post is written, gets a banner, is SEO-checked and published on its date — no approvals. Posts are prepared one at a time, soonest first. A post that fails the SEO check doesn't publish; it shows up as an alert."
               />
               <div className="flex flex-wrap items-center gap-3">
+                <AutopilotToggle enabled={autopilot} />
                 <button type="button" className="s-btn" disabled={busy} onClick={() => run("Agent started", () => runAgent())}>
                   Run agent now
                 </button>
-                <span className="s-faint text-[13px]">Runs queued jobs now. Jobs you queue from the admin also start automatically.</span>
               </div>
-              {batches.length === 0 ? (
-                <p className="s-dim">No batches yet.</p>
-              ) : (
-                <ul className="divide-y divide-[var(--s-line)]">
-                  {batches.map((b) => (
-                    <li key={b.id} className="flex items-center justify-between gap-4 py-3">
-                      <span>
-                        <span className="font-medium">{b.name}</span>
-                        <span className="block s-faint text-[13px]">{b.approved_at ? "Publishing automatically" : "Waiting for approval"}</span>
-                      </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={Boolean(b.approved_at)}
-                        aria-label={`Autopilot for ${b.name}`}
-                        className={`s-btn s-btn--sm ${b.approved_at ? "" : "s-btn--primary"}`}
-                        onClick={() => run(b.approved_at ? "Autopilot paused" : "Autopilot on", () => approveBatch(b.id, !b.approved_at))}
-                      >
-                        {b.approved_at ? "Pause" : "Approve"}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+
+              <div className="pt-4 border-t s-line">
+                <Intro
+                  title="Batches"
+                  text="With autopilot off, approving a batch does the same for just that batch: its posts are prepared one by one and publish on their dates if they pass."
+                />
+                {batches.length === 0 ? (
+                  <p className="s-dim mt-3">No batches yet.</p>
+                ) : (
+                  <ul className="divide-y divide-[var(--s-line)] mt-2">
+                    {batches.map((b) => (
+                      <li key={b.id} className="flex items-center justify-between gap-4 py-3">
+                        <span>
+                          <span className="font-medium">{b.name}</span>
+                          <span className="block s-faint text-[13px]">{b.approved_at ? "Approved — running automatically" : "Not approved"}</span>
+                        </span>
+                        <button
+                          type="button"
+                          className={`s-btn s-btn--sm ${b.approved_at ? "" : "s-btn--primary"}`}
+                          onClick={() => {
+                            if (!b.approved_at && !window.confirm(`Approve ${b.name}?\n\nAll its posts will be written, bannered, SEO-checked and published on their dates — one at a time. This uses your Gemini quota.`)) return;
+                            run(b.approved_at ? "Batch stopped" : "Batch approved", () => approveBatch(b.id, !b.approved_at));
+                          }}
+                        >
+                          {b.approved_at ? "Stop batch" : "Approve batch"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </>
           )}
+
+          {tab === "usage" && <UsagePanel calls={aiUsage} />}
 
           {tab === "writing" && (
             <>

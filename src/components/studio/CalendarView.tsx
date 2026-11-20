@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { approveBatch, slotPost } from "@/app/admin/actions";
+import { slotPost } from "@/app/admin/actions";
 import { istDate } from "@/lib/studio/briefing";
-import type { Batch, StudioPost } from "@/lib/studio/types";
+import type { StudioPost } from "@/lib/studio/types";
+import { AutopilotToggle } from "./AutopilotToggle";
 import { useStudio } from "./StudioProvider";
 import { PageHead, StatusBadge } from "./ui";
 
@@ -18,7 +19,7 @@ function monthGrid(year: number, month: number) {
   return Array.from({ length: 42 }, (_, i) => new Date(start.getTime() + i * 86_400_000).toISOString().slice(0, 10));
 }
 
-export function CalendarView({ posts, batch, today }: { posts: StudioPost[]; batch: Batch | null; today: string }) {
+export function CalendarView({ posts, autopilot, today }: { posts: StudioPost[]; autopilot: boolean; today: string }) {
   const { run } = useStudio();
   const [cursor, setCursor] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1 }));
   const [dragging, setDragging] = useState<string | null>(null);
@@ -56,17 +57,7 @@ export function CalendarView({ posts, batch, today }: { posts: StudioPost[]; bat
   return (
     <div>
       <PageHead title="Calendar" sub="One post a day at 09:00 IST. Drag posts to change their date.">
-        {batch && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={Boolean(batch.approved_at)}
-            className={`s-btn ${batch.approved_at ? "" : "s-btn--primary"}`}
-            onClick={() => run(batch.approved_at ? "Autopilot paused" : "Autopilot on", () => approveBatch(batch.id, !batch.approved_at))}
-          >
-            {batch.approved_at ? `Autopilot on · ${batch.name} — pause` : `Approve ${batch.name} for autopilot`}
-          </button>
-        )}
+        <AutopilotToggle enabled={autopilot} />
       </PageHead>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">

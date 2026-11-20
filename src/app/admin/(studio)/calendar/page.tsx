@@ -8,8 +8,7 @@ export const metadata = { title: "Calendar" };
 
 async function Calendar() {
   const { data } = await getStudio();
-  const batch = data.batches.find((b) => data.posts.some((p) => p.batch_id === b.id && p.stage !== "live")) ?? null;
-  return <CalendarView posts={data.posts} batch={batch} today={todayIst()} />;
+  return <CalendarView posts={data.posts} autopilot={data.autopilot} today={todayIst()} />;
 }
 
 export default function CalendarPage() {

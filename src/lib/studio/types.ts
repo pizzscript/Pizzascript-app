@@ -118,6 +118,8 @@ export interface StudioPost {
   image_prompt: string | null;
   version: number;
   seo_plan: { targetQuery?: string; [key: string]: unknown };
+  /** From an approved idea: the pipeline carries it through draft, banner and SEO check without clicks. */
+  auto_pipeline?: boolean;
   updated_at: string;
 }
 

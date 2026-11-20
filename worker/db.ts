@@ -22,6 +22,8 @@ export const settings = {
   banned: () => setting<string[]>("banned_phrases", []),
   neverCover: () => setting<string[]>("never_cover", []),
   wordRanges: () => setting<Record<string, [number, number]>>("word_ranges", {}),
+  /** Global autopilot: when on, every scheduled post is prepared and published automatically if it passes the SEO check. */
+  autopilot: async () => (await setting<{ enabled?: boolean }>("autopilot", {})).enabled === true,
 };
 
 export async function getPost(id: string) {

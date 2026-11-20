@@ -30,7 +30,8 @@ function startJobs() {
   after(async () => {
     try {
       const { requestRun } = await import("../../../worker/runner");
-      await requestRun();
+      // A long-lived server has no request timeout; give a manual run room to carry a few posts through.
+      await requestRun(30 * 60_000);
     } catch (error) {
       console.error("[jobs]", error instanceof Error ? error.message : error);
     }
@@ -91,6 +92,16 @@ export async function slotPost(postId: string, date: string | null) {
 export async function approveBatch(batchId: string, approved: boolean) {
   const db = await live();
   fail((await db.from("batches").update({ approved_at: approved ? new Date().toISOString() : null }).eq("id", batchId)).error);
+  // Approving a batch works through all its posts, one at a time.
+  if (approved) startJobs();
+  revalidatePath("/admin", "layout");
+}
+
+/** Global autopilot. On: every scheduled post is written, bannered, SEO-checked and published on its date if it passes. */
+export async function setAutopilot(enabled: boolean) {
+  const db = await live();
+  fail((await db.from("settings").upsert({ key: "autopilot", value: { enabled } })).error);
+  if (enabled) startJobs();
   revalidatePath("/admin", "layout");
 }
 
@@ -115,7 +126,13 @@ const EDITABLE = ["title", "seo_title", "seo_description", "excerpt", "image_pro
 export async function updatePost(postId: string, fields: Partial<Record<(typeof EDITABLE)[number], string>>) {
   const db = await live();
   const clean = Object.fromEntries(Object.entries(fields).filter(([k]) => (EDITABLE as readonly string[]).includes(k)));
-  fail((await db.from("posts").update(clean).eq("id", postId)).error);
+  const { data: post, error } = await db.from("posts").update({ ...clean, audit: null }).eq("id", postId).select("stage,body_html").single();
+  fail(error);
+  // Title/SEO changes can fix (or break) the SEO check — re-run it, so a stuck post continues on its own.
+  if (post?.body_html && post.stage !== "live") {
+    await db.from("jobs").insert({ type: "run_audit", payload: { postId }, priority: jobPriority("run_audit", "admin") });
+    startJobs();
+  }
   revalidatePath(`/admin/posts/${postId}`);
 }
 
@@ -132,7 +149,8 @@ export async function saveBody(postId: string, bodyHtml: string, note: string) {
     ).error,
   );
   fail((await db.from("posts").update({ body_html: bodyHtml, version, audit: null }).eq("id", postId)).error);
-  await db.from("jobs").insert({ type: "run_audit", payload: { postId } });
+  await db.from("jobs").insert({ type: "run_audit", payload: { postId }, priority: jobPriority("run_audit", "admin") });
+  startJobs();
   revalidatePath(`/admin/posts/${postId}`);
 }
 
@@ -174,7 +192,11 @@ export async function createTopic(input: { query: string; clusterId: string | nu
 export async function setTopicStatus(topicId: string, status: TopicStatus, reason?: string) {
   const db = await live();
   fail((await db.from("topics").update({ status, reason: reason ?? null }).eq("id", topicId)).error);
-  if (status === "approved") await db.from("jobs").insert({ type: "write_brief", payload: { topicId } });
+  // Approving an idea starts its post down the whole pipeline (brief → draft → banner → SEO check) with no more clicks.
+  if (status === "approved") {
+    await db.from("jobs").insert({ type: "write_brief", payload: { topicId, auto: true }, priority: jobPriority("write_brief", "admin") });
+    startJobs();
+  }
   revalidatePath("/admin", "layout");
 }
 

@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowDown, ArrowUp, Link2, MousePointerClick, RefreshCw, Search, ShieldAlert, Sparkles, Zap } from "lucide-react";
-import { approveBatch, approvePost, createTopic, enqueue, setSignal, slotPost } from "@/app/admin/actions";
-import type { AgentMessage, Batch, Briefing, Signal, SignalKind, StudioPost } from "@/lib/studio/types";
+import { approvePost, createTopic, enqueue, setSignal, slotPost } from "@/app/admin/actions";
+import type { AgentMessage, Briefing, Signal, SignalKind, StudioPost } from "@/lib/studio/types";
 import { AgentThread } from "./AgentThread";
+import { AutopilotToggle } from "./AutopilotToggle";
 import { useStudio } from "./StudioProvider";
 import { SeoBadge, StatusBadge, formatDate } from "./ui";
 
@@ -32,7 +33,7 @@ export function DashboardView({
   signals,
   today,
   upcoming,
-  batch,
+  autopilot,
   messages,
   stats,
 }: {
@@ -41,7 +42,7 @@ export function DashboardView({
   signals: Signal[];
   today: StudioPost | null;
   upcoming: StudioPost[];
-  batch: Batch | null;
+  autopilot: boolean;
   messages: AgentMessage[];
   stats: { live: number; drafts: number; scheduled: number; ideas: number };
 }) {
@@ -79,15 +80,7 @@ export function DashboardView({
           <h1 className="page-title">Dashboard</h1>
           <p className="page-sub">{dateLabel}</p>
         </div>
-        {batch && (
-          <button
-            type="button"
-            className={`s-chip ${batch.approved_at ? "s-chip--ok" : "s-chip--warn"} !h-8 !px-3`}
-            onClick={() => run(batch.approved_at ? "Autopilot paused" : "Autopilot on", () => approveBatch(batch.id, !batch.approved_at))}
-          >
-            {batch.approved_at ? `Autopilot on · ${batch.name}` : `Autopilot off · Approve ${batch.name}`}
-          </button>
-        )}
+        <AutopilotToggle enabled={autopilot} />
       </div>
 
       <section aria-label="Overview" className="grid grid-cols-2 lg:grid-cols-4 gap-4">

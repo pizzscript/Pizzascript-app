@@ -4,14 +4,14 @@ import { db, enqueue, setting, todayIst } from "./db";
 import { env } from "./env";
 import { fixTitle, generateImage, insertLink, rewrite, runAudit, scoreTopic, writeBrief, writeDraft } from "./jobs/content";
 import { dailyBriefing, discuss, performanceCheck, qualityGate } from "./jobs/ops";
-import { advanceApprovedBatches, publishDue } from "./jobs/publish";
+import { advancePipeline, publishDue } from "./jobs/publish";
 
 type Handler = (payload: Record<string, unknown>) => Promise<unknown>;
 
 const HANDLERS: Record<JobType, Handler> = {
   daily_briefing: () => dailyBriefing(),
   score_topic: (p) => scoreTopic(p as { topicId: string }),
-  write_brief: (p) => writeBrief(p as { topicId?: string; postId?: string }),
+  write_brief: (p) => writeBrief(p as { topicId?: string; postId?: string; auto?: boolean }),
   write_draft: (p) => writeDraft(p as { postId: string }),
   rewrite: (p) => rewrite(p as unknown as RewritePayload),
   generate_image: (p) => generateImage(p as { postId: string; prompt?: string }),
@@ -52,7 +52,7 @@ async function runNext(): Promise<boolean> {
     console.log(`[job] ${job.type} done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const retry = TRANSIENT.test(message) && !/limit: 0/.test(message) && job.attempts < MAX_ATTEMPTS;
+    const retry = TRANSIENT.test(message) && !/limit: 0\b/.test(message) && job.attempts < MAX_ATTEMPTS;
     await db
       .from("jobs")
       .update(
@@ -76,7 +76,6 @@ async function jobPending(type: JobType) {
   return (count ?? 0) > 0;
 }
 
-let lastAdvance = 0;
 let lastGateCheck = 0;
 
 /** Time-based duties, in IST. Idempotent: safe to run every minute or once per cron invocation. */
@@ -90,11 +89,6 @@ async function schedule() {
   }
 
   await publishDue();
-
-  if (Date.now() - lastAdvance > 30 * 60_000) {
-    lastAdvance = Date.now();
-    await advanceApprovedBatches();
-  }
 
   if (Date.now() - lastGateCheck > 60 * 60_000) {
     lastGateCheck = Date.now();
@@ -113,8 +107,9 @@ async function schedule() {
   }
 }
 
-async function drain(maxJobs = 25) {
-  for (let i = 0; i < maxJobs; i++) {
+/** Runs queued jobs until the queue is empty or the time budget is spent (a job already started always finishes). */
+async function drain(deadline: number) {
+  while (Date.now() < deadline) {
     if (!(await runNext())) return;
   }
 }
@@ -122,13 +117,21 @@ async function drain(maxJobs = 25) {
 let running = false;
 let rerun = false;
 
-/** One pass: time-based duties, then drain the queue. Returns false if a pass is already in progress. */
-export async function runOnce(): Promise<boolean> {
+/**
+ * One pass: time-based duties, then drain the queue and keep the pipeline moving (each finished post lets the next
+ * one start) until there's nothing left or the time budget runs out. The budget keeps a scheduled GitHub Actions run
+ * inside its timeout; anything left over continues on the next run. Returns false if a pass is already in progress.
+ */
+export async function runOnce(budgetMs = Number(process.env.PASS_BUDGET_MS ?? 7 * 60_000)): Promise<boolean> {
   if (running) return false;
   running = true;
+  const deadline = Date.now() + budgetMs;
   try {
     await schedule();
-    await drain();
+    for (let i = 0; i < 200 && Date.now() < deadline; i++) {
+      await drain(deadline);
+      if (Date.now() >= deadline || !(await advancePipeline())) break;
+    }
     return true;
   } finally {
     running = false;
@@ -136,15 +139,15 @@ export async function runOnce(): Promise<boolean> {
 }
 
 /** Starts a pass; if one is already running, makes sure another follows so jobs queued mid-pass aren't missed. */
-export async function requestRun(): Promise<void> {
+export async function requestRun(budgetMs?: number): Promise<void> {
   if (running) {
     rerun = true;
     return;
   }
   do {
     rerun = false;
-    await runOnce();
+    await runOnce(budgetMs);
   } while (rerun);
 }
 
-export { runNext, schedule };
+export { advancePipeline, runNext, schedule };

@@ -27,13 +27,13 @@ export async function revalidate(slug?: string) {
  */
 export async function publishDue() {
   const now = new Date().toISOString();
-  const [posts, batches, banned, ranges] = await Promise.all([allPosts(), allBatches(), settings.banned(), settings.wordRanges()]);
+  const [posts, batches, banned, ranges, autopilot] = await Promise.all([allPosts(), allBatches(), settings.banned(), settings.wordRanges(), settings.autopilot()]);
   const approvedBatches = new Set(batches.filter((b) => b.approved_at).map((b) => b.id));
   const due = posts.filter((p) => p.stage !== "live" && p.scheduled_for && p.scheduled_for <= now);
   const published: string[] = [];
 
   for (const post of due) {
-    const approved = Boolean(post.approved_at) || (post.batch_id !== null && approvedBatches.has(post.batch_id));
+    const approved = autopilot || Boolean(post.approved_at) || (post.batch_id !== null && approvedBatches.has(post.batch_id));
     const audit = post.body_html
       ? auditPost(post, { posts, bannedPhrases: banned, wordRange: post.brief?.wordRange ?? wordRangeFor(post, ranges) })
       : null;
@@ -101,21 +101,55 @@ async function raiseBacklinks(post: StudioPost, posts: StudioPost[]) {
 }
 
 /** Approved batches move themselves along: tickets due within 3 days get drafted, bannered and audited. */
-export async function advanceApprovedBatches() {
-  const [posts, batches, active] = await Promise.all([
+const PIPELINE = ["write_brief", "write_draft", "generate_image", "run_audit"] as const;
+
+/** The next pipeline step for a post, or null when it's finished (or stuck on a failing SEO check, which raises an alert). */
+function nextStep(post: StudioPost): (typeof PIPELINE)[number] | null {
+  if (post.stage === "brief") return post.brief?.angle ? "write_draft" : "write_brief";
+  // Already checked and failing → leave it (it has an alert). Any edit clears the result, so it's re-checked then.
+  if (post.stage === "draft") return post.cover_image_url ? (post.audit ? null : "run_audit") : "generate_image";
+  if (post.stage === "image") return post.audit ? null : "run_audit";
+  return null;
+}
+
+/** 1 for a post already part-way through the pipeline (has a brief, draft or banner), else 0. */
+const started = (p: StudioPost) => (p.stage === "draft" || p.stage === "image" || (p.stage === "brief" && p.brief?.angle) ? 1 : 0);
+
+/**
+ * Moves posts through brief → draft → banner → SEO check, ONE post at a time (soonest due first), with no clicks.
+ * A post qualifies when global autopilot is on and it has a date, when its batch is approved, or when it came from
+ * an approved idea (auto_pipeline). Each finished step lets the next pass start the next step, so a post runs
+ * start to finish before the next one begins. Posts whose last step failed in the past 6 hours are skipped so a
+ * broken step doesn't loop.
+ */
+export async function advancePipeline() {
+  const [posts, batches, autopilot, active, failed] = await Promise.all([
     allPosts(),
     allBatches(),
-    db.from("jobs").select("payload").in("status", ["queued", "running"]),
+    settings.autopilot(),
+    db.from("jobs").select("id").in("type", [...PIPELINE]).in("status", ["queued", "running"]).limit(1),
+    db
+      .from("jobs")
+      .select("payload")
+      .in("type", [...PIPELINE])
+      .eq("status", "failed")
+      .gte("finished_at", new Date(Date.now() - 6 * 3_600_000).toISOString()),
   ]);
-  const approved = new Set(batches.filter((b) => b.approved_at).map((b) => b.id));
-  const busy = new Set((active.data ?? []).map((j) => (j.payload as { postId?: string }).postId).filter(Boolean));
-  const horizon = new Date(Date.now() + 3 * 86_400_000).toISOString();
+  if ((active.data ?? []).length > 0) return false; // one post at a time
 
-  for (const post of posts) {
-    if (!post.batch_id || !approved.has(post.batch_id) || busy.has(post.id)) continue;
-    if (!post.scheduled_for || post.scheduled_for > horizon) continue;
-    if (post.stage === "brief") await enqueue("write_draft", { postId: post.id });
-    else if (post.stage === "draft") await enqueue(post.image_prompt ? "generate_image" : "run_audit", { postId: post.id });
-    else if (post.stage === "image") await enqueue("run_audit", { postId: post.id });
+  const approvedBatches = new Set(batches.filter((b) => b.approved_at).map((b) => b.id));
+  const recentlyFailed = new Set((failed.data ?? []).map((j) => (j.payload as { postId?: string }).postId).filter(Boolean));
+  const queue = posts
+    .filter((p) => p.stage !== "live" && !recentlyFailed.has(p.id))
+    .filter((p) => (autopilot && p.scheduled_for) || (p.batch_id && approvedBatches.has(p.batch_id)) || p.auto_pipeline)
+    // Finish what's started before starting something new (so an approved idea runs straight through), then soonest due first.
+    .sort((a, b) => started(b) - started(a) || (a.scheduled_for ?? "9999").localeCompare(b.scheduled_for ?? "9999"));
+
+  for (const post of queue) {
+    const step = nextStep(post);
+    if (!step) continue;
+    await enqueue(step, { postId: post.id });
+    return true;
   }
+  return false;
 }

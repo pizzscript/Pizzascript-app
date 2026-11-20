@@ -171,9 +171,16 @@ a.wa-ball-wrapper {
 
 /* ---- Blog article typography ---- */
 .prose-blog {
+  min-width: 0;
   color: #c9bcb3;
   font-size: 1.0625rem;
   line-height: 1.75;
+  overflow-wrap: break-word;
+}
+
+/* Long inline code (paths, class names) wraps instead of pushing the page sideways. */
+.prose-blog :not(pre) > code {
+  overflow-wrap: anywhere;
 }
 
 .prose-blog > * + * {
@@ -310,8 +317,11 @@ a.wa-ball-wrapper {
   border-radius: var(--radius-md);
 }
 
+/* Wide comparison tables scroll inside the article on phones instead of widening the page. */
 .prose-blog table {
-  width: 100%;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
   font-size: 0.95rem;
 }
 

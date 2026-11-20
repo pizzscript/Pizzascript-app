@@ -159,7 +159,9 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
                         Research
                       </button>
                     ) : (
-                      <button type="button" className="s-btn s-btn--sm s-btn--primary" disabled={busy} onClick={() => run("Brief", () => setTopicStatus(topic.id, "approved"))}>
+                      <button type="button" className="s-btn s-btn--sm s-btn--primary" disabled={busy} onClick={() => run("Approved — the agent will write the brief, draft, banner and SEO check", () => setTopicStatus(topic.id, "approved"))}
+                        title="Approves the idea. The agent then writes the brief, draft and banner and runs the SEO check, with no more clicks."
+                      >
                         Write it
                       </button>
                     ))}

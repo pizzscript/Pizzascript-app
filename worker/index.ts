@@ -5,7 +5,7 @@
  *   npm run worker -- --once  # runs the schedule once, drains the queue, exits (GitHub Actions)
  */
 import { env } from "./env";
-import { runNext, runOnce, schedule } from "./runner";
+import { advancePipeline, runNext, runOnce, schedule } from "./runner";
 
 async function main() {
   const once = process.argv.includes("--once");
@@ -26,7 +26,7 @@ async function main() {
         lastSchedule = Date.now();
         await schedule();
       }
-      const worked = await runNext();
+      const worked = (await runNext()) || (await advancePipeline());
       if (!worked) await new Promise((r) => setTimeout(r, 3000));
     } catch (err) {
       console.error("[worker]", err instanceof Error ? err.message : err);
