@@ -100,7 +100,7 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
                 <button type="button" className="s-btn" disabled={busy} onClick={() => run("Agent started", () => runAgent())}>
                   Run agent now
                 </button>
-                <span className="s-faint text-[13px]">Starts the agent server immediately. Queued jobs also start it automatically.</span>
+                <span className="s-faint text-[13px]">Runs queued jobs now. Jobs you queue from the admin also start automatically.</span>
               </div>
               {batches.length === 0 ? (
                 <p className="s-dim">No batches yet.</p>

@@ -19,38 +19,37 @@ function fail(error: { message: string } | null) {
   if (error) throw new Error(error.message);
 }
 
-/** Tells the agent server to start a pass now. Returns false when no server is configured or it can't be reached. */
-async function kickWorker(timeoutMs: number) {
-  const url = process.env.WORKER_URL;
-  const secret = process.env.WORKER_SECRET;
-  if (!url || !secret) return false;
-  try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/run`, {
-      method: "POST",
-      headers: { "x-worker-secret": secret },
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
+/**
+ * Runs queued jobs inside this server process, after the response is sent. Only on a long-lived Node host
+ * (Render) with RUN_JOBS_IN_PROCESS=1 — serverless hosts would cut a Gemini job short, so there jobs just
+ * wait in the queue for the scheduled GitHub Actions run.
+ */
+function startJobs() {
+  if (process.env.RUN_JOBS_IN_PROCESS !== "1") return false;
+  after(async () => {
+    try {
+      const { requestRun } = await import("../../../worker/runner");
+      await requestRun();
+    } catch (error) {
+      console.error("[jobs]", error instanceof Error ? error.message : error);
+    }
+  });
+  return true;
 }
 
 export async function enqueue(type: JobType, payload: Record<string, unknown> = {}) {
   const db = await live();
   const { data, error } = await db.from("jobs").insert({ type, payload, priority: type === "discuss" ? 5 : 0 }).select("id").single();
   fail(error);
-  // Fire-and-forget: the job is already queued, so a sleeping server simply picks it up when it wakes (or on the schedule).
-  after(() => kickWorker(60_000));
+  startJobs();
   revalidatePath("/admin", "layout");
   return data!.id as string;
 }
 
-/** Manual "Run agent now" — also wakes a sleeping free-tier server. */
+/** Manual "Run agent now". */
 export async function runAgent() {
   await live();
-  if (!process.env.WORKER_URL || !process.env.WORKER_SECRET) throw new Error("Agent server isn't configured (WORKER_URL / WORKER_SECRET).");
-  if (!(await kickWorker(55_000))) throw new Error("Couldn't reach the agent server. If it was asleep, try again in a minute.");
+  if (!startJobs()) throw new Error("Jobs run on the admin server (RUN_JOBS_IN_PROCESS=1). Here they wait for the scheduled run.");
   revalidatePath("/admin", "layout");
 }
 

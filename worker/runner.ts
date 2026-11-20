@@ -120,6 +120,7 @@ async function drain(maxJobs = 25) {
 }
 
 let running = false;
+let rerun = false;
 
 /** One pass: time-based duties, then drain the queue. Returns false if a pass is already in progress. */
 export async function runOnce(): Promise<boolean> {
@@ -132,6 +133,18 @@ export async function runOnce(): Promise<boolean> {
   } finally {
     running = false;
   }
+}
+
+/** Starts a pass; if one is already running, makes sure another follows so jobs queued mid-pass aren't missed. */
+export async function requestRun(): Promise<void> {
+  if (running) {
+    rerun = true;
+    return;
+  }
+  do {
+    rerun = false;
+    await runOnce();
+  } while (rerun);
 }
 
 export { runNext, schedule };

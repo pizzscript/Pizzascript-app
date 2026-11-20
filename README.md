@@ -49,7 +49,7 @@ Anything else raises a P0 "missed slot" signal on the Pass.
 
 ## Agent worker
 
-**Agent server (recommended):** `npm run worker:server` starts `worker/server.ts`, an HTTP server with `POST /run` (header `x-worker-secret`) and `GET /health`. Host it as a Render free **Web Service** (build `npm ci`, start `npm run worker:server`; env: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `GEMINI_API_KEY`, `GSC_*`, `SITE_URL`, `REVALIDATE_SECRET`, `WORKER_SECRET`). The admin (Vercel) needs `WORKER_URL` + `WORKER_SECRET`; every queued job and the **Run agent now** button (Settings → Autopilot) call `/run`. Free instances sleep after ~15 min idle, so time-based duties (09:00 publish, 06:30 briefing) need a pinger hitting `/run` on a schedule (e.g. cron-job.org, or the GitHub Actions workflow).
+**Where jobs run:** on a long-lived Node host (Render Web Service running `npm run build` then `npm start`) set `RUN_JOBS_IN_PROCESS=1`; every job you queue in the admin, and **Run agent now** (Settings → Autopilot), then runs inside that server right after the response, with no serverless timeout. The scheduled GitHub Actions workflow (`.github/workflows/agent.yml`) runs the time-based duties (09:00 publish, 06:30 briefing) and anything still queued. Without the flag (e.g. Vercel) jobs just wait for that scheduled run.
 
 `npm run worker` (always-on loop, for local use) or `npm run worker -- --once` (one pass: schedule + drain queue,
 then exit — what GitHub Actions runs). `.github/workflows/agent.yml` runs `--once` every 15 minutes, free on
