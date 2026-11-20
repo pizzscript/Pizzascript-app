@@ -15,7 +15,8 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
       lastError = error;
       const message = error instanceof Error ? error.message : String(error);
       const transient = /429|RESOURCE_EXHAUSTED|503|UNAVAILABLE|500|INTERNAL|deadline/i.test(message);
-      if (!transient || attempt === 3) break;
+      // "limit: 0" = this model has no quota on this key at all (e.g. image models on the free tier); retrying is pointless.
+      if (!transient || /limit: 0/.test(message) || attempt === 3) break;
       await sleep(2000 * 2 ** attempt + Math.random() * 1000);
     }
   }

@@ -52,7 +52,7 @@ async function runNext(): Promise<boolean> {
     console.log(`[job] ${job.type} done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const retry = TRANSIENT.test(message) && job.attempts < MAX_ATTEMPTS;
+    const retry = TRANSIENT.test(message) && !/limit: 0/.test(message) && job.attempts < MAX_ATTEMPTS;
     await db
       .from("jobs")
       .update(
