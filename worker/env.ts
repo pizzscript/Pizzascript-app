@@ -8,8 +8,8 @@ export const env = {
   supabaseUrl: required("SUPABASE_URL"),
   supabaseSecretKey: required("SUPABASE_SECRET_KEY"),
   geminiApiKey: required("GEMINI_API_KEY"),
-  textModel: process.env.GEMINI_TEXT_MODEL ?? "gemini-2.5-flash",
-  imageModel: process.env.GEMINI_IMAGE_MODEL ?? "gemini-2.5-flash-image",
+  textModel: process.env.GEMINI_TEXT_MODEL ?? "gemini-3.8-flash",
+  imageModel: process.env.GEMINI_IMAGE_MODEL ?? "gemini-3.1-flash-image",
   /** Full service-account JSON (Render secret). Search Console sync is skipped when unset. */
   gscServiceAccount: process.env.GSC_SERVICE_ACCOUNT_JSON,
   /** e.g. "sc-domain:pizzascript.com" or "https://www.pizzascript.com/". */
