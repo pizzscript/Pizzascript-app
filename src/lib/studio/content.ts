@@ -72,10 +72,53 @@ export function funnelViolations(post: Pick<StudioPost, "slug" | "track" | "role
   return issues;
 }
 
+const STOPWORDS = new Set("a an and are as at be by do does for from how in is it of on or the to vs what when why with your you".split(" "));
+const keywordTokens = (s: string) =>
+  s
+    .toLowerCase()
+    .split(/[^a-z0-9.]+/)
+    .map((t) => t.replace(/\.$/, "").replace(/(?<=[a-z]{3})s$/, ""))
+    .filter((t) => t && !STOPWORDS.has(t));
+
+/** Share of the query's meaningful words found in the text, so natural rewording still counts. */
+export function keywordCoverage(query: string, text: string) {
+  const wanted = [...new Set(keywordTokens(query))];
+  if (!wanted.length) return 1;
+  const have = new Set(keywordTokens(text.replace(/-/g, " ")));
+  return wanted.filter((t) => have.has(t)).length / wanted.length;
+}
+
+export function keywordMisses(post: Pick<StudioPost, "title" | "slug" | "body_html" | "seo_plan">) {
+  const query = post.seo_plan?.targetQuery;
+  if (!query) return [];
+  const firstParagraph = plainText(post.body_html.match(/<p[^>]*>[\s\S]*?<\/p>/i)?.[0] ?? "");
+  const misses: string[] = [];
+  if (keywordCoverage(query, post.title) < 0.6) misses.push("title");
+  if (keywordCoverage(query, firstParagraph) < 0.5) misses.push("first paragraph");
+  if (keywordCoverage(query, post.slug) < 0.5) misses.push("slug");
+  return misses;
+}
+
+/** Advisory only: natural headings often paraphrase the query, and 12 of the first 17 articles would otherwise fail. */
+export function keywordInHeading(post: Pick<StudioPost, "body_html" | "seo_plan">) {
+  const query = post.seo_plan?.targetQuery;
+  if (!query) return true;
+  return [...post.body_html.matchAll(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi)].some((m) => keywordCoverage(query, plainText(m[1])) >= 0.4);
+}
+
+/** Checks that need the compiler or embedding model; they run in the worker and are carried on the saved audit. */
+export const DEEP_CHECK_IDS = ["code", "duplicate"];
+export const deepChecksOf = (audit: Audit | null | undefined) => (audit?.checks ?? []).filter((c) => DEEP_CHECK_IDS.includes(c.id));
+
 /** Deterministic pre-publish audit (AGENT.md Part 9). Runs in the worker and is mirrored in the Station. */
 export function auditPost(
   post: StudioPost,
-  context: { posts: Pick<StudioPost, "id" | "slug" | "track" | "role" | "seo_description">[]; bannedPhrases: string[]; wordRange?: [number, number] },
+  context: {
+    posts: Pick<StudioPost, "id" | "slug" | "track" | "role" | "seo_description">[];
+    bannedPhrases: string[];
+    wordRange?: [number, number];
+    deep?: AuditCheck[];
+  },
 ): Audit {
   const checks: AuditCheck[] = [];
   const add = (id: string, label: string, pass: boolean, detail?: string) => checks.push({ id, label, pass, detail });
@@ -116,6 +159,11 @@ export function auditPost(
   add("banner", "Banner image with alt text", Boolean(post.cover_image_url) && (post.cover_image_alt?.length ?? 0) > 20);
   const imgsWithoutAlt = (post.body_html.match(/<img(?![^>]*alt="[^"]+")[^>]*>/gi) ?? []).length;
   add("img-alt", "Inline images have alt text", imgsWithoutAlt === 0, imgsWithoutAlt ? `${imgsWithoutAlt} missing` : undefined);
+
+  const misses = keywordMisses(post);
+  const headingTip = keywordInHeading(post) ? "" : "Tip: no heading mentions it yet";
+  add("keyword", "Target keyword in title, opening and slug", misses.length === 0, [misses.length ? `Missing from ${misses.join(", ")}` : "", headingTip].filter(Boolean).join(". ") || undefined);
+  checks.push(...(context.deep ?? []));
 
   return { ok: checks.every((c) => c.pass), ranAt: new Date().toISOString(), checks };
 }

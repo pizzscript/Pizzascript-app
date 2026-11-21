@@ -162,7 +162,7 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
                 <img src={post.cover_image_url} alt={post.cover_image_alt ?? ""} className="absolute inset-0 w-full h-full object-cover" />
               ) : (
                 <p className="s-faint px-6 text-center max-w-md text-[13px]">
-                  {post.image_prompt ? "Banner prompt ready — generate it below." : "No banner yet. The agent writes a prompt with the draft."}
+                  No banner yet. The agent designs one after the draft.
                 </p>
               )}
             </div>
@@ -411,13 +411,12 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
             <Panel title="Banner image">
               <div className="space-y-3">
                 <Field label="Alt text" value={meta.cover_image_alt} multiline onChange={(v) => setMeta((m) => ({ ...m, cover_image_alt: v }))} />
-                <Field label="Image prompt" value={meta.image_prompt} multiline onChange={(v) => setMeta((m) => ({ ...m, image_prompt: v }))} />
                 <button
                   type="button"
                   className="s-btn s-btn--sm"
                   disabled={busy || !post.body_html || activeJob?.type === "generate_image"}
                   onClick={() =>
-                    run("Banner", () => enqueue("generate_image", { postId: post.id, prompt: meta.image_prompt || undefined }), {
+                    run("Banner", () => enqueue("generate_image", { postId: post.id }), {
                       type: "generate_image",
                       postId: post.id,
                     })

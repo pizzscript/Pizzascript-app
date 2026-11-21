@@ -2,7 +2,8 @@
 import type { JobType, RewritePayload } from "../src/lib/studio/types";
 import { db, enqueue, setting, todayIst } from "./db";
 import { env } from "./env";
-import { fixTitle, generateImage, insertLink, rewrite, runAudit, scoreTopic, writeBrief, writeDraft } from "./jobs/content";
+import { fixTitle, generateImage, insertLink, rewrite, runAudit, scoreTopic, writeBrief } from "./jobs/content";
+import { writeDraft } from "./jobs/draft";
 import { dailyBriefing, discuss, performanceCheck, qualityGate } from "./jobs/ops";
 import { advancePipeline, publishDue } from "./jobs/publish";
 
@@ -139,7 +140,7 @@ async function schedule() {
       .select("id", { count: "exact", head: true })
       .eq("note", "Agent draft")
       .gt("created_at", since);
-    if ((count ?? 0) >= 5 && !(await jobPending("quality_gate"))) await enqueue("quality_gate");
+    if ((count ?? 0) >= 3 && !(await jobPending("quality_gate"))) await enqueue("quality_gate");
   }
 
   if (weekday === 1 && time >= "07:00") {

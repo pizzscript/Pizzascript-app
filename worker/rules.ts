@@ -31,12 +31,6 @@ export const FILTERS = `FIVE PRE-WRITING FILTERS (all must pass)
 4 cannibalism — no existing or planned article targets an overlapping query (or it is clearly differentiated).
 5 demand — the query has non-branded organic demand (not purely "pizzascript" branded).`;
 
-export const IMAGE_PROTOCOL = `IMAGE PROTOCOL
-Wide horizontal banner (21:9) with a generous 20–25% empty margin on all edges so object-cover cropping never clips content.
-Background: warm chocolate #1c110a / #160c06 (dark) or warm cream #f6ded1 (light). Accents: pink #FF6B9D, orange #FF7E47, gold #ffb599.
-Style: minimalist Swiss graphic design, editorial grid, asymmetric layout, ample negative space, thin hairline vectors, subtle grid lines, sophisticated sans-serif typography, high contrast.
-Categories: 1 technical/developer diagram, 2 editorial results card, 3 scroll/animation diagram, 4 AI workflow (human + tool nodes, no robots), 5 performance/data chart with clean axes.
-NEVER: glowing orbs, neon, lens flares, 3D shapes, text shadows, robots or humanoid AI, floating code waterfalls, stock laptops/handshakes/people, speedometers, rockets, lightning bolts, blue hexagons — nothing where "AI-generated" is the first thought.`;
 
 export const SERVICE_PAGES = [
   "/services/custom-website-development",

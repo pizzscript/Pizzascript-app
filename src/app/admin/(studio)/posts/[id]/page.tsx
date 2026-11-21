@@ -4,7 +4,7 @@ import sanitizeHtml from "sanitize-html";
 import { PostEditor } from "@/components/studio/PostEditor";
 import { RoomSkeleton } from "@/components/studio/RoomSkeleton";
 import { SANITIZE_OPTIONS } from "@/lib/blog";
-import { SERVICE_PATHS, auditPost, internalLinks, splitSections, wordRangeFor } from "@/lib/studio/content";
+import { SERVICE_PATHS, auditPost, deepChecksOf, internalLinks, splitSections, wordRangeFor } from "@/lib/studio/content";
 import { loadVersions } from "@/lib/studio/server";
 import { getStudio } from "@/lib/studio/session";
 
@@ -20,7 +20,7 @@ async function Editor({ params }: { params: PageProps<"/admin/posts/[id]">["para
   // Article HTML is agent/admin written; sanitise before it renders inside the authenticated admin.
   const sections = splitSections(post.body_html).map((s) => ({ ...s, html: sanitizeHtml(s.html, SANITIZE_OPTIONS) }));
   const wordRange = post.brief?.wordRange ?? wordRangeFor(post, data.wordRanges);
-  const audit = post.body_html ? auditPost(post, { posts: data.posts, bannedPhrases: data.bannedPhrases, wordRange }) : null;
+  const audit = post.body_html ? auditPost(post, { posts: data.posts, bannedPhrases: data.bannedPhrases, wordRange, deep: deepChecksOf(post.audit) }) : null;
 
   const present = new Set(internalLinks(post.body_html).map((l) => l.href));
   const required = [

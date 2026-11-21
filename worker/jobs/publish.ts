@@ -1,7 +1,8 @@
-import { auditPost, internalLinks, wordRangeFor } from "../../src/lib/studio/content";
+import { DEEP_CHECK_IDS, auditPost, deepChecksOf, internalLinks, wordRangeFor } from "../../src/lib/studio/content";
 import type { StudioPost } from "../../src/lib/studio/types";
 import { allBatches, allPosts, check, db, enqueue, linkPlan, raiseSignal, settings, todayIst } from "../db";
 import { env } from "../env";
+import { RELATED_SIMILARITY, storedMatches } from "../research/embeddings";
 
 export async function revalidate(slug?: string) {
   if (!env.revalidateSecret) return;
@@ -34,9 +35,22 @@ export async function publishDue() {
 
   for (const post of due) {
     const approved = autopilot || Boolean(post.approved_at) || (post.batch_id !== null && approvedBatches.has(post.batch_id));
+    const deep = deepChecksOf(post.audit);
     const audit = post.body_html
-      ? auditPost(post, { posts, bannedPhrases: banned, wordRange: post.brief?.wordRange ?? wordRangeFor(post, ranges) })
+      ? auditPost(post, { posts, bannedPhrases: banned, wordRange: post.brief?.wordRange ?? wordRangeFor(post, ranges), deep })
       : null;
+
+    // Edited or older posts haven't had the compiler and duplicate checks yet: run them, then publish on the next pass.
+    if (approved && audit?.ok && deep.length < DEEP_CHECK_IDS.length) {
+      const { count } = await db
+        .from("jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("type", "run_audit")
+        .eq("payload->>postId", post.id)
+        .in("status", ["queued", "running"]);
+      if (!count) await enqueue("run_audit", { postId: post.id });
+      continue;
+    }
 
     if (!approved || !audit?.ok) {
       // Keep one open "missed slot" alert per post: close earlier days' before raising today's.
@@ -86,7 +100,17 @@ async function raiseBacklinks(post: StudioPost, posts: StudioPost[]) {
   const path = `/blog/${post.slug}`;
   const plan = await linkPlan();
   const sources = new Set(plan.filter((l) => l.to_path === path && l.status === "planned").map((l) => l.from_slug));
-  for (const source of posts.filter((p) => p.stage === "live" && sources.has(p.slug))) {
+  // Plus the closest related live posts by meaning. These stay suggestions: the admin clicks "Add link".
+  const dismissed = new Set(plan.filter((l) => l.to_path === path && l.status === "dismissed").map((l) => l.from_slug));
+  const related = await storedMatches("post", post.id, 8).catch(() => []);
+  const live = new Map(posts.filter((p) => p.stage === "live" && p.id !== post.id).map((p) => [p.id, p]));
+  related
+    .filter((m) => m.owner_type === "post" && m.similarity >= RELATED_SIMILARITY && live.has(m.owner_id))
+    .map((m) => live.get(m.owner_id)!)
+    .filter((p) => !dismissed.has(p.slug))
+    .slice(0, 3)
+    .forEach((p) => sources.add(p.slug));
+  for (const source of posts.filter((p) => p.stage === "live" && p.id !== post.id && sources.has(p.slug))) {
     if (internalLinks(source.body_html).some((l) => l.href === path)) continue;
     await raiseSignal({
       kind: "backlink_needed",

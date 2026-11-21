@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { DashboardView } from "@/components/studio/DashboardView";
 import { RoomSkeleton } from "@/components/studio/RoomSkeleton";
+import { SystemHealth, SystemHealthSkeleton } from "@/components/studio/SystemHealth";
 import { composeBriefing, istDate } from "@/lib/studio/briefing";
 import { todayIst } from "@/lib/studio/server";
 import { getStudio } from "@/lib/studio/session";
@@ -24,7 +25,11 @@ async function Dashboard() {
       today={today}
       upcoming={slotted.filter((p) => p !== today).slice(0, 6)}
       autopilot={data.autopilot}
-      aiUsage={data.aiUsage}
+      health={
+        <Suspense fallback={<SystemHealthSkeleton />}>
+          <SystemHealth />
+        </Suspense>
+      }
       messages={data.messages.filter((m) => m.thread === `briefing:${date}`)}
       stats={{
         live: data.posts.filter((p) => p.stage === "live").length,

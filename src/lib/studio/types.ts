@@ -56,6 +56,16 @@ export interface TopicResearch {
   title?: string;
   outline?: string[];
   competitors?: string[];
+  serp?: SerpData;
+}
+
+export interface SerpData {
+  fetchedAt: string;
+  organic: { title: string; url: string; snippet: string }[];
+  questions: string[];
+  related: string[];
+  featured: string | null;
+  resultTypes: string[];
 }
 
 export type Verdict = "good" | "maybe" | "skip" | "unresearched";
@@ -75,6 +85,8 @@ export interface Brief {
   servicePage?: string;
   linksTo?: string[];
   outline?: string[];
+  /** Related searcher questions the article must answer. */
+  questions?: string[];
   wordRange?: [number, number];
 }
 

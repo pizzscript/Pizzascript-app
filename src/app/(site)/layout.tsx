@@ -3,6 +3,7 @@ import { ScrollProvider } from "@/components/motion/ScrollProvider";
 import { Footer } from "@/components/site/Footer";
 import { MatrixBackground } from "@/components/site/MatrixBackground";
 import { Navbar } from "@/components/site/Navbar";
+import { SiteAnalytics } from "@/components/site/SiteAnalytics";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +18,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       </main>
       <Footer />
       <RevealObserver />
+      <SiteAnalytics />
     </ScrollProvider>
   );
 }

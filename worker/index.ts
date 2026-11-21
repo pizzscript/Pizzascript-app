@@ -9,7 +9,7 @@ import { advancePipeline, runNext, runOnce, schedule } from "./runner";
 
 async function main() {
   const once = process.argv.includes("--once");
-  console.log(`[worker] ${env.workerId} starting (${once ? "once" : "loop"}) · text ${env.textModel} · image ${env.imageModel}`);
+  console.log(`[worker] ${env.workerId} starting (${once ? "once" : "loop"}) · text ${env.textModel}`);
 
   if (once) {
     await runOnce();

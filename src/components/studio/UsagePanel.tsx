@@ -1,3 +1,4 @@
+import { MODEL_LIMITS } from "@/lib/studio/models";
 import type { AiCall } from "@/lib/studio/server";
 
 /** IST calendar day of a timestamp — Google's free-tier daily quota resets on Pacific time, so this is our own view. */
@@ -12,7 +13,7 @@ function istDay(iso: string) {
 export function UsagePanel({ calls }: { calls: AiCall[] }) {
   const today = istDay(new Date().toISOString());
   const models = [...new Set(calls.map((c) => c.model))].sort();
-  const limitOf = (model: string) => calls.find((c) => c.model === model && c.quota_limit !== null)?.quota_limit ?? null;
+  const limitOf = (model: string) => MODEL_LIMITS[model]?.rpd ?? calls.find((c) => c.model === model && c.quota_limit !== null)?.quota_limit ?? null;
 
   const todayRows = models.map((model) => {
     const mine = calls.filter((c) => c.model === model && istDay(c.created_at) === today);
@@ -47,7 +48,7 @@ export function UsagePanel({ calls }: { calls: AiCall[] }) {
                   <th>Model</th>
                   <th>Today</th>
                   <th>Failed</th>
-                  <th title="The daily limit Google stated when it last refused a request">Daily limit</th>
+                  <th title="Free-tier daily limit from Google AI Studio">Daily limit</th>
                 </tr>
               </thead>
               <tbody>

@@ -9,7 +9,10 @@ export const env = {
   supabaseSecretKey: required("SUPABASE_SECRET_KEY"),
   geminiApiKey: required("GEMINI_API_KEY"),
   textModel: process.env.GEMINI_TEXT_MODEL ?? "gemini-3.8-flash",
-  imageModel: process.env.GEMINI_IMAGE_MODEL ?? "gemini-3.1-flash-image",
+  brightDataKey: process.env.BRIGHT_DATA_API_KEY,
+  brightDataZone: process.env.BRIGHT_DATA_SERP_ZONE,
+  /** Optional: raises the Jina Reader limit from 20 to 500 requests a minute. */
+  jinaKey: process.env.JINA_API_KEY,
   /** Full service-account JSON (Render secret). Search Console sync is skipped when unset. */
   gscServiceAccount: process.env.GSC_SERVICE_ACCOUNT_JSON,
   /** e.g. "sc-domain:pizzascript.com" or "https://www.pizzascript.com/". */

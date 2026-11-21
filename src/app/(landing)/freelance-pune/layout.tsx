@@ -1,4 +1,5 @@
 import { ScrollProvider } from "@/components/motion/ScrollProvider";
+import { SiteAnalytics } from "@/components/site/SiteAnalytics";
 import "@/styles/freelance-pune.css";
 import "@/styles/whatsapp-ball.css";
 
@@ -9,6 +10,7 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
         Skip to main content
       </a>
       {children}
+      <SiteAnalytics />
     </ScrollProvider>
   );
 }

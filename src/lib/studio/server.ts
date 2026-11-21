@@ -84,7 +84,7 @@ export interface StudioData {
 export interface AiCall {
   created_at: string;
   model: string;
-  kind: "text" | "json" | "image";
+  kind: "text" | "json";
   ok: boolean;
   quota_limit: number | null;
   error?: string | null;
@@ -198,6 +198,7 @@ export async function loadStudio(studio: Studio): Promise<StudioData> {
       db
         .from("ai_calls")
         .select("created_at,model,kind,ok,quota_limit,error")
+        .neq("kind", "image")
         .gte("created_at", new Date(Date.now() - 7 * 86_400_000).toISOString())
         .order("created_at", { ascending: false })
         .limit(5000),

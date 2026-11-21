@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { SITE } from "@/lib/site";
+import { trackConversion } from "@/lib/track";
 
 export const PROJECT_TYPES = [
   "Landing Page",
@@ -93,6 +94,7 @@ export function useContactForm() {
         headers: { Accept: "application/json" },
       });
       if (!response.ok) throw new Error(`Formspree responded ${response.status}`);
+      if (!honeypot) trackConversion();
       setStatus({
         type: "success",
         text: "Order received! We'll start preheating your project and reply within 24 hours.",
