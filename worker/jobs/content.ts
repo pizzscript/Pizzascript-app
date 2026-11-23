@@ -148,7 +148,7 @@ JSON shape: {"scores":{"authority":{"value":0,"reason":""},...},"intent":"inform
 
 // ───────────────────────── write_brief ─────────────────────────
 
-export async function writeBrief({ topicId, postId, auto }: { topicId?: string; postId?: string; auto?: boolean }) {
+export async function writeBrief({ topicId, postId, auto, scheduleFor }: { topicId?: string; postId?: string; auto?: boolean; scheduleFor?: string }) {
   let post = postId ? await getPost(postId) : null;
   const topicKey = topicId ?? post?.topic_id;
   const topic = topicKey ? (check(await db.from("topics").select("*").eq("id", topicKey).single(), "topic") as Topic) : null;
@@ -184,6 +184,12 @@ export async function writeBrief({ topicId, postId, auto }: { topicId?: string; 
   if (auto && !post.auto_pipeline) {
     await db.from("posts").update({ auto_pipeline: true }).eq("id", post.id);
     post.auto_pipeline = true;
+  }
+  // Chosen by Auto-pick: put it on the calendar. A date someone already set is never overwritten.
+  if (scheduleFor && !post.scheduled_for) {
+    const seo_plan = { ...post.seo_plan, autoPicked: { at: new Date().toISOString(), for: scheduleFor } };
+    check(await db.from("posts").update({ scheduled_for: scheduleFor, seo_plan }).eq("id", post.id), "auto-pick date");
+    post = { ...post, scheduled_for: scheduleFor, seo_plan };
   }
 
   const [posts, topics, ranges, plan] = await Promise.all([allPosts(), allTopics(), settings.wordRanges(), linkPlan()]);

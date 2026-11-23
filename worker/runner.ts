@@ -6,6 +6,7 @@ import { isBillingError, isTransientError } from "./gemini";
 import { fixTitle, generateImage, insertLink, rewrite, runAudit, scoreTopic, writeBrief } from "./jobs/content";
 import { writeDraft } from "./jobs/draft";
 import { dailyBriefing, discuss, performanceCheck, qualityGate } from "./jobs/ops";
+import { autoPick } from "./jobs/autopick";
 import { advancePipeline, publishDue } from "./jobs/publish";
 
 type Handler = (payload: Record<string, unknown>) => Promise<unknown>;
@@ -13,7 +14,7 @@ type Handler = (payload: Record<string, unknown>) => Promise<unknown>;
 const HANDLERS: Record<JobType, Handler> = {
   daily_briefing: () => dailyBriefing(),
   score_topic: (p) => scoreTopic(p as { topicId: string }),
-  write_brief: (p) => writeBrief(p as { topicId?: string; postId?: string; auto?: boolean }),
+  write_brief: (p) => writeBrief(p as { topicId?: string; postId?: string; auto?: boolean; scheduleFor?: string }),
   write_draft: (p) => writeDraft(p as { postId: string }),
   rewrite: (p) => rewrite(p as unknown as RewritePayload),
   generate_image: (p) => generateImage(p as { postId: string; prompt?: string }),
@@ -189,7 +190,13 @@ export async function runOnce(budgetMs = Number(process.env.PASS_BUDGET_MS ?? 7 
     await schedule();
     for (let i = 0; i < 200 && Date.now() < deadline; i++) {
       await drain(deadline);
-      if (Date.now() >= deadline || !(await advancePipeline())) break;
+      if (Date.now() >= deadline) break;
+      if (await advancePipeline()) continue;
+      const picked = await autoPick().catch((error) => {
+        console.error(`[auto-pick] ${error instanceof Error ? error.message : error}`);
+        return false;
+      });
+      if (!picked) break;
     }
     return true;
   } finally {

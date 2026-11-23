@@ -77,6 +77,8 @@ export interface StudioData {
   wordRanges: Record<string, [number, number]>;
   /** Global autopilot: every scheduled post is prepared and published automatically if it passes the SEO check. */
   autopilot: boolean;
+  /** Lets the agent choose and schedule its own ideas. Needs autopilot. */
+  autoPick: { enabled: boolean; pausedReason: string | null };
   /** Gemini requests in the last 7 days, for the usage panel. */
   aiUsage: AiCall[];
 }
@@ -169,6 +171,7 @@ async function loadPreview(): Promise<StudioData> {
     bannedPhrases: DEFAULT_BANNED,
     wordRanges: DEFAULT_WORD_RANGES,
     autopilot: false,
+    autoPick: { enabled: false, pausedReason: null },
     aiUsage: [],
   };
 }
@@ -221,6 +224,10 @@ export async function loadStudio(studio: Studio): Promise<StudioData> {
     bannedPhrases: setting("banned_phrases", DEFAULT_BANNED),
     wordRanges: setting("word_ranges", DEFAULT_WORD_RANGES),
     autopilot: setting<{ enabled?: boolean }>("autopilot", {}).enabled === true,
+    autoPick: {
+      enabled: setting<{ enabled?: boolean }>("autopick", {}).enabled === true,
+      pausedReason: setting<{ pausedReason?: string }>("autopick_state", {}).pausedReason ?? null,
+    },
     aiUsage,
   };
 }

@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import { addFact, approveBatch, deleteFact, runAgent, saveScoring, saveSetting, setFactVerified, signOut } from "@/app/admin/actions";
 import type { AiCall } from "@/lib/studio/server";
 import { SCORE_FACTORS, type Batch, type Fact, type ScheduleSettings, type ScoreFactor, type ScoringSettings } from "@/lib/studio/types";
+import { AutoPickToggle } from "./AutoPickToggle";
 import { AutopilotToggle } from "./AutopilotToggle";
 import { useStudio } from "./StudioProvider";
 import { UsagePanel } from "./UsagePanel";
@@ -50,10 +51,11 @@ interface Props {
   batches: Batch[];
   email: string | null;
   autopilot: boolean;
+  autoPick: { enabled: boolean; pausedReason: string | null };
   aiUsage: AiCall[];
 }
 
-export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, batches, email, autopilot, aiUsage }: Props) {
+export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, batches, email, autopilot, autoPick, aiUsage }: Props) {
   const { run, busy, preview } = useStudio();
   const [tab, setTab] = useState<TabId>((TABS.find((t) => t.id === initialTab)?.id ?? "schedule") as TabId);
   const [sched, setSched] = useState(schedule);
@@ -107,6 +109,14 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
                 <button type="button" className="s-btn" disabled={busy} onClick={() => run("Agent started", () => runAgent())}>
                   Run agent now
                 </button>
+              </div>
+
+              <div className="pt-4 border-t s-line space-y-3">
+                <Intro
+                  title="Auto-pick ideas"
+                  text="When it's on, the agent chooses at most one qualified idea a day and schedules it at least 3 days ahead, so you can remove it first. It skips overlapping topics, checks quota first, and pauses after 2 failed articles in a row."
+                />
+                <AutoPickToggle enabled={autoPick.enabled} autopilot={autopilot} pausedReason={autoPick.pausedReason} />
               </div>
 
               <div className="pt-4 border-t s-line">

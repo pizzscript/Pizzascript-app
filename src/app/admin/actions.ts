@@ -1,5 +1,6 @@
 "use server";
 
+import { AUTO_PICK_DEFAULTS } from "@/lib/studio/autopick";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -163,6 +164,22 @@ export async function setAutopilot(enabled: boolean) {
   const db = await live();
   fail((await db.from("settings").upsert({ key: "autopilot", value: { enabled } })).error);
   if (enabled) startJobs();
+  revalidatePath("/admin", "layout");
+}
+
+/** Auto-pick lets the agent choose its own ideas. Turning it on also clears a safety pause. */
+export async function setAutoPick(enabled: boolean) {
+  const db = await live();
+  const [{ data: saved }, { data: state }] = await Promise.all([
+    db.from("settings").select("value").eq("key", "autopick").maybeSingle(),
+    db.from("settings").select("value").eq("key", "autopick_state").maybeSingle(),
+  ]);
+  fail((await db.from("settings").upsert({ key: "autopick", value: { ...AUTO_PICK_DEFAULTS, ...(saved?.value as object | undefined), enabled } })).error);
+  if (enabled && state?.value) {
+    const { pausedReason: _cleared, ...rest } = state.value as { pausedReason?: string };
+    void _cleared;
+    fail((await db.from("settings").upsert({ key: "autopick_state", value: rest })).error);
+  }
   revalidatePath("/admin", "layout");
 }
 
