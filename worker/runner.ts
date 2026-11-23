@@ -25,7 +25,9 @@ const HANDLERS: Record<JobType, Handler> = {
   performance_check: () => performanceCheck(),
 };
 
-const TRANSIENT = /429|RESOURCE_EXHAUSTED|503|UNAVAILABLE|ECONNRESET|ETIMEDOUT|fetch failed/i;
+// 504/DEADLINE_EXCEEDED: a request that timed out, or every model in a tier doing the same — worth a fresh attempt
+// later rather than leaving the job (and the idea/article it's for) stuck until someone notices and re-clicks it.
+const TRANSIENT = /429|RESOURCE_EXHAUSTED|503|UNAVAILABLE|504|DEADLINE_EXCEEDED|ECONNRESET|ETIMEDOUT|fetch failed/i;
 const MAX_ATTEMPTS = 4;
 
 interface ClaimedJob {

@@ -3,9 +3,12 @@ import { DECISION_MODEL, MODEL_CHAINS, MODEL_LIMITS, quotaDayStart, type ModelTi
 import { db } from "./db";
 import { env } from "./env";
 
-// Hard per-request timeout: an overloaded model can otherwise leave a request hanging for minutes and block the queue.
 // v1beta: preview models in the backup chain (e.g. 3 Flash) return 404 on the SDK's default version.
-const ai = new GoogleGenAI({ apiKey: env.geminiApiKey, apiVersion: "v1beta", httpOptions: { timeout: 180_000 } });
+const ai = new GoogleGenAI({ apiKey: env.geminiApiKey, apiVersion: "v1beta" });
+
+// Per-request timeout: an overloaded model can otherwise leave a request hanging for minutes and block the queue.
+// Small jobs (scoring, briefs) should fail over to the next backup quickly; a full article genuinely needs longer.
+const TIMEOUT_MS: Record<ModelTier, number> = { writer: 180_000, light: 35_000 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const DAY_MS = 86_400_000;
@@ -66,7 +69,8 @@ function chainFor(tier: ModelTier, promptChars: number, preferred?: string) {
 /** Tries each model in the tier: waits out per-minute limits, and moves on at once when one is used up, overloaded or returns junk. */
 async function route<T>(label: string, kind: Kind, promptChars: number, opts: CallOptions, call: (model: string) => Promise<T>): Promise<T> {
   checkBilling();
-  const chain = chainFor(opts.tier ?? "light", promptChars, opts.sticky?.model);
+  const tier = opts.tier ?? "light";
+  const chain = chainFor(tier, promptChars, opts.sticky?.model);
   let lastError: unknown = new Error("every model in this tier is used up for today");
 
   for (const model of chain) {
@@ -105,7 +109,7 @@ async function route<T>(label: string, kind: Kind, promptChars: number, opts: Ca
 }
 
 /** Gemma has no system-instruction or JSON mode, so both go in the prompt and the reply is parsed leniently. */
-function request(model: string, prompt: string, system: string, temperature: number, asJson: boolean) {
+function request(model: string, prompt: string, system: string, temperature: number, asJson: boolean, tier: ModelTier) {
   const gemma = model.startsWith("gemma");
   return ai.models.generateContent({
     model,
@@ -114,13 +118,14 @@ function request(model: string, prompt: string, system: string, temperature: num
       ...(gemma ? {} : { systemInstruction: system }),
       temperature,
       ...(asJson && !gemma ? { responseMimeType: "application/json" } : {}),
+      httpOptions: { timeout: TIMEOUT_MS[tier] },
     },
   });
 }
 
 export async function text(prompt: string, system: string, opts: CallOptions = {}) {
   return route("Gemini text", "text", prompt.length + system.length, opts, async (model) => {
-    const res = await request(model, prompt, system, opts.temperature ?? 0.7, false);
+    const res = await request(model, prompt, system, opts.temperature ?? 0.7, false, opts.tier ?? "light");
     const out = res.text?.trim();
     if (!out) throw new Error("empty response");
     return out;
@@ -159,7 +164,7 @@ export function parseLenient(text: string): unknown {
 export async function json<T>(prompt: string, system: string, opts: CallOptions = {}): Promise<T> {
   const fullSystem = `${system}\n\nRespond with a single valid JSON value and nothing else.`;
   return route("Gemini JSON", "json", prompt.length + fullSystem.length, opts, async (model) => {
-    const res = await request(model, prompt, fullSystem, opts.temperature ?? 0.4, true);
+    const res = await request(model, prompt, fullSystem, opts.temperature ?? 0.4, true, opts.tier ?? "light");
     const raw = res.text ?? "";
     const start = raw.search(/[[{]/);
     const end = Math.max(raw.lastIndexOf("}"), raw.lastIndexOf("]"));
