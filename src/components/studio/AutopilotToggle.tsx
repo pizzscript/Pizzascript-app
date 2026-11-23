@@ -5,7 +5,7 @@ import { setAutopilot } from "@/app/admin/actions";
 import { useStudio } from "./StudioProvider";
 
 const CONFIRM_ON =
-  "Turn autopilot on?\n\nEvery scheduled post will be written, get a banner, be SEO-checked and published on its date automatically — no approvals. This uses your Gemini quota.";
+  "Turn autopilot on?\n\nEvery scheduled post will be written, get a banner, be quality-checked and published on its date automatically — no approvals. This uses your Gemini quota.";
 const CONFIRM_OFF = "Turn autopilot off?\n\nNothing will publish until you approve it.";
 
 /** Global autopilot switch. Asks before changing, because turning it on starts writing and publishing on its own. */

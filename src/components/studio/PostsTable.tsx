@@ -103,7 +103,7 @@ export function PostsTable({ posts, clusters, initialTab }: { posts: StudioPost[
               Write drafts
             </button>
             <button type="button" className="s-btn s-btn--sm" disabled={busy} onClick={() => bulk("run_audit", "Audit")}>
-              Run SEO check
+              Run quality check
             </button>
           </div>
         )}

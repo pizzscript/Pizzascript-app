@@ -16,7 +16,7 @@ const RUNNING_LABEL = {
   write_brief: "Writing brief…",
   write_draft: "Writing draft…",
   generate_image: "Generating banner…",
-  run_audit: "Running SEO check…",
+  run_audit: "Running quality check…",
   rewrite: "Rewriting…",
   fix_title: "Rewriting title…",
 } as const;
@@ -96,7 +96,7 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
       : post.stage === "draft"
         ? ({ type: "generate_image", label: "Generate banner" } as const)
         : post.stage === "image"
-          ? ({ type: "run_audit", label: "Run SEO check" } as const)
+          ? ({ type: "run_audit", label: "Run quality check" } as const)
           : null;
   // A job for this post that's queued or running — the main button shows it instead of offering to start another.
   const activeJob = pending.find((p) => p.postId === post.id && p.type && p.type in RUNNING_LABEL);
@@ -323,7 +323,7 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
                   >
                     {post.approved_at ? "Approved ✓ — click to undo" : "Approve for publishing"}
                   </button>
-                  <p className="s-hint">{audit?.ok ? "Approved posts publish automatically on their date." : "Approval unlocks once the SEO check passes."}</p>
+                  <p className="s-hint">{audit?.ok ? "Approved posts publish automatically on their date." : "Approval unlocks once the quality check passes."}</p>
                 </div>
               )}
             </Panel>
@@ -369,11 +369,12 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
                 {audit && (
                   <ul className="space-y-1.5 pt-2">
                     {audit.checks.map((c) => (
-                      <li key={c.id} className={`flex gap-2 text-[13px] ${c.pass ? "s-dim" : "text-[var(--s-bad)]"}`}>
-                        <span aria-hidden="true">{c.pass ? "✓" : "✕"}</span>
+                      <li key={c.id} className={`flex gap-2 text-[13px] ${c.pass || c.level === "waiting" ? "s-dim" : "text-[var(--s-bad)]"}`}>
+                        <span aria-hidden="true">{c.level === "waiting" ? "…" : c.pass ? (c.level === "warning" ? "!" : "✓") : "✕"}</span>
                         <span>
                           {c.label}
-                          {c.detail && <span className="s-faint"> · {c.detail}</span>}
+                          {c.level === "waiting" ? <span className="s-faint"> · Waiting for review</span> : c.detail && <span className="s-faint"> · {c.detail}</span>}
+                          {!c.pass && c.level === "autofix" && <span className="s-faint"> · Agent can fix this</span>}
                         </span>
                       </li>
                     ))}
@@ -381,7 +382,7 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
                 )}
                 {post.body_html && (
                   <button type="button" className="s-btn s-btn--sm" onClick={() => run("Audit", () => enqueue("run_audit", { postId: post.id }))}>
-                    Re-run SEO check
+                    Run quality check
                   </button>
                 )}
               </div>

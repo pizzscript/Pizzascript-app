@@ -26,7 +26,7 @@ export const JOB_ACTIVITY: Partial<Record<JobType, string>> = {
   write_draft: "Writing draft",
   rewrite: "Rewriting",
   generate_image: "Making banner",
-  run_audit: "SEO check",
+  run_audit: "Quality check",
   publish_due: "Publishing",
   insert_link: "Adding link",
   fix_title: "Rewriting title",

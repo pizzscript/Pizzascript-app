@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import ts from "typescript";
-import { REVIEW_PENDING } from "../src/lib/studio/content";
+import { REVIEW_PENDING, keywordCoverage } from "../src/lib/studio/content";
+import { QUALITY, copiedShare, issueBlocks, type ReviewCode, type ReviewIssue } from "../src/lib/studio/quality";
 import type { AuditCheck, StudioPost } from "../src/lib/studio/types";
 import { allFacts } from "./db";
 import { DUPLICATE_SIMILARITY, matchesFor, postText } from "./research/embeddings";
@@ -64,7 +65,9 @@ const STAT = /\b\d+(?:\.\d+)?\s?%|\b\d+\s+(?:out of|in every)\s+\d+\b|\b\d+(?:\.
 
 /** Statistics with no proof: not in the owner's facts and no external source linked in the same sentence. */
 export function unsupportedNumbers(html: string, facts: { statement: string }[]) {
-  const known = facts.map((f) => f.statement.toLowerCase()).join(" ");
+  // Whole figures only: a saved "65%" must not make an invented "5%" look proven.
+  const normal = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
+  const known = new Set(facts.flatMap((f) => [...f.statement.matchAll(STAT)].map((m) => normal(m[0]))));
   const found = new Set<string>();
   const prose = html.replace(/<pre[\s\S]*?<\/pre>/gi, " ").replace(/<code[^>]*>[\s\S]*?<\/code>/gi, " ");
   for (const block of prose.match(/<(p|li|td|blockquote|h[2-4])[^>]*>[\s\S]*?<\/\1>/gi) ?? []) {
@@ -75,7 +78,7 @@ export function unsupportedNumbers(html: string, facts: { statement: string }[])
         const value = match[0].replace(/\s+/g, " ").trim();
         // "100%" is usually a figure of speech ("100% custom") unless it measures a share of something.
         if (/^100\s?%$/.test(value) && !/^\s*of\b/i.test(text.slice(match.index + match[0].length))) continue;
-        if (!known.includes(value.toLowerCase())) found.add(value);
+        if (!known.has(normal(value))) found.add(value);
       }
     }
   }
@@ -101,50 +104,76 @@ export function namedClients(html: string, facts: { subject: string }[]) {
 
 interface Verification {
   hash: string;
-  issues?: { severity?: string; claim?: string; problem?: string }[];
+  issues?: ReviewIssue[];
+  code?: ReviewCode[];
 }
 
 function verifiedCheck(post: StudioPost): AuditCheck {
   const label = "Technical review passed";
   const saved = post.seo_plan?.verification as Verification | undefined;
   if (!saved || saved.hash !== bodyHash(post.body_html)) {
-    return post.stage === "live" ? { id: "verified", label, pass: true, detail: "Published before review" } : { id: "verified", label, pass: false, detail: REVIEW_PENDING };
+    return post.stage === "live"
+      ? { id: "verified", label, pass: true, detail: "Published before review", level: "warning" }
+      : { id: "verified", label, pass: false, detail: REVIEW_PENDING, level: "waiting" };
   }
-  const errors = (saved.issues ?? []).filter((i) => i.severity === "error");
-  return { id: "verified", label, pass: errors.length === 0, detail: errors.slice(0, 2).map((e) => `${e.claim}: ${e.problem}`.slice(0, 160)).join("; ") || undefined };
+  const issues = saved.issues ?? [];
+  const proven = issues.filter((i) => issueBlocks(i, saved.code));
+  if (proven.length) {
+    return { id: "verified", label, pass: false, level: "autofix", detail: proven.slice(0, 2).map((e) => `${e.claim}: ${e.problem}`.slice(0, 160)).join("; ") };
+  }
+  const unproven = issues.filter((i) => i.severity === "error").length;
+  return unproven
+    ? { id: "verified", label, pass: true, level: "warning", detail: `${unproven} unproven AI concern${unproven > 1 ? "s" : ""}, worth a look` }
+    : { id: "verified", label, pass: true, level: "blocker" };
+}
+
+/** High similarity alone can just mean a shared topic. It blocks only for the same search intent or copied text. */
+function duplicateCheck(post: StudioPost, other: Pick<StudioPost, "slug" | "seo_plan" | "body_html"> | undefined, similarity: number): AuditCheck {
+  const label = "Not a near-duplicate of another post";
+  if (!other) return { id: "duplicate", label, pass: true, level: "blocker" };
+  const percent = Math.round(similarity * 100);
+  const mine = post.seo_plan?.targetQuery ?? post.title;
+  const theirs = other.seo_plan?.targetQuery ?? "";
+  const sameIntent = Boolean(theirs) && Math.min(keywordCoverage(mine, theirs), keywordCoverage(theirs, mine)) >= QUALITY.duplicate.sameQuery;
+  const copied = copiedShare(post.body_html, other.body_html ?? "");
+  if (sameIntent || copied >= QUALITY.duplicate.copiedText) {
+    const why = sameIntent ? "same search intent" : `${Math.round(copied * 100)}% copied text`;
+    return { id: "duplicate", label, pass: false, level: "blocker", detail: `${percent}% similar to /blog/${other.slug} (${why})` };
+  }
+  return { id: "duplicate", label, pass: true, level: "warning", detail: `Related to /blog/${other.slug} (${percent}%), different search intent` };
 }
 
 /** Checks that need the compiler or the model: run by the audit job, then carried on the post's saved audit. */
-export async function deepChecks(post: StudioPost, posts: Pick<StudioPost, "id" | "slug" | "title">[]): Promise<AuditCheck[]> {
+export async function deepChecks(post: StudioPost, posts: Pick<StudioPost, "id" | "slug" | "title" | "seo_plan" | "body_html">[]): Promise<AuditCheck[]> {
   const broken = codeErrors(post.body_html);
   const facts = await allFacts();
   const numbers = unsupportedNumbers(post.body_html, facts);
   const measured = measuredClaims(post.body_html);
   const clients = post.slug.startsWith("case-study-") ? [] : namedClients(post.body_html, facts);
   const checks: AuditCheck[] = [
-    { id: "code", label: "Code examples compile", pass: broken.length === 0, detail: broken.slice(0, 3).join("; ") || undefined },
+    { id: "code", label: "Code examples compile", pass: broken.length === 0, detail: broken.slice(0, 3).join("; ") || undefined, level: "blocker" },
     {
       id: "numbers",
       label: "No unproven statistics",
       pass: numbers.length === 0,
       detail: numbers.length ? `Add a source or remove: ${numbers.slice(0, 6).join(", ")}` : measured.length ? `Double-check: ${measured.slice(0, 4).join(", ")}` : undefined,
+      level: numbers.length || !measured.length ? "blocker" : "warning",
     },
-    { id: "clients", label: "No client names", pass: clients.length === 0, detail: clients.join(", ") || undefined },
+    { id: "clients", label: "No client names", pass: clients.length === 0, detail: clients.join(", ") || undefined, level: "blocker" },
     verifiedCheck(post),
   ];
   try {
     const matches = await matchesFor("post", post.id, postText(post));
-    const top = matches.find((m) => m.owner_type === "post" && m.similarity >= DUPLICATE_SIMILARITY && posts.some((p) => p.id === m.owner_id));
-    const other = top && posts.find((p) => p.id === top.owner_id);
-    checks.push({
-      id: "duplicate",
-      label: "Not a near-duplicate of another post",
-      pass: !other,
-      detail: other ? `${Math.round(top!.similarity * 100)}% similar to /blog/${other.slug}` : undefined,
-    });
+    const candidates = matches
+      .filter((m) => m.owner_type === "post" && m.similarity >= DUPLICATE_SIMILARITY)
+      .flatMap((m) => {
+        const other = posts.find((p) => p.id === m.owner_id);
+        return other ? [duplicateCheck(post, other, m.similarity)] : [];
+      });
+    checks.push(candidates.find((c) => !c.pass) ?? candidates[0] ?? duplicateCheck(post, undefined, 0));
   } catch (error) {
     // A model failure shouldn't stop publishing; the result says the check didn't run.
-    checks.push({ id: "duplicate", label: "Not a near-duplicate of another post", pass: true, detail: `Skipped: ${error instanceof Error ? error.message.slice(0, 80) : "unavailable"}` });
+    checks.push({ id: "duplicate", label: "Not a near-duplicate of another post", pass: true, level: "warning", detail: `Skipped: ${error instanceof Error ? error.message.slice(0, 80) : "unavailable"}` });
   }
   return checks;
 }

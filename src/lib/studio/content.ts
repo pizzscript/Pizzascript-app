@@ -1,4 +1,5 @@
-import type { Audit, AuditCheck, StudioPost } from "./types";
+import { QUALITY } from "./quality";
+import type { Audit, AuditCheck, CheckLevel, StudioPost } from "./types";
 
 export const SERVICE_PATHS = [
   "/services/custom-website-development",
@@ -88,6 +89,9 @@ const STOPWORDS = new Set("a an and are as at be by do does for from how in is i
 const keywordTokens = (s: string) =>
   s
     .toLowerCase()
+    // Same word, different spelling: "pre-render", "pre render", "prerendering"; "Next.js", "nextjs".
+    .replace(/\bpre[\s-]?render(?:ing|ed|s)?\b/g, "prerender")
+    .replace(/\bnext\.js\b/g, "nextjs")
     .split(/[^a-z0-9.]+/)
     .map((t) => t.replace(/\.$/, "").replace(/(?<=[a-z]{3})s$/, ""))
     .filter((t) => t && !STOPWORDS.has(t));
@@ -136,27 +140,32 @@ export function auditPost(
   },
 ): Audit {
   const checks: AuditCheck[] = [];
-  const add = (id: string, label: string, pass: boolean, detail?: string) => checks.push({ id, label, pass, detail });
+  const add = (id: string, label: string, pass: boolean, detail?: string, level: CheckLevel = "blocker") => checks.push({ id, label, pass, detail, level });
+  /** Slightly outside the target is a warning; further out fails at the given level. */
+  const addRange = (id: string, label: string, inTarget: boolean, inTolerance: boolean, detail: string, level: CheckLevel) =>
+    add(id, label, inTarget || inTolerance, detail, inTarget ? "blocker" : inTolerance ? "warning" : level);
   const text = plainText(post.body_html).toLowerCase();
   const words = wordCount(post.body_html);
 
-  add("title", "Title under 65 characters", post.title.length > 0 && post.title.length <= 65, `${post.title.length} chars`);
+  const titleLength = post.title.length;
+  addRange("title", "Title under 65 characters", titleLength > 0 && titleLength <= QUALITY.title.max, titleLength > 0 && titleLength <= QUALITY.title.softMax, `${titleLength} chars`, "autofix");
   const metaLength = post.seo_description?.length ?? 0;
-  add("meta", "Meta description 120–160 characters", metaLength >= 120 && metaLength <= 160, `${metaLength} chars`);
+  addRange("meta", "Meta description 120–160 characters", metaLength >= QUALITY.meta.min && metaLength <= QUALITY.meta.max, metaLength >= QUALITY.meta.softMin && metaLength <= QUALITY.meta.softMax, `${metaLength} chars`, "autofix");
   const duplicateMeta = context.posts.find((p) => p.id !== post.id && p.seo_description && p.seo_description === post.seo_description);
-  add("meta-unique", "Meta description not used elsewhere", !duplicateMeta, duplicateMeta ? `Same as /blog/${duplicateMeta.slug}` : undefined);
-  add("excerpt", "Has an excerpt", post.excerpt.trim().length > 40);
+  add("meta-unique", "Meta description not used elsewhere", !duplicateMeta, duplicateMeta ? `Same as /blog/${duplicateMeta.slug}` : undefined, "autofix");
+  add("excerpt", "Has an excerpt", post.excerpt.trim().length > 40, undefined, "autofix");
 
   if (context.wordRange) {
     const [min, max] = context.wordRange;
-    add("length", `Length ${min}–${max} words`, words >= min * 0.85 && words <= max * 1.15, `${words} words`);
+    const within = (tolerance: number) => words >= min * (1 - tolerance) && words <= max * (1 + tolerance);
+    addRange("length", `Length ${min}–${max} words`, within(QUALITY.length.tolerance), within(QUALITY.length.softTolerance), `${words} words`, "blocker");
   }
 
   const firstParagraph = post.body_html.match(/<p[^>]*>([\s\S]*?)<\/p>/i)?.[1] ?? "";
   add("opening", "Opens with a strong first paragraph", firstParagraph.length > 60 && !/^<h2/i.test(post.body_html.trim()));
 
   const banned = context.bannedPhrases.filter((phrase) => text.includes(phrase.toLowerCase()));
-  add("banned", "No banned clichés", banned.length === 0, banned.join(", ") || undefined);
+  add("banned", "No banned clichés", banned.length === 0, banned.join(", ") || undefined, "autofix");
 
   add("h1", "No extra main heading in the body", !/<h1[\s>]/i.test(post.body_html));
   const h2Count = (post.body_html.match(/<h2[\s>]/gi) ?? []).length;
@@ -176,11 +185,11 @@ export function auditPost(
   add("img-alt", "Inline images have alt text", imgsWithoutAlt === 0, imgsWithoutAlt ? `${imgsWithoutAlt} missing` : undefined);
 
   const rawAnchors = internalLinks(post.body_html).filter((l) => l.text === l.href || /^\/[a-z0-9/-]*$/i.test(l.text));
-  add("anchors", "Links use readable text", rawAnchors.length === 0, rawAnchors.map((l) => l.text).slice(0, 3).join(", ") || undefined);
+  add("anchors", "Links use readable text", rawAnchors.length === 0, rawAnchors.map((l) => l.text).slice(0, 3).join(", ") || undefined, "autofix");
 
   const misses = keywordMisses(post);
   const headingTip = keywordInHeading(post) ? "" : "Tip: no heading mentions it yet";
-  add("keyword", "Target keyword in title, opening and slug", misses.length === 0, [misses.length ? `Missing from ${misses.join(", ")}` : "", headingTip].filter(Boolean).join(". ") || undefined);
+  add("keyword", "Target keyword in title, opening and slug", misses.length === 0, [misses.length ? `Missing from ${misses.join(", ")}` : "", headingTip].filter(Boolean).join(". ") || undefined, "autofix");
   checks.push(...(context.deep ?? []));
 
   return { ok: checks.every((c) => c.pass), ranAt: new Date().toISOString(), checks };

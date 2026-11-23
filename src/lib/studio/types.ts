@@ -90,11 +90,15 @@ export interface Brief {
   wordRange?: [number, number];
 }
 
+/** blocker: can't publish. autofix: the agent repairs it. warning: shown, doesn't block. waiting: a step hasn't finished. */
+export type CheckLevel = "blocker" | "autofix" | "warning" | "waiting";
+
 export interface AuditCheck {
   id: string;
   label: string;
   pass: boolean;
   detail?: string;
+  level?: CheckLevel;
 }
 
 export interface Audit {

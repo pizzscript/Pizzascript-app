@@ -5,7 +5,7 @@ import { allClusters, allFacts, allPosts, allTopics, check, db, enqueue, getPost
 import { makePoster } from "../poster";
 import { json } from "../gemini";
 import { deepChecks } from "../quality";
-import { ensureReview, repairReviewErrors } from "../review";
+import { ensureReview, repairPost } from "../review";
 import { DUPLICATE_SIMILARITY, matchesFor, topicText, type Match } from "../research/embeddings";
 import { pagesBlock, readTopPages } from "../research/reader";
 import { fetchSerp } from "../research/serp";
@@ -467,6 +467,6 @@ export async function runAudit({ postId }: { postId: string }) {
     await db.from("signals").update({ status: "acted" }).eq("dedupe_key", `audit:${post.id}`);
   }
   // Runs after the failing result is saved, so the post stays blocked from publishing while the repair is in progress.
-  const repaired = audit.ok ? false : await repairReviewErrors({ ...post, stage }, posts.map((p) => p.slug));
+  const repaired = audit.ok ? false : await repairPost({ ...post, stage }, audit.checks.filter((c) => !c.pass), posts.map((p) => p.slug));
   return { ok: audit.ok, stage, repaired };
 }

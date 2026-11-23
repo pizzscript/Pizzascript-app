@@ -3,10 +3,11 @@ import { AGENT_MODEL } from "../../src/lib/studio/models";
 import type { Fact, StudioPost, Topic } from "../../src/lib/studio/types";
 import { runAgent } from "../agent";
 import { allFacts, allPosts, db, enqueue, getPost, raiseSignal, saveVersion, settings } from "../db";
-import { decide, json, text } from "../gemini";
+import { cleanSeo, type SeoFields } from "../../src/lib/studio/quality";
+import { decide, json, parseLenient, text } from "../gemini";
 import { cleanMarkdown, markdownToHtml } from "../markdown";
 import { pagesBlock, readTopPages } from "../research/reader";
-import { AGENT, ARTICLE_RULES, SERVICE_PAGES } from "../rules";
+import { AGENT, ARTICLE_RULES, SEO_BLOCK, SEO_MARKER, SERVICE_PAGES } from "../rules";
 import { serpBlock, serpFor, writeBrief } from "./content";
 
 const FACT_THRESHOLD = 0.7;
@@ -74,16 +75,30 @@ ${fact ? `ONE REAL RESULT YOU MAY CITE as "on a recent project", only if it fits
 
 const toHtml = (job: ArticleJob, markdown: string) => removeUnknownLinks(markdownToHtml(markdown), job.liveSlugs);
 
+/** Separates the article from the SEO block written with it. A missing or broken block just means no SEO fields. */
+export function splitArticleSeo(reply: string): { article: string; seo: SeoFields } {
+  const at = reply.lastIndexOf(SEO_MARKER);
+  if (at < 0) return { article: reply, seo: {} };
+  const block = reply.slice(at + SEO_MARKER.length);
+  const article = reply.slice(0, at).trimEnd();
+  try {
+    return { article, seo: cleanSeo(parseLenient(block.slice(block.indexOf("{"), block.lastIndexOf("}") + 1))) };
+  } catch {
+    return { article, seo: {} };
+  }
+}
+
 async function writeWithAgent(job: ArticleJob) {
-  const { text: markdown } = await runAgent(`${ARTICLE_RULES}\n\nDo not use any tools, search, files or code execution.\n\n${job.context}`, {
+  const { text: reply } = await runAgent(`${ARTICLE_RULES}\n\n${SEO_BLOCK}\n\nDo not use any tools, search, files or code execution.\n\n${job.context}`, {
     label: `article: ${job.post.slug}`,
     maxTokens: 60_000,
     timeoutMs: 15 * 60_000,
   });
-  const html = toHtml(job, markdown);
+  const { article, seo } = splitArticleSeo(reply);
+  const html = toHtml(job, article);
   const words = wordCount(html);
   if ((html.match(/<h2[\s>]/gi) ?? []).length < 3 || words < job.wordRange[0] * 0.6) throw new Error(`Agent article too thin (${words} words)`);
-  return html;
+  return { html, seo };
 }
 
 /** Backup writer: two sections per request, saving after each so a quota stop resumes where it left off. */
@@ -96,6 +111,7 @@ async function writeInGroups(job: ArticleJob) {
   const groups: string[][] = [];
   for (let i = 0; i < outline.length; i += SECTIONS_PER_REQUEST) groups.push(outline.slice(i, i + SECTIONS_PER_REQUEST));
   const target = Math.round((job.wordRange[0] + job.wordRange[1]) / 2 / outline.length);
+  let seo: SeoFields = {};
 
   for (let g = progress.parts.length; g < groups.length; g++) {
     const headings = groups[g];
@@ -110,22 +126,29 @@ ${soFar ? `WRITTEN SO FAR (continue it; never repeat its points, examples or cod
 Write ONLY ${g === 0 ? "the opening paragraphs (no heading), then " : ""}these sections, about ${target} words each:
 ${headings.map((h) => `## ${h}`).join("\n")}
 ${left.length ? `Links still needed${isLast ? " (ALL must appear now)" : ""}: ${left.join(", ")}` : ""}
-${isLast ? "This is the end of the article: no summary, finish with the next logical action or a natural service-page transition." : "Don't conclude; the article continues."}`,
+${isLast ? `This is the end of the article: no summary, finish with the next logical action or a natural service-page transition.\n\n${SEO_BLOCK}` : "Don't conclude; the article continues."}`,
       ARTICLE_RULES,
       { temperature: 0.7, tier: "writer", sticky },
     );
-    let part = cleanMarkdown(out);
+    const split = splitArticleSeo(out);
+    if (isLast) seo = split.seo;
+    let part = cleanMarkdown(split.article);
     if (g > 0 && !/^##\s/m.test(part)) part = `## ${headings[0]}\n\n${part}`;
     progress.parts.push(part);
     progress.model = sticky.model;
     await db.from("posts").update({ seo_plan: { ...post.seo_plan, draftProgress: progress } }).eq("id", post.id);
   }
-  return { html: toHtml(job, progress.parts.join("\n\n")), model: sticky.model };
+  return { html: toHtml(job, progress.parts.join("\n\n")), model: sticky.model, seo };
 }
 
-async function saveDraft(post: StudioPost, html: string, facts: Fact[], writtenBy: string | undefined) {
-  const meta = await json<{ title: string; seo_title: string; seo_description: string; excerpt: string; unsupported_claims: string[] }>(
-    `Write the metadata for this article and check its claims.
+const hasAllSeo = (seo: SeoFields) => Boolean(seo.title && seo.seo_title && seo.seo_description && seo.excerpt);
+
+async function saveDraft(post: StudioPost, html: string, facts: Fact[], writtenBy: string | undefined, written: SeoFields = {}) {
+  // The writer normally supplies these with the article. This request only runs if any are missing or invalid.
+  const backup = hasAllSeo(written)
+    ? null
+    : await json<{ title: string; seo_title: string; seo_description: string; excerpt: string; unsupported_claims: string[] }>(
+        `Write the metadata for this article and check its claims.
 
 QUERY: ${post.seo_plan?.targetQuery}
 VERIFIED STUDIO RESULTS: ${facts.map((f) => f.statement).join(" | ") || "none"}
@@ -137,9 +160,10 @@ ${plainText(html)}
 2. unsupported_claims: every specific number or result stated as the studio's own experience, or as a share of projects or audits, that is NOT in the verified results. Documented technical values don't count. Empty if none.
 
 Return JSON {"title":"","seo_title":"","seo_description":"","excerpt":"","unsupported_claims":[]}`,
-    AGENT,
-    { temperature: 0.3 },
-  );
+        AGENT,
+        { temperature: 0.3 },
+      );
+  const meta = { ...backup, ...written, unsupported_claims: backup?.unsupported_claims ?? [] } as { title: string; seo_title: string; seo_description: string; excerpt: string; unsupported_claims: string[] };
 
   const seoPlan = { ...post.seo_plan };
   delete seoPlan.draftProgress;
@@ -190,11 +214,12 @@ export async function writeDraft({ postId }: { postId: string }): Promise<{ word
 
   if (!hasProgress) {
     try {
-      return await saveDraft(post, await writeWithAgent(job), facts, AGENT_MODEL);
+      const written = await writeWithAgent(job);
+      return await saveDraft(post, written.html, facts, AGENT_MODEL, written.seo);
     } catch (error) {
       console.warn(`[draft] agent unavailable, using backup writers: ${error instanceof Error ? error.message.slice(0, 200) : error}`);
     }
   }
-  const { html, model } = await writeInGroups(job);
-  return saveDraft(post, html, facts, model);
+  const { html, model, seo } = await writeInGroups(job);
+  return saveDraft(post, html, facts, model, seo);
 }

@@ -2,6 +2,7 @@ import { DEEP_CHECK_IDS, REVIEW_PENDING, REVIEW_RETRY_MS, auditPost, deepChecksO
 import type { StudioPost } from "../../src/lib/studio/types";
 import { allBatches, allPosts, check, db, enqueue, linkPlan, pipelinePosts, raiseSignal, settings, todayIst } from "../db";
 import { env } from "../env";
+import { bodyHash } from "../quality";
 import { RELATED_SIMILARITY, storedMatches } from "../research/embeddings";
 
 export async function revalidate(slug?: string) {
@@ -27,6 +28,13 @@ const reviewRetryWaiting = (post: StudioPost) => {
   return Boolean(at) && Date.now() - Date.parse(at!) < REVIEW_RETRY_MS;
 };
 
+/** The saved checks, except a review of older text no longer counts as a pass for the current text. */
+function currentDeepChecks(post: StudioPost) {
+  const review = post.seo_plan?.verification as { hash?: string } | undefined;
+  const reviewIsCurrent = !post.body_html || review?.hash === bodyHash(post.body_html);
+  return deepChecksOf(post.audit).map((c) => (c.id === "verified" && !reviewIsCurrent ? { ...c, pass: false, detail: REVIEW_PENDING, level: "waiting" as const } : c));
+}
+
 /**
  * Publishes slots that are due. Autopilot rule: a post goes live on its own only when it passed the audit
  * AND either the post itself or its whole batch was approved. Anything else raises a signal and waits.
@@ -41,7 +49,7 @@ export async function publishDue() {
 
   for (const post of due) {
     const approved = autopilot || Boolean(post.approved_at) || (post.batch_id !== null && approvedBatches.has(post.batch_id));
-    const deep = deepChecksOf(post.audit);
+    const deep = currentDeepChecks(post);
     const audit = post.body_html
       ? auditPost(post, { posts, bannedPhrases: banned, wordRange: post.brief?.wordRange ?? wordRangeFor(post, ranges), deep })
       : null;

@@ -34,7 +34,7 @@ export const FILTERS = `FIVE PRE-WRITING FILTERS (all must pass)
 
 
 export const ARTICLE_RULES = `You write for PizzaScript, a custom web engineering studio in Pune, India. Say "we", never "freelancer".
-Write the article in Markdown and return only the article: no preamble, no notes, no JSON.
+Write the article in Markdown with no preamble or notes.
 
 Rules:
 - The first line is the insight or counterintuitive finding, never setup.
@@ -45,7 +45,14 @@ Rules:
 - Never name a client or write about client work.
 - Never invent statistics, percentages or results. Documented technical values are fine.
 - Code must be correct and do what the text claims. Don't present experimental APIs as stable.
+- Avoid absolute claims about browsers or frameworks, such as "always", "exactly" or "guarantees", unless the official docs say so.
+- When an API isn't supported in every major browser, say so and show a fallback.
 - Banned phrases: "in today's digital age", "ever-changing landscape", "unlock the power of", "more important than ever", "comprehensive guide", "everything you need to know", "in conclusion".`;
+
+export const SEO_MARKER = "<<<SEO>>>";
+
+export const SEO_BLOCK = `After the final line of the article, write ${SEO_MARKER} on its own line, then one JSON object based on what you actually wrote:
+{"title":"≤ 60 characters, includes the query's main words","seo_title":"≤ 60 characters","seo_description":"120-160 characters, a specific benefit","excerpt":"1-2 sentences"}`;
 
 export const SERVICE_PAGES = [
   "/services/custom-website-development",

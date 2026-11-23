@@ -38,14 +38,15 @@ export function CategoryLabel({ cluster }: { cluster: Pick<Cluster, "id" | "name
 
 export function SeoBadge({ audit }: { audit: Audit | null }) {
   if (!audit) return <span className="s-faint">—</span>;
-  const failing = audit.checks.filter((c) => !c.pass).length;
-  return failing === 0 ? (
-    <span className="s-chip s-chip--ok">✓ Passing</span>
-  ) : (
-    <span className="s-chip s-chip--bad" title={audit.checks.filter((c) => !c.pass).map((c) => c.label).join("\n")}>
-      {failing} issue{failing > 1 ? "s" : ""}
-    </span>
-  );
+  const failing = audit.checks.filter((c) => !c.pass && c.level !== "waiting");
+  if (failing.length) {
+    return (
+      <span className="s-chip s-chip--bad" title={failing.map((c) => c.label).join("\n")}>
+        {failing.length} issue{failing.length > 1 ? "s" : ""}
+      </span>
+    );
+  }
+  return audit.checks.some((c) => !c.pass) ? <span className="s-chip">Waiting for review</span> : <span className="s-chip s-chip--ok">✓ Passing</span>;
 }
 
 export function formatDate(iso: string | null, withTime = false) {

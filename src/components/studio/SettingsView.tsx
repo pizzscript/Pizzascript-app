@@ -100,7 +100,7 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
             <>
               <Intro
                 title="Autopilot"
-                text="When it's on, every scheduled post is written, gets a banner, is SEO-checked and published on its date — no approvals. Posts are prepared one at a time, soonest first. A post that fails the SEO check doesn't publish; it shows up as an alert."
+                text="When it's on, every scheduled post is written, gets a banner, is quality-checked and published on its date — no approvals. Posts are prepared one at a time, soonest first. A post that fails the quality check doesn't publish; it shows up as an alert."
               />
               <div className="flex flex-wrap items-center gap-3">
                 <AutopilotToggle enabled={autopilot} />
@@ -128,7 +128,7 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
                           type="button"
                           className={`s-btn s-btn--sm ${b.approved_at ? "" : "s-btn--primary"}`}
                           onClick={() => {
-                            if (!b.approved_at && !window.confirm(`Approve ${b.name}?\n\nAll its posts will be written, bannered, SEO-checked and published on their dates — one at a time. This uses your Gemini quota.`)) return;
+                            if (!b.approved_at && !window.confirm(`Approve ${b.name}?\n\nAll its posts will be written, bannered, quality-checked and published on their dates — one at a time. This uses your Gemini quota.`)) return;
                             run(b.approved_at ? "Batch stopped" : "Batch approved", () => approveBatch(b.id, !b.approved_at));
                           }}
                         >
@@ -146,7 +146,7 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
 
           {tab === "writing" && (
             <>
-              <Intro title="Writing rules" text="The AI never uses these phrases, and the SEO check flags them. One phrase per line." />
+              <Intro title="Writing rules" text="The AI never uses these phrases, and the quality check flags them. One phrase per line." />
               <label className="block">
                 <span className="s-label">Banned phrases</span>
                 <textarea className="s-input min-h-[180px]" value={banned} onChange={(e) => setBanned(e.target.value)} />
@@ -156,7 +156,7 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
                 onClick={() => run("Saved", () => saveSetting("banned_phrases", banned.split("\n").map((s) => s.trim().toLowerCase()).filter(Boolean)))}
               />
               <div className="pt-4 border-t s-line">
-                <Intro title="Word count targets" text="The AI aims for these ranges, and the SEO check warns when a post is far outside them." />
+                <Intro title="Word count targets" text="The AI aims for these ranges, and the quality check warns when a post is far outside them." />
                 <div className="grid gap-3 sm:grid-cols-2 mt-4">
                   {Object.entries(ranges).map(([key, [min, max]]) => (
                     <div key={key} className="flex items-center gap-2">
