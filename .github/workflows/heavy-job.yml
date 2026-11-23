@@ -45,4 +45,5 @@ jobs:
         env:
           AGENT_URL: ${{ secrets.AGENT_URL }}
           AGENT_SECRET: ${{ secrets.AGENT_SECRET }}
-        run: curl -sS --fail --max-time 150 --retry 2 --retry-delay 10 -X POST "$AGENT_URL/api/agent/tick" -H "x-agent-secret: $AGENT_SECRET"
+        run: |
+          curl -sS --fail --max-time 150 --retry 2 --retry-delay 10 -X POST "$AGENT_URL/api/agent/tick" -H "x-agent-secret: $AGENT_SECRET"
