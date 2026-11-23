@@ -30,8 +30,12 @@ function looksLikeScript(code: string) {
   if (/^(\$|#!|npm |npx |pnpm |yarn |git |curl |cd )/m.test(t) && !/\b(const|function|import)\b/.test(t)) return false;
   if (/^[{[]/.test(t) && !/\b(const|let|function|return)\b/.test(t)) return false;
   if (/^(<!doctype|<html|<head|<meta|<link|<script|<style)/i.test(t)) return false;
-  if (/^[.#@a-z*:][^\n{=(]*\{\s*\n?\s*[a-z-]+\s*:[^:]/i.test(t) && !/\b(const|function|import|=>)\b/.test(t)) return false;
-  return /\b(import|export|const|let|var|function|class|await|interface|type)\b|=>/.test(t);
+  if (/^[.#@a-z*:][^\n{=(]*\{\s*\n?\s*[a-z-]+\s*:[^:]/i.test(t) && !/\b(const|function|import|=>|interface|type|class)\b/.test(t)) return false;
+  // Each keyword must appear in its actual declaration shape, not just as an English word ("type all props",
+  // "export your data") — a prose block that happens to use one of these words otherwise reads as real code.
+  return /\bimport\s|\bexport\s+(default\s*[{[]|(default\s+)?(function|class|const|let|interface|type)\b)|\bconst\s+[\w{[]|\blet\s+[\w{[]|\bvar\s+[\w{[]|\bfunction\s*[\w(]|\bclass\s+\w|\binterface\s+\w|\btype\s+\w+\s*=|\bawait\s+\w|=>/.test(
+    t,
+  );
 }
 
 export function codeErrors(html: string) {

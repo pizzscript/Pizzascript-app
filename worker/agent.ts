@@ -2,7 +2,10 @@ import { GoogleGenAI } from "@google/genai";
 import { AGENT_MODEL, nextCooldownMs, quotaDayStart, type AgentState, type AgentTask } from "../src/lib/studio/models";
 import { db, setting } from "./db";
 import { env } from "./env";
-import { record } from "./gemini";
+import { geminiBillingBlocked, record } from "./gemini";
+
+// Same billing account as the Gemini models: a depleted balance blocks Antigravity too, and it isn't a real hang.
+const BILLING_BLOCKED = /\b402\b|prepayment|payment required/i;
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const START_LIMIT_MS = 2 * 60_000;
@@ -49,6 +52,7 @@ const cancel = (id: string) => fetch(`${BASE}/${id}:cancel`, { method: "POST", h
 
 /** One Antigravity task. Fails fast if no step starts, then pauses the agent so later articles go straight to the backups. */
 export async function runAgent(input: string, opts: { label: string; maxTokens: number; timeoutMs: number }) {
+  if (geminiBillingBlocked()) throw new Error("Antigravity skipped: Gemini billing is currently blocked (account-wide)");
   const state = await readState();
   if (state.cooldownUntil && Date.parse(state.cooldownUntil) > Date.now()) throw new Error(`Antigravity paused until ${state.cooldownUntil}`);
 
@@ -126,8 +130,8 @@ export async function runAgent(input: string, opts: { label: string; maxTokens: 
     record(AGENT_MODEL, "json", message);
     stream?.controller?.abort();
     if (id && !finished) await cancel(id);
-    // A bad reply is the model's fault, not the service's, so it doesn't count toward a bad streak.
-    if (!/no text/i.test(message)) {
+    // A billing block isn't Antigravity being unreliable — don't let it count toward the hang streak.
+    if (!/no text/i.test(message) && !BILLING_BLOCKED.test(message)) {
       await updateState((s) => {
         const failures = (s.consecutiveFailures ?? 0) + 1;
         const until = /429|RESOURCE_EXHAUSTED/.test(message) ? quotaDayStart() + DAY_MS : Date.now() + nextCooldownMs(failures);

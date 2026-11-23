@@ -12,6 +12,17 @@ const DAY_MS = 86_400_000;
 // Gemma's free tier allows 16K tokens a minute, so long prompts skip it.
 const GEMMA_MAX_PROMPT_CHARS = 48_000;
 
+// A depleted billing balance blocks every model on the account at once (HTTP 402, but the body still says
+// "RESOURCE_EXHAUSTED" like an ordinary per-model quota error) — it is not worth retrying or trying another model.
+// One bad outage once burned 78 requests in 40 minutes this way, cycling the whole chain every call.
+const BILLING_BLOCKED = /\b402\b|prepayment|payment required/i;
+let billingBlockedUntil = 0;
+const BILLING_RECHECK_MS = 5 * 60_000;
+
+function checkBilling() {
+  if (Date.now() < billingBlockedUntil) throw new Error(`Gemini billing is blocked until ${new Date(billingBlockedUntil).toISOString()}`);
+}
+
 type Kind = "text" | "json";
 
 export interface CallOptions {
@@ -54,6 +65,7 @@ function chainFor(tier: ModelTier, promptChars: number, preferred?: string) {
 
 /** Tries each model in the tier: waits out per-minute limits, and moves on at once when one is used up, overloaded or returns junk. */
 async function route<T>(label: string, kind: Kind, promptChars: number, opts: CallOptions, call: (model: string) => Promise<T>): Promise<T> {
+  checkBilling();
   const chain = chainFor(opts.tier ?? "light", promptChars, opts.sticky?.model);
   let lastError: unknown = new Error("every model in this tier is used up for today");
 
@@ -70,6 +82,10 @@ async function route<T>(label: string, kind: Kind, promptChars: number, opts: Ca
         const message = error instanceof Error ? error.message : String(error);
         record(model, kind, message);
         if (/API key|PERMISSION_DENIED|\b401\b/i.test(message)) throw new Error(`${label} failed: ${message}`);
+        if (BILLING_BLOCKED.test(message)) {
+          billingBlockedUntil = Date.now() + BILLING_RECHECK_MS;
+          throw new Error(`${label} failed (billing blocked, account-wide): ${message}`);
+        }
         if (/429|RESOURCE_EXHAUSTED/.test(message) && isDailyLimit(message, model)) {
           blockedUntil.set(model, quotaDayStart() + DAY_MS);
           break;
@@ -157,6 +173,7 @@ export async function decide(input: string, questions: Record<string, string>): 
   const keys = Object.keys(questions);
   if (!keys.length) return {};
   try {
+    checkBilling();
     await pace(DECISION_MODEL);
     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/decisions", {
       method: "POST",
@@ -175,7 +192,13 @@ export async function decide(input: string, questions: Record<string, string>): 
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     record(DECISION_MODEL, "json", message);
+    if (BILLING_BLOCKED.test(message)) billingBlockedUntil = Date.now() + BILLING_RECHECK_MS;
     console.warn(`[decide] ${message.slice(0, 200)}`);
     return null;
   }
+}
+
+/** True while the account's billing balance is known to be blocked, so callers can skip Gemini entirely rather than fail into it. */
+export function geminiBillingBlocked() {
+  return Date.now() < billingBlockedUntil;
 }
