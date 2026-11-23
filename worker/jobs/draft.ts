@@ -1,118 +1,140 @@
-import { internalLinks, wordCount, wordRangeFor } from "../../src/lib/studio/content";
-import type { StudioPost } from "../../src/lib/studio/types";
+import { plainText, removeUnknownLinks, wordCount, wordRangeFor } from "../../src/lib/studio/content";
+import { AGENT_MODEL } from "../../src/lib/studio/models";
+import type { Fact, StudioPost, Topic } from "../../src/lib/studio/types";
+import { runAgent } from "../agent";
 import { allFacts, allPosts, db, enqueue, getPost, raiseSignal, saveVersion, settings } from "../db";
-import { json } from "../gemini";
-import { AGENT, HTML_FORMAT, STRATEGY, WRITING, factsBlock } from "../rules";
-import { writeBrief } from "./content";
+import { decide, json, text } from "../gemini";
+import { cleanMarkdown, markdownToHtml } from "../markdown";
+import { pagesBlock, readTopPages } from "../research/reader";
+import { AGENT, ARTICLE_RULES, SERVICE_PAGES } from "../rules";
+import { serpBlock, serpFor, writeBrief } from "./content";
+
+const FACT_THRESHOLD = 0.7;
+const SECTIONS_PER_REQUEST = 2;
 
 interface DraftProgress {
   key: string;
   model?: string;
-  intro?: string;
-  sections: string[];
+  parts: string[];
 }
 
-const FACT_RULE = "Any specific number, percentage, timeframe or client result must come from the VERIFIED FACTS list. If it isn't there, describe it generally.";
-const stripFence = (html: string) => html.trim().replace(/^```(?:html)?\s*/i, "").replace(/\s*```$/, "").trim();
-
-function ensureHeading(html: string, heading: string) {
-  const clean = stripFence(html);
-  return /^<h2[\s>]/i.test(clean) ? clean : `<h2>${heading}</h2>\n${clean}`;
+interface ArticleJob {
+  post: StudioPost;
+  outline: string[];
+  liveSlugs: string[];
+  wordRange: [number, number];
+  required: string[];
+  optional: string[];
+  context: string;
 }
 
-/** Writes intro + one call per heading + one closing call. Each finished part is saved, so a quota stop resumes there. */
-export async function writeDraft({ postId }: { postId: string }): Promise<{ words: number }> {
-  const post = await getPost(postId);
-  if (!post.brief?.angle) {
-    await writeBrief({ postId });
-    return writeDraft({ postId });
-  }
-  const outline = post.brief.outline ?? [];
-  if (!outline.length) throw new Error("The brief has no outline; rewrite the brief first.");
+/** At most one client fact, and only if it directly proves something in this article. */
+async function relevantFact(post: StudioPost, facts: Fact[]) {
+  if (!facts.length) return null;
+  const scores = await decide(
+    `Article query: ${post.seo_plan?.targetQuery}\nAngle: ${post.brief?.angle}\nOutline: ${(post.brief?.outline ?? []).join(" | ")}\n\nResults:\n${facts.map((f, i) => `[${i}] ${f.statement}`).join("\n")}`,
+    Object.fromEntries(facts.map((_, i) => [`fact_${i}`, `Does result [${i}] measure the exact metric or outcome this article is about, so citing it would directly prove the article's main point?`])),
+  );
+  if (!scores) return null;
+  const best = facts.map((f, i) => ({ f, score: scores[`fact_${i}`] })).sort((a, b) => b.score - a.score)[0];
+  return best.score >= FACT_THRESHOLD ? best.f.statement : null;
+}
 
-  const [posts, facts, ranges] = await Promise.all([allPosts(), allFacts(), settings.wordRanges()]);
+async function prepare(post: StudioPost, facts: Fact[]): Promise<ArticleJob> {
+  const [posts, ranges, topicRow, fact] = await Promise.all([
+    allPosts(),
+    settings.wordRanges(),
+    post.topic_id ? db.from("topics").select("*").eq("id", post.topic_id).maybeSingle() : Promise.resolve({ data: null }),
+    relevantFact(post, facts),
+  ]);
+  const topic = topicRow.data as Topic | null;
+  const serp = topic ? await serpFor(topic) : null;
+  const pages = serp ? await readTopPages(serp.organic.map((r) => r.url)) : [];
   const wordRange = post.brief.wordRange ?? wordRangeFor(post, ranges);
-  const target = Math.round((wordRange[0] + wordRange[1]) / 2);
-  const introWords = 130;
-  const sectionWords = Math.round((target - introWords) / outline.length);
+  const live = posts.filter((p) => p.stage === "live" && p.id !== post.id);
+  const liveSlugs = live.map((p) => p.slug);
+  const required = [...(post.brief.linksTo ?? []), post.brief.servicePage].filter(
+    (l): l is string => Boolean(l) && (SERVICE_PAGES.includes(l!) || liveSlugs.includes(l!.replace("/blog/", ""))),
+  );
+  const optional = [...SERVICE_PAGES, ...live.map((p) => `/blog/${p.slug}`)].filter((l) => !required.includes(l));
 
-  const key = JSON.stringify([post.brief.angle, outline]);
-  const saved = post.seo_plan?.draftProgress as DraftProgress | undefined;
-  const progress: DraftProgress = saved?.key === key ? saved : { key, sections: [] };
-  const sticky = { model: progress.model };
-  const persist = () => {
-    progress.model = sticky.model;
-    return db.from("posts").update({ seo_plan: { ...post.seo_plan, draftProgress: progress } }).eq("id", postId);
-  };
-
-  const required = [...(post.brief.linksTo ?? []), post.brief.servicePage].filter((l): l is string => Boolean(l));
-  const usedLinks = () => new Set(internalLinks([progress.intro ?? "", ...progress.sections].join("\n")).map((l) => l.href));
-  const others = posts.filter((p) => p.stage === "live" && p.id !== post.id).map((p) => `/blog/${p.slug}`);
-  const questions = post.brief.questions ?? [];
-
-  const context = `ARTICLE
-QUERY: ${post.seo_plan?.targetQuery}
-TRACK ${post.track} · ${post.role} · audience ${post.brief.audience} · depth criterion ${post.brief.depth}
+  const context = `QUERY: ${post.seo_plan?.targetQuery}
+AUDIENCE: ${post.brief.audience ?? "both"}
 ANGLE: ${post.brief.angle}
-FULL OUTLINE: ${outline.join(" | ")}
-${questions.length ? `RELATED QUESTIONS THE ARTICLE MUST ANSWER: ${questions.join(" | ")}` : ""}
+OUTLINE: ${(post.brief.outline ?? []).join(" | ")}
+LENGTH: ${Math.round((wordRange[0] + wordRange[1]) / 2)} words (allowed ${wordRange[0]}–${wordRange[1]})
+${post.brief.questions?.length ? `QUESTIONS TO ANSWER: ${post.brief.questions.join(" | ")}` : ""}
+RESEARCH: ${serp ? `${serpBlock(serp)}\n\n${pagesBlock(pages)}` : "No live search data. Don't claim what currently ranks."}
+LINKS YOU MUST USE: ${required.join(", ") || "none"}
+OTHER LINKS YOU MAY USE (exact paths only): ${optional.join(", ")}
+${fact ? `ONE REAL RESULT YOU MAY CITE as "on a recent project", only if it fits naturally: ${fact}` : "Cite no studio or client results."}`;
 
-${factsBlock(facts)}
-${FACT_RULE}`;
-  const system = `${AGENT}\n\n${STRATEGY}\n\n${WRITING}\n\n${HTML_FORMAT}\nThis call writes only the part requested, not the whole article, so the section-count rule applies to the finished article.`;
+  return { post, outline: post.brief.outline ?? [], liveSlugs, wordRange, required, optional, context };
+}
 
-  const linkNote = (isLast: boolean) => {
-    const used = usedLinks();
-    const left = required.filter((l) => !used.has(l));
-    const optional = others.filter((l) => !used.has(l) && !left.includes(l));
-    return `${left.length ? `LINKS STILL NEEDED${isLast ? " (ALL must appear in this section)" : " (use any that fit naturally)"}: ${left.join(", ")}` : "All required links are placed."}
-OTHER ARTICLES YOU MAY LINK: ${optional.join(", ") || "none"}
-ALREADY LINKED (do not link again): ${[...used].join(", ") || "none"}`;
-  };
+const toHtml = (job: ArticleJob, markdown: string) => removeUnknownLinks(markdownToHtml(markdown), job.liveSlugs);
 
-  if (!progress.intro) {
-    const out = await json<{ html: string }>(
-      `${context}\n\nWrite ONLY the opening: about ${introWords} words of <p> tags with no heading. Line 1 is the insight or counterintuitive finding.\n${linkNote(false)}\n\nReturn JSON {"html":"..."}`,
-      system,
-      { temperature: 0.75, tier: "writer", sticky },
+async function writeWithAgent(job: ArticleJob) {
+  const { text: markdown } = await runAgent(`${ARTICLE_RULES}\n\nDo not use any tools, search, files or code execution.\n\n${job.context}`, {
+    label: `article: ${job.post.slug}`,
+    maxTokens: 60_000,
+    timeoutMs: 15 * 60_000,
+  });
+  const html = toHtml(job, markdown);
+  const words = wordCount(html);
+  if ((html.match(/<h2[\s>]/gi) ?? []).length < 3 || words < job.wordRange[0] * 0.6) throw new Error(`Agent article too thin (${words} words)`);
+  return html;
+}
+
+/** Backup writer: two sections per request, saving after each so a quota stop resumes where it left off. */
+async function writeInGroups(job: ArticleJob) {
+  const { post, outline } = job;
+  const key = JSON.stringify(["markdown", post.brief.angle, outline]);
+  const saved = post.seo_plan?.draftProgress as DraftProgress | undefined;
+  const progress: DraftProgress = saved?.key === key ? saved : { key, parts: [] };
+  const sticky = { model: progress.model };
+  const groups: string[][] = [];
+  for (let i = 0; i < outline.length; i += SECTIONS_PER_REQUEST) groups.push(outline.slice(i, i + SECTIONS_PER_REQUEST));
+  const target = Math.round((job.wordRange[0] + job.wordRange[1]) / 2 / outline.length);
+
+  for (let g = progress.parts.length; g < groups.length; g++) {
+    const headings = groups[g];
+    const soFar = progress.parts.join("\n\n");
+    const used = job.required.filter((l) => soFar.includes(`](${l}`));
+    const left = job.required.filter((l) => !used.includes(l));
+    const isLast = g === groups.length - 1;
+    const out = await text(
+      `${job.context}
+
+${soFar ? `WRITTEN SO FAR (continue it; never repeat its points, examples or code):\n${soFar}\n` : ""}
+Write ONLY ${g === 0 ? "the opening paragraphs (no heading), then " : ""}these sections, about ${target} words each:
+${headings.map((h) => `## ${h}`).join("\n")}
+${left.length ? `Links still needed${isLast ? " (ALL must appear now)" : ""}: ${left.join(", ")}` : ""}
+${isLast ? "This is the end of the article: no summary, finish with the next logical action or a natural service-page transition." : "Don't conclude; the article continues."}`,
+      ARTICLE_RULES,
+      { temperature: 0.7, tier: "writer", sticky },
     );
-    progress.intro = stripFence(out.html);
-    await persist();
+    let part = cleanMarkdown(out);
+    if (g > 0 && !/^##\s/m.test(part)) part = `## ${headings[0]}\n\n${part}`;
+    progress.parts.push(part);
+    progress.model = sticky.model;
+    await db.from("posts").update({ seo_plan: { ...post.seo_plan, draftProgress: progress } }).eq("id", post.id);
   }
+  return { html: toHtml(job, progress.parts.join("\n\n")), model: sticky.model };
+}
 
-  for (let i = progress.sections.length; i < outline.length; i++) {
-    const isLast = i === outline.length - 1;
-    const previous = progress.sections.length ? progress.sections[progress.sections.length - 1] : progress.intro;
-    const out = await json<{ html: string }>(
-      `${context}
-
-WRITTEN SO FAR (headings): ${outline.slice(0, i).join(" | ") || "opening only"}
-PREVIOUS PART (continue from it, don't repeat it):
-${previous}
-
-Write ONLY the section "<h2>${outline[i]}</h2>", about ${sectionWords} words, starting with that <h2>.${isLast ? " This is the final section: don't summarise; end with the next logical action or a natural service-page transition." : ""}
-${linkNote(isLast)}
-
-Return JSON {"html":"..."}`,
-      system,
-      { temperature: 0.75, tier: "writer", sticky },
-    );
-    progress.sections.push(ensureHeading(out.html, outline[i]));
-    await persist();
-  }
-
-  const body = [progress.intro, ...progress.sections].join("\n\n");
+async function saveDraft(post: StudioPost, html: string, facts: Fact[], writtenBy: string | undefined) {
   const meta = await json<{ title: string; seo_title: string; seo_description: string; excerpt: string; unsupported_claims: string[] }>(
-    `Finish this article.
+    `Write the metadata for this article and check its claims.
 
 QUERY: ${post.seo_plan?.targetQuery}
-${factsBlock(facts)}
+VERIFIED STUDIO RESULTS: ${facts.map((f) => f.statement).join(" | ") || "none"}
 
 ARTICLE:
-${body}
+${plainText(html)}
 
-1. Write its metadata: title (≤ 60 chars, includes the query naturally), seo_title (≤ 60 chars), seo_description (120–160 chars, specific benefit), excerpt (1–2 sentences).
-2. List every specific number or client result stated as the studio's own experience that is NOT in the VERIFIED FACTS list. General technical facts (API names, version numbers, documented limits) don't count. Empty array if none.
+1. title (≤ 60 chars, includes the query's main words), seo_title (≤ 60 chars), seo_description (120–160 chars, specific benefit), excerpt (1–2 sentences).
+2. unsupported_claims: every specific number or result stated as the studio's own experience, or as a share of projects or audits, that is NOT in the verified results. Documented technical values don't count. Empty if none.
 
 Return JSON {"title":"","seo_title":"","seo_description":"","excerpt":"","unsupported_claims":[]}`,
     AGENT,
@@ -121,16 +143,20 @@ Return JSON {"title":"","seo_title":"","seo_description":"","excerpt":"","unsupp
 
   const seoPlan = { ...post.seo_plan };
   delete seoPlan.draftProgress;
-  const claims = (meta.unsupported_claims ?? []).slice(0, 10);
-  const version = await saveVersion(post, body, "Agent draft", {
+  delete seoPlan.bannerPlan;
+  const lower = html.toLowerCase();
+  const named = [...new Set(facts.map((f) => f.subject))].filter((name) => lower.includes(name.toLowerCase()));
+  const claims = [...named.map((name) => `Names client: ${name}`), ...(meta.unsupported_claims ?? [])].slice(0, 10);
+  const words = wordCount(html);
+  const version = await saveVersion(post, html, "Agent draft", {
     title: meta.title,
     seo_title: meta.seo_title,
     seo_description: meta.seo_description,
     excerpt: meta.excerpt,
     stage: "draft",
-    word_count: wordCount(body),
-    reading_minutes: Math.max(1, Math.round(wordCount(body) / 200)),
-    seo_plan: { ...seoPlan, unsupportedClaims: claims },
+    word_count: words,
+    reading_minutes: Math.max(1, Math.round(words / 200)),
+    seo_plan: { ...seoPlan, unsupportedClaims: claims, writtenBy },
   } as Partial<StudioPost>);
 
   if (claims.length) {
@@ -144,7 +170,31 @@ Return JSON {"title":"","seo_title":"","seo_description":"","excerpt":"","unsupp
       dedupe_key: `claims:${post.id}:${version}`,
     });
   }
+  await enqueue(post.cover_image_url ? "run_audit" : "generate_image", { postId: post.id });
+  return { words };
+}
 
-  await enqueue(post.cover_image_url ? "run_audit" : "generate_image", { postId });
-  return { words: wordCount(body) };
+/** Antigravity writes first. If it hangs or fails, the normal writers take over automatically. */
+export async function writeDraft({ postId }: { postId: string }): Promise<{ words: number }> {
+  let post = await getPost(postId);
+  if (!post.brief?.angle) {
+    await writeBrief({ postId });
+    post = await getPost(postId);
+  }
+  if (!post.brief?.outline?.length) throw new Error("The brief has no outline; rewrite the brief first.");
+
+  const facts = await allFacts();
+  const job = await prepare(post, facts);
+  const saved = post.seo_plan?.draftProgress as DraftProgress | undefined;
+  const hasProgress = saved?.key === JSON.stringify(["markdown", post.brief.angle, post.brief.outline]) && saved.parts?.length > 0;
+
+  if (!hasProgress) {
+    try {
+      return await saveDraft(post, await writeWithAgent(job), facts, AGENT_MODEL);
+    } catch (error) {
+      console.warn(`[draft] agent unavailable, using backup writers: ${error instanceof Error ? error.message.slice(0, 200) : error}`);
+    }
+  }
+  const { html, model } = await writeInGroups(job);
+  return saveDraft(post, html, facts, model);
 }

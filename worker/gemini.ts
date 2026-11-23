@@ -4,7 +4,8 @@ import { db } from "./db";
 import { env } from "./env";
 
 // Hard per-request timeout: an overloaded model can otherwise leave a request hanging for minutes and block the queue.
-const ai = new GoogleGenAI({ apiKey: env.geminiApiKey, httpOptions: { timeout: 180_000 } });
+// v1beta: preview models in the backup chain (e.g. 3 Flash) return 404 on the SDK's default version.
+const ai = new GoogleGenAI({ apiKey: env.geminiApiKey, apiVersion: "v1beta", httpOptions: { timeout: 180_000 } });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const DAY_MS = 86_400_000;
@@ -21,7 +22,7 @@ export interface CallOptions {
 }
 
 /** Logs one Gemini request for the usage panel. Never fails the job. */
-function record(model: string, kind: Kind, error?: string) {
+export function record(model: string, kind: Kind, error?: string) {
   const limit = error?.match(/limit: (\d+)/)?.[1];
   db.from("ai_calls")
     .insert({ model, kind, ok: !error, error: error?.slice(0, 500) ?? null, quota_limit: limit === undefined ? null : Number(limit) })
@@ -51,7 +52,7 @@ function chainFor(tier: ModelTier, promptChars: number, preferred?: string) {
   return ordered.filter((m) => (blockedUntil.get(m) ?? 0) <= Date.now() && !(m.startsWith("gemma") && promptChars > GEMMA_MAX_PROMPT_CHARS));
 }
 
-/** Tries each model in the tier: waits out per-minute limits, and moves on when one is used up, overloaded or returns junk. */
+/** Tries each model in the tier: waits out per-minute limits, and moves on at once when one is used up, overloaded or returns junk. */
 async function route<T>(label: string, kind: Kind, promptChars: number, opts: CallOptions, call: (model: string) => Promise<T>): Promise<T> {
   const chain = chainFor(opts.tier ?? "light", promptChars, opts.sticky?.model);
   let lastError: unknown = new Error("every model in this tier is used up for today");
@@ -77,8 +78,8 @@ async function route<T>(label: string, kind: Kind, promptChars: number, opts: Ca
           blockedUntil.set(model, quotaDayStart() + DAY_MS);
           break;
         }
-        if (!/429|RESOURCE_EXHAUSTED|503|UNAVAILABLE|500|INTERNAL|deadline|timeout|fetch failed/i.test(message)) break;
-        if (attempt === 2) break;
+        // Google counts failed requests against the daily quota, so only a per-minute limit is worth waiting out.
+        if (!/429|RESOURCE_EXHAUSTED/.test(message) || attempt === 2) break;
         const stated = Number(message.match(/retry in ([\d.]+)s/i)?.[1] ?? 0);
         await sleep(stated ? Math.min(stated + 1, 65) * 1000 : 2000 * 2 ** attempt + Math.random() * 1000);
       }

@@ -32,7 +32,7 @@ export async function makePoster(
       // Art direction is optional: give it 30s, then go with the rule-based concept rather than hold up the banner.
       const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("art direction timed out")), 30_000));
       const answer = await Promise.race([json<Partial<PosterPlan>>(planPrompt(input, rules), "You design blog banners. Return only JSON."), timeout]);
-      plan = mergePlan(answer, rules);
+      plan = mergePlan(answer, rules, input.bodyHtml);
       ai = true;
     } catch (error) {
       console.warn(`[poster] AI art direction unavailable, using rules: ${error instanceof Error ? error.message.slice(0, 120) : error}`);

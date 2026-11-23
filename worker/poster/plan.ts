@@ -133,7 +133,7 @@ export function rulePlan(input: PosterInput): PosterPlan {
 }
 
 /** Validates an AI plan against the rules' plan; anything missing or malformed falls back to the rule value. */
-export function mergePlan(ai: Partial<PosterPlan> | null, rules: PosterPlan): PosterPlan {
+export function mergePlan(ai: Partial<PosterPlan> | null, rules: PosterPlan, bodyHtml = ""): PosterPlan {
   if (!ai || typeof ai !== "object") return rules;
   const type = (["comparison", "metric", "code", "cost", "case-study", "guide"] as const).includes(ai.type as PosterType) ? (ai.type as PosterType) : rules.type;
   const headline = typeof ai.headline === "string" && ai.headline.trim() ? words(sanitize(ai.headline), 7) : rules.headline;
@@ -159,14 +159,19 @@ export function mergePlan(ai: Partial<PosterPlan> | null, rules: PosterPlan): Po
         : rules.code,
     cost: ai.cost && typeof ai.cost.range === "string" ? { range: clip(sanitize(ai.cost.range), 22), label: clip(sanitize(String(ai.cost.label ?? "")), 30) } : rules.cost,
   };
-  // A template needs its hero content; without it, show the guide layout rather than an empty card.
+  // A banner may only show a before/after that the article itself states.
+  if (bodyHtml && plan.metric) {
+    const body = decode(bodyHtml.replace(/<[^>]+>/g, " ")).toLowerCase();
+    if (!body.includes(plan.metric.before.toLowerCase()) || !body.includes(plan.metric.after.toLowerCase())) plan.metric = rules.metric;
+  }
+  // A template needs its hero content; without it, use the rule-based layout rather than an empty card.
   if (
     (plan.type === "comparison" && !plan.compare) ||
     (plan.type === "metric" && !plan.metric) ||
     (plan.type === "code" && !plan.code) ||
     (plan.type === "cost" && !plan.cost)
   ) {
-    plan.type = "guide";
+    plan.type = rules.type;
   }
   return plan;
 }
@@ -190,7 +195,7 @@ Pick ONE type:
 - "metric": a concrete before/after number is the story → metric: {label, before, after} (only real numbers from the article)
 - "code": a hands-on technical fix → code: {filename, lines: 3–6 short real lines from the article}
 - "cost": pricing / budget → cost: {range, label} (only figures from the article; else "Real numbers")
-- "case-study": a client result
+- "case-study": a worked example of a general problem (never a client name)
 - "guide": anything else
 
 Rules: headline ≤ 6 words, punchy, not the full title. highlight = one word from your headline. kicker ≤ 12 words.

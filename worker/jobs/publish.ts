@@ -1,4 +1,4 @@
-import { DEEP_CHECK_IDS, auditPost, deepChecksOf, internalLinks, wordRangeFor } from "../../src/lib/studio/content";
+import { DEEP_CHECK_IDS, REVIEW_PENDING, auditPost, deepChecksOf, internalLinks, wordRangeFor } from "../../src/lib/studio/content";
 import type { StudioPost } from "../../src/lib/studio/types";
 import { allBatches, allPosts, check, db, enqueue, linkPlan, raiseSignal, settings, todayIst } from "../db";
 import { env } from "../env";
@@ -40,8 +40,10 @@ export async function publishDue() {
       ? auditPost(post, { posts, bannedPhrases: banned, wordRange: post.brief?.wordRange ?? wordRangeFor(post, ranges), deep })
       : null;
 
-    // Edited or older posts haven't had the compiler and duplicate checks yet: run them, then publish on the next pass.
-    if (approved && audit?.ok && deep.length < DEEP_CHECK_IDS.length) {
+    // Edited or older posts still need the deeper checks and technical review: run them, then publish on a later pass.
+    const missingChecks = deep.length < DEEP_CHECK_IDS.length;
+    const reviewPending = deep.some((c) => c.id === "verified" && !c.pass && c.detail === REVIEW_PENDING);
+    if (approved && post.body_html && (reviewPending || (missingChecks && audit?.ok))) {
       const { count } = await db
         .from("jobs")
         .select("id", { count: "exact", head: true })
@@ -49,7 +51,7 @@ export async function publishDue() {
         .eq("payload->>postId", post.id)
         .in("status", ["queued", "running"]);
       if (!count) await enqueue("run_audit", { postId: post.id });
-      continue;
+      if (missingChecks) continue;
     }
 
     if (!approved || !audit?.ok) {

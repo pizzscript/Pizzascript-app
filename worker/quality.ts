@@ -1,5 +1,8 @@
+import { createHash } from "node:crypto";
 import ts from "typescript";
+import { REVIEW_PENDING } from "../src/lib/studio/content";
 import type { AuditCheck, StudioPost } from "../src/lib/studio/types";
+import { allFacts } from "./db";
 import { DUPLICATE_SIMILARITY, matchesFor, postText } from "./research/embeddings";
 
 const decode = (s: string) =>
@@ -51,10 +54,54 @@ export function codeErrors(html: string) {
   return problems;
 }
 
+export const bodyHash = (html: string) => createHash("sha256").update(html).digest("hex").slice(0, 32);
+
+const STAT = /\b\d+(?:\.\d+)?\s?%|\b\d+\s+(?:out of|in every)\s+\d+\b|\b\d+(?:\.\d+)?\s?(?:x|times)\s+(?:faster|slower|more|better|higher|lower|fewer)\b/gi;
+
+/** Statistics with no proof: not in the owner's facts and no external source linked in the same sentence. */
+export function unsupportedNumbers(html: string, facts: { statement: string }[]) {
+  const known = facts.map((f) => f.statement.toLowerCase()).join(" ");
+  const found = new Set<string>();
+  const prose = html.replace(/<pre[\s\S]*?<\/pre>/gi, " ").replace(/<code[^>]*>[\s\S]*?<\/code>/gi, " ");
+  for (const block of prose.match(/<(p|li|td|blockquote|h[2-4])[^>]*>[\s\S]*?<\/\1>/gi) ?? []) {
+    for (const sentence of block.split(/(?<=[.!?])\s+/)) {
+      if (/<a\s[^>]*href="https?:\/\/(?!www\.pizzascript\.com)/i.test(sentence)) continue;
+      const text = sentence.replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/gi, " ");
+      for (const match of text.matchAll(STAT)) {
+        const value = match[0].replace(/\s+/g, " ").trim();
+        // "100%" is usually a figure of speech ("100% custom") unless it measures a share of something.
+        if (/^100\s?%$/.test(value) && !/^\s*of\b/i.test(text.slice(match.index + match[0].length))) continue;
+        if (!known.includes(value.toLowerCase())) found.add(value);
+      }
+    }
+  }
+  return [...found];
+}
+
+interface Verification {
+  hash: string;
+  issues?: { severity?: string; claim?: string; problem?: string }[];
+}
+
+function verifiedCheck(post: StudioPost): AuditCheck {
+  const label = "Technical review passed";
+  const saved = post.seo_plan?.verification as Verification | undefined;
+  if (!saved || saved.hash !== bodyHash(post.body_html)) {
+    return post.stage === "live" ? { id: "verified", label, pass: true, detail: "Published before review" } : { id: "verified", label, pass: false, detail: REVIEW_PENDING };
+  }
+  const errors = (saved.issues ?? []).filter((i) => i.severity === "error");
+  return { id: "verified", label, pass: errors.length === 0, detail: errors.slice(0, 2).map((e) => `${e.claim}: ${e.problem}`.slice(0, 160)).join("; ") || undefined };
+}
+
 /** Checks that need the compiler or the model: run by the audit job, then carried on the post's saved audit. */
 export async function deepChecks(post: StudioPost, posts: Pick<StudioPost, "id" | "slug" | "title">[]): Promise<AuditCheck[]> {
   const broken = codeErrors(post.body_html);
-  const checks: AuditCheck[] = [{ id: "code", label: "Code examples compile", pass: broken.length === 0, detail: broken.slice(0, 3).join("; ") || undefined }];
+  const numbers = unsupportedNumbers(post.body_html, await allFacts());
+  const checks: AuditCheck[] = [
+    { id: "code", label: "Code examples compile", pass: broken.length === 0, detail: broken.slice(0, 3).join("; ") || undefined },
+    { id: "numbers", label: "No unproven statistics", pass: numbers.length === 0, detail: numbers.length ? `Add a source or remove: ${numbers.slice(0, 6).join(", ")}` : undefined },
+    verifiedCheck(post),
+  ];
   try {
     const matches = await matchesFor("post", post.id, postText(post));
     const top = matches.find((m) => m.owner_type === "post" && m.similarity >= DUPLICATE_SIMILARITY && posts.some((p) => p.id === m.owner_id));

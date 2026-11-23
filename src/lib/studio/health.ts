@@ -1,4 +1,4 @@
-import { MODEL_LIMITS, quotaDayStart, type ModelLimit } from "./models";
+import { MODEL_LIMITS, quotaDayStart, type AgentState, type ModelLimit } from "./models";
 import type { AiCall, Studio } from "./server";
 
 export interface HealthRow {
@@ -22,11 +22,20 @@ async function getJson<T>(url: string, headers: Record<string, string> = {}) {
   return (await res.json()) as T;
 }
 
-function geminiRows(calls: AiCall[]): HealthRow[] {
+async function agentStatus(studio: Studio) {
+  if (studio.mode !== "live") return "Main writer";
+  const { data } = await studio.db.from("settings").select("value").eq("key", "agent_state").maybeSingle();
+  const until = (data?.value as AgentState | undefined)?.cooldownUntil;
+  if (!until || Date.parse(until) <= Date.now()) return "Main writer · ready";
+  return `Paused until ${new Date(Date.parse(until) + 5.5 * 3_600_000).toISOString().slice(11, 16)} IST · backups writing`;
+}
+
+function geminiRows(calls: AiCall[], agentNote: string): HealthRow[] {
   const start = quotaDayStart();
   const reset = new Date(start + 86_400_000 + 5.5 * 3_600_000).toISOString().slice(11, 16);
   const groups: { name: string; group: ModelLimit["group"][]; note: string }[] = [
-    { name: "Gemini writers", group: ["writer"], note: `3 models · resets ${reset} IST` },
+    { name: "Antigravity agent", group: ["agent"], note: `${agentNote} · quota resets ${reset} IST` },
+    { name: "Gemini writers", group: ["writer"], note: "3 backup models" },
     { name: "Gemini small jobs", group: ["light"], note: "2 models, Gemma as backup" },
     { name: "Gemini decisions", group: ["decision"], note: "Yes/no checks" },
   ];
@@ -34,7 +43,8 @@ function geminiRows(calls: AiCall[]): HealthRow[] {
     const models = Object.entries(MODEL_LIMITS).filter(([, l]) => group.includes(l.group));
     const limit = models.reduce((sum, [, l]) => sum + l.rpd, 0);
     const ids = new Set(models.map(([id]) => id));
-    const count = calls.filter((c) => ids.has(c.model) && c.ok && Date.parse(c.created_at) >= start).length;
+    // Failed requests count too: Google charges them against the daily limit.
+    const count = calls.filter((c) => ids.has(c.model) && Date.parse(c.created_at) >= start).length;
     return { name, value: `${count} / ${limit.toLocaleString("en-IN")} requests`, used: Math.min(1, count / limit), note, connected: true };
   });
 }
@@ -84,5 +94,5 @@ export async function loadHealth(studio: Studio, calls: AiCall[]): Promise<Healt
     const [bright, github] = await Promise.all([brightRow(), githubRow()]);
     external = { at: Date.now(), bright, github };
   }
-  return [...geminiRows(calls), await supabaseRow(studio), external.bright, external.github];
+  return [...geminiRows(calls, await agentStatus(studio)), await supabaseRow(studio), external.bright, external.github];
 }

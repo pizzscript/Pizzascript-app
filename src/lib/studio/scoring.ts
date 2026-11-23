@@ -4,7 +4,6 @@ export const DEFAULT_SCORING: ScoringSettings = {
   base: { authority: 0.28, intent: 0.22, volume: 0.2, backlink: 0.15, difficulty: 0.1, internalLink: 0.05 },
   track1: { authority: 0.2, volume: 0.28 },
   track2: { authority: 0.33, volume: 0.12 },
-  caseStudyBonus: 15,
   priority: { P1: 75, P2: 60, P3: 45 },
 };
 
@@ -30,8 +29,7 @@ export function computeScore(scores: TopicScores, track: Track, settings: Scorin
     parts.push({ factor, value, weight: weights[factor], points });
     total += points;
   }
-  const bonus = scores.caseStudy ? settings.caseStudyBonus : 0;
-  return { score: Math.round((total + bonus) * 10) / 10, parts, bonus };
+  return { score: Math.round(total * 10) / 10, parts };
 }
 
 export function priorityFor(score: number, settings: ScoringSettings = DEFAULT_SCORING): Priority {

@@ -23,6 +23,18 @@ export function internalLinks(html: string) {
   return links;
 }
 
+/** Unwraps internal links to pages that don't exist, keeping their text, so a model can't publish a dead link. */
+export function removeUnknownLinks(html: string, blogSlugs: Iterable<string>) {
+  const slugs = new Set(blogSlugs);
+  return html.replace(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (whole, rawHref: string, inner: string) => {
+    const href = rawHref.startsWith("https://www.pizzascript.com") ? rawHref.slice("https://www.pizzascript.com".length) || "/" : rawHref;
+    if (!href.startsWith("/")) return whole;
+    const path = href.split(/[?#]/)[0].replace(/(.)\/$/, "$1") || "/";
+    const known = path.startsWith("/blog/") ? slugs.has(path.slice(6)) : STATIC_PATHS.has(path) || path.startsWith("/portfolio/");
+    return known ? whole : inner;
+  });
+}
+
 export function plainText(html: string) {
   return html
     .replace(/<pre[\s\S]*?<\/pre>/gi, " ")
@@ -107,7 +119,8 @@ export function keywordInHeading(post: Pick<StudioPost, "body_html" | "seo_plan"
 }
 
 /** Checks that need the compiler or embedding model; they run in the worker and are carried on the saved audit. */
-export const DEEP_CHECK_IDS = ["code", "duplicate"];
+export const DEEP_CHECK_IDS = ["code", "duplicate", "numbers", "verified"];
+export const REVIEW_PENDING = "Review pending";
 export const deepChecksOf = (audit: Audit | null | undefined) => (audit?.checks ?? []).filter((c) => DEEP_CHECK_IDS.includes(c.id));
 
 /** Deterministic pre-publish audit (AGENT.md Part 9). Runs in the worker and is mirrored in the Station. */

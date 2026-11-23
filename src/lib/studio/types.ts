@@ -264,7 +264,6 @@ export interface ScoringSettings {
   base: Record<ScoreFactor, number>;
   track1: Partial<Record<ScoreFactor, number>>;
   track2: Partial<Record<ScoreFactor, number>>;
-  caseStudyBonus: number;
   priority: { P1: number; P2: number; P3: number };
 }
 
