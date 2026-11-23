@@ -2,17 +2,16 @@ import type { StudioPost } from "../../src/lib/studio/types";
 import { json } from "../gemini";
 import { CATEGORY_STYLE } from "./assets";
 import { mergePlan, planPrompt, rulePlan, type PosterInput, type PosterPlan } from "./plan";
-import { renderPoster } from "./render";
 
 /**
  * Designed banner for a post: the AI art director picks the concept (type, headline, icons, stat or code), fixed
- * templates draw it. Works with no AI at all — rules fill the plan when Gemini is unavailable.
+ * templates draw it. Works with no AI at all — rules fill the plan when Gemini is unavailable. Drawing happens elsewhere.
  */
-export async function makePoster(
+export async function planPoster(
   post: StudioPost,
   categoryName: string,
   opts: { useAi?: boolean } = {},
-): Promise<{ webp: Buffer; plan: PosterPlan; alt: string; ai: boolean }> {
+): Promise<{ plan: PosterPlan; alt: string; ai: boolean }> {
   const input: PosterInput = {
     title: post.title,
     excerpt: post.excerpt ?? "",
@@ -38,7 +37,6 @@ export async function makePoster(
       console.warn(`[poster] AI art direction unavailable, using rules: ${error instanceof Error ? error.message.slice(0, 120) : error}`);
     }
   }
-  const webp = await renderPoster({ plan, categoryId: post.cluster_id, categoryName });
   const alt = `${plan.headline} — ${categoryName} | PizzaScript blog banner`;
-  return { webp, plan, alt, ai };
+  return { plan, alt, ai };
 }

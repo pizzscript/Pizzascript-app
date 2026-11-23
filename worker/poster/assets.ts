@@ -1,7 +1,5 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import sharp from "sharp";
-import * as simpleIcons from "simple-icons";
 
 /** Fonts, logo and icons for the poster renderer. Everything is bundled with the app — no network, no system fonts. */
 
@@ -28,6 +26,7 @@ let logo: string | null = null;
 /** The PizzaScript mark as a PNG data URI (the renderer can't read WebP). */
 export async function logoDataUri() {
   if (!logo) {
+    const { default: sharp } = await import("sharp");
     const png = await sharp(path.join(root, "public", "images", "logo-static.webp")).resize(128, 128).png().toBuffer();
     logo = `data:image/png;base64,${png.toString("base64")}`;
   }
@@ -37,43 +36,49 @@ export async function logoDataUri() {
 const svgUri = (svg: string) => `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 
 // ── Tech logos (Simple Icons) ──
-type SimpleIcon = { slug: string; title: string; svg: string; hex: string };
-const bySlug = new Map((Object.values(simpleIcons) as unknown[]).filter((i): i is SimpleIcon => !!i && typeof i === "object" && "slug" in i).map((i) => [i.slug, i]));
+const iconSvg = new Map<string, string>();
+const readIcon = (slug: string) => {
+  let svg = iconSvg.get(slug);
+  if (!svg) {
+    svg = readFileSync(path.join(root, "node_modules", "simple-icons", "icons", `${slug}.svg`), "utf8");
+    iconSvg.set(slug, svg);
+  }
+  return svg;
+};
 
 /** Tech keywords the planner and the AI may pick from, with the logo used for each. */
-export const TECH: Record<string, { slug: string; label: string; match: RegExp }> = {
-  react: { slug: "react", label: "React", match: /\breact(?!\s*router)\b/i },
-  nextjs: { slug: "nextdotjs", label: "Next.js", match: /\bnext\.?js\b/i },
-  gsap: { slug: "gsap", label: "GSAP", match: /\b(gsap|scrolltrigger|greensock)\b/i },
-  vite: { slug: "vite", label: "Vite", match: /\bvite\b/i },
-  cloudflare: { slug: "cloudflare", label: "Cloudflare", match: /\bcloudflare\b/i },
-  vercel: { slug: "vercel", label: "Vercel", match: /\bvercel\b/i },
-  wordpress: { slug: "wordpress", label: "WordPress", match: /\bwordpress\b/i },
-  webflow: { slug: "webflow", label: "Webflow", match: /\bwebflow\b/i },
-  tailwind: { slug: "tailwindcss", label: "Tailwind", match: /\btailwind/i },
-  typescript: { slug: "typescript", label: "TypeScript", match: /\btypescript\b/i },
-  javascript: { slug: "javascript", label: "JavaScript", match: /\bjavascript\b/i },
-  lighthouse: { slug: "lighthouse", label: "Lighthouse", match: /\blighthouse\b/i },
-  reactrouter: { slug: "reactrouter", label: "React Router", match: /\breact\s*router\b/i },
-  cursor: { slug: "cursor", label: "Cursor", match: /\bcursor\s*(ai|ide|editor)\b/i },
-  searchconsole: { slug: "googlesearchconsole", label: "Search Console", match: /\bsearch\s*console\b/i },
-  google: { slug: "google", label: "Google", match: /\bgoogle\b/i },
-  node: { slug: "nodedotjs", label: "Node.js", match: /\bnode\.?js\b/i },
-  supabase: { slug: "supabase", label: "Supabase", match: /\bsupabase\b/i },
-  netlify: { slug: "netlify", label: "Netlify", match: /\bnetlify\b/i },
-  framer: { slug: "framer", label: "Framer Motion", match: /\bframer\b/i },
-  gemini: { slug: "googlegemini", label: "Gemini", match: /\bgemini\b/i },
+export const TECH: Record<string, { slug: string; hex: string; label: string; match: RegExp }> = {
+  react: { slug: "react", hex: "61DAFB", label: "React", match: /\breact(?!\s*router)\b/i },
+  nextjs: { slug: "nextdotjs", hex: "000000", label: "Next.js", match: /\bnext\.?js\b/i },
+  gsap: { slug: "gsap", hex: "0AE448", label: "GSAP", match: /\b(gsap|scrolltrigger|greensock)\b/i },
+  vite: { slug: "vite", hex: "9135FF", label: "Vite", match: /\bvite\b/i },
+  cloudflare: { slug: "cloudflare", hex: "F38020", label: "Cloudflare", match: /\bcloudflare\b/i },
+  vercel: { slug: "vercel", hex: "000000", label: "Vercel", match: /\bvercel\b/i },
+  wordpress: { slug: "wordpress", hex: "21759B", label: "WordPress", match: /\bwordpress\b/i },
+  webflow: { slug: "webflow", hex: "146EF5", label: "Webflow", match: /\bwebflow\b/i },
+  tailwind: { slug: "tailwindcss", hex: "06B6D4", label: "Tailwind", match: /\btailwind/i },
+  typescript: { slug: "typescript", hex: "3178C6", label: "TypeScript", match: /\btypescript\b/i },
+  javascript: { slug: "javascript", hex: "F7DF1E", label: "JavaScript", match: /\bjavascript\b/i },
+  lighthouse: { slug: "lighthouse", hex: "F44B21", label: "Lighthouse", match: /\blighthouse\b/i },
+  reactrouter: { slug: "reactrouter", hex: "CA4245", label: "React Router", match: /\breact\s*router\b/i },
+  cursor: { slug: "cursor", hex: "000000", label: "Cursor", match: /\bcursor\s*(ai|ide|editor)\b/i },
+  searchconsole: { slug: "googlesearchconsole", hex: "458CF5", label: "Search Console", match: /\bsearch\s*console\b/i },
+  google: { slug: "google", hex: "4285F4", label: "Google", match: /\bgoogle\b/i },
+  node: { slug: "nodedotjs", hex: "5FA04E", label: "Node.js", match: /\bnode\.?js\b/i },
+  supabase: { slug: "supabase", hex: "3FCF8E", label: "Supabase", match: /\bsupabase\b/i },
+  netlify: { slug: "netlify", hex: "00C7B7", label: "Netlify", match: /\bnetlify\b/i },
+  framer: { slug: "framer", hex: "0055FF", label: "Framer Motion", match: /\bframer\b/i },
+  gemini: { slug: "googlegemini", hex: "8E75B2", label: "Gemini", match: /\bgemini\b/i },
 };
 
 /** Logo as a data URI, in its brand colour — or cream when the brand colour is too dark for the poster background. */
 export function techLogo(key: string): { uri: string; color: string; label: string } | null {
   const tech = TECH[key];
-  const icon = tech && bySlug.get(tech.slug);
-  if (!icon) return null;
-  const hex = `#${icon.hex}`;
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(icon.hex.slice(i, i + 2), 16) / 255);
+  if (!tech) return null;
+  const hex = `#${tech.hex}`;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(tech.hex.slice(i, i + 2), 16) / 255);
   const color = 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.28 ? "#f3e9dc" : hex;
-  return { uri: svgUri(icon.svg.replace("<svg ", `<svg fill="${color}" `)), color, label: tech.label };
+  return { uri: svgUri(readIcon(tech.slug).replace("<svg ", `<svg fill="${color}" `)), color, label: tech.label };
 }
 
 // ── Topic icons (Lucide) ──

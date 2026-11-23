@@ -24,5 +24,8 @@ export const env = {
     .split(",")
     .map((u) => u.trim().replace(/\/$/, ""))
     .filter(Boolean),
+  /** Optional: lets the app start the GitHub heavy-job workflow. Without it, banners are drawn on this server. */
+  githubDispatchToken: process.env.GITHUB_DISPATCH_TOKEN,
+  githubRepo: process.env.GITHUB_REPO ?? process.env.RENDER_GIT_REPO_SLUG,
   workerId: process.env.GITHUB_RUN_ID ?? `worker-${process.pid}`,
 };

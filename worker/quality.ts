@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import ts from "typescript";
+import { createRequire } from "node:module";
+import path from "node:path";
+import type TypeScript from "typescript";
 import { REVIEW_PENDING, keywordCoverage } from "../src/lib/studio/content";
 import { QUALITY, copiedShare, issueBlocks, type ReviewCode, type ReviewIssue } from "../src/lib/studio/quality";
 import type { AuditCheck, StudioPost } from "../src/lib/studio/types";
@@ -39,6 +41,10 @@ function looksLikeScript(code: string) {
   );
 }
 
+// The compiler is large, so it loads only when an article actually has script code to check.
+let compiler: typeof TypeScript | null = null;
+const loadCompiler = () => (compiler ??= createRequire(path.join(process.cwd(), "package.json"))("typescript") as typeof TypeScript);
+
 export function codeErrors(html: string) {
   const problems: string[] = [];
   let index = 0;
@@ -48,6 +54,7 @@ export function codeErrors(html: string) {
     // Articles elide code with a bare "..." line; that's editorial, not a bug.
     const code = decode(match[2]).replace(/^\s*(\.\.\.|…)\s*,?\s*$/gm, "");
     if (!isScript(code, lang)) continue;
+    const ts = loadCompiler();
     const out = ts.transpileModule(code, {
       reportDiagnostics: true,
       fileName: "snippet.tsx",

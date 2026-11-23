@@ -67,6 +67,16 @@ export async function openSignals() {
   return check(await db.from("signals").select("*").eq("status", "open"), "signals") as Signal[];
 }
 
+/** The job this process is running. A worker that lost its claim must not save results. */
+export const activeClaim: { job: { id: string; attempts: number } | null } = { job: null };
+
+export async function stillOwnsJob() {
+  const job = activeClaim.job;
+  if (!job) return true;
+  const { data } = await db.from("jobs").select("id").eq("id", job.id).eq("status", "running").eq("attempts", job.attempts).maybeSingle();
+  return Boolean(data);
+}
+
 export async function enqueue(type: string, payload: Record<string, unknown> = {}, delaySeconds = 0) {
   check(
     await db

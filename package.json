@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node worker/embed-child.mjs --warm",
+    "prebuild": "node worker/embed-child.mjs --warm && node scripts/build-poster-child.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

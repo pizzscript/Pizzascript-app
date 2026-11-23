@@ -1,6 +1,6 @@
 /** Job handlers, the IST schedule and the queue drain, shared by the CLI loop (index.ts) and the HTTP server (server.ts). */
 import type { JobType, RewritePayload } from "../src/lib/studio/types";
-import { db, enqueue, setting, todayIst } from "./db";
+import { activeClaim, db, enqueue, setting, todayIst } from "./db";
 import { env } from "./env";
 import { isBillingError, isTransientError } from "./gemini";
 import { fixTitle, generateImage, insertLink, rewrite, runAudit, scoreTopic, writeBrief } from "./jobs/content";
@@ -43,9 +43,18 @@ async function runNext(): Promise<boolean> {
   if (error) throw new Error(`claim_job: ${error.message}`);
   const job = (data as ClaimedJob[] | null)?.[0];
   if (!job) return false;
+  await runClaimed(job);
+  return true;
+}
 
+const memory = () => ({ rssMb: Math.round(process.memoryUsage().rss / 1_048_576), peakMb: Math.round(process.resourceUsage().maxRSS / 1024) });
+const withMemory = (result: unknown) => ({ ...(result && typeof result === "object" && !Array.isArray(result) ? result : {}), memory: memory() });
+
+/** Runs a job this worker already holds. With handBack, a failure returns it to the queue at once for another worker. */
+export async function runClaimed(job: ClaimedJob, options: { handBack?: boolean } = {}): Promise<boolean> {
   const started = Date.now();
   currentJob = { id: job.id, attempts: job.attempts };
+  activeClaim.job = currentJob;
   // Every write is tied to this claim's attempt number, so a worker whose job was reclaimed can't overwrite the newer run.
   const ownJob = <T extends { eq: (column: string, value: string | number) => T }>(query: T) =>
     query.eq("id", job.id).eq("status", "running").eq("attempts", job.attempts);
@@ -57,13 +66,14 @@ async function runNext(): Promise<boolean> {
     const handler = HANDLERS[job.type];
     if (!handler) throw new Error(`Unknown job type ${job.type}`);
     const result = await handler(job.payload);
-    await ownJob(db.from("jobs").update({ status: "done", result: (result ?? {}) as object, finished_at: new Date().toISOString(), error: null }));
+    await ownJob(db.from("jobs").update({ status: "done", result: withMemory(result) as object, finished_at: new Date().toISOString(), error: null }));
     console.log(`[job] ${job.type} done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+    return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const billing = isBillingError(message);
-    const retry = isTransientError(message) && !/limit: 0\b/.test(message) && job.attempts < (billing ? MAX_BILLING_ATTEMPTS : MAX_ATTEMPTS);
-    const delay = billing ? BILLING_RETRY_MS : 2 ** job.attempts * 60_000;
+    const retry = options.handBack ? job.attempts < MAX_ATTEMPTS : isTransientError(message) && !/limit: 0\b/.test(message) && job.attempts < (billing ? MAX_BILLING_ATTEMPTS : MAX_ATTEMPTS);
+    const delay = options.handBack ? 0 : billing ? BILLING_RETRY_MS : 2 ** job.attempts * 60_000;
     await ownJob(
       db.from("jobs").update(
         retry
@@ -72,11 +82,12 @@ async function runNext(): Promise<boolean> {
       ),
     );
     console.error(`[job] ${job.type} ${retry ? "will retry" : "failed"}: ${message}`);
+    return false;
   } finally {
     clearInterval(beat);
     currentJob = null;
+    activeClaim.job = null;
   }
-  return true;
 }
 
 let currentJob: { id: string; attempts: number } | null = null;

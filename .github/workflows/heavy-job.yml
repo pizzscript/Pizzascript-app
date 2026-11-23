@@ -1,0 +1,48 @@
+name: Heavy job
+
+# Started directly by the app for one heavy job, such as drawing a banner. It receives only a job ID.
+# If this doesn't start or fails, Render takes the same job from the queue.
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Job ID"
+        required: true
+        type: string
+
+concurrency:
+  group: heavy-${{ inputs.job_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run the job
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          HEAVY_WORKER: "1"
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          # Drawing a banner uses no AI. The shared worker code only needs this value to be present.
+          GEMINI_API_KEY: "not-used"
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+          REVALIDATE_URLS: ${{ secrets.REVALIDATE_URLS }}
+        run: npx tsx worker/heavy-cli.ts "$JOB_ID"
+      - name: Hand back to the app server
+        if: always()
+        env:
+          AGENT_URL: ${{ secrets.AGENT_URL }}
+          AGENT_SECRET: ${{ secrets.AGENT_SECRET }}
+        run: curl -sS --fail --max-time 150 --retry 2 --retry-delay 10 -X POST "$AGENT_URL/api/agent/tick" -H "x-agent-secret: $AGENT_SECRET"

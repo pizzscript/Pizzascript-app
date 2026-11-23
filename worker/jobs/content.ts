@@ -1,8 +1,12 @@
 import { auditPost, internalLinks, joinSections, plainText, removeUnknownLinks, splitSections, wordRangeFor } from "../../src/lib/studio/content";
 import { computeScore, priorityFor } from "../../src/lib/studio/scoring";
 import type { Brief, RewritePayload, SerpData, StudioPost, Topic, TopicFilters, TopicScores } from "../../src/lib/studio/types";
-import { allClusters, allFacts, allPosts, allTopics, check, db, enqueue, getPost, linkPlan, raiseSignal, saveVersion, settings } from "../db";
-import { makePoster } from "../poster";
+import { jobPriority } from "../../src/lib/studio/jobs";
+import { allClusters, allFacts, allPosts, allTopics, check, db, enqueue, getPost, linkPlan, raiseSignal, saveVersion, settings, stillOwnsJob, todayIst } from "../db";
+import { env } from "../env";
+import { planPoster } from "../poster";
+import type { PosterPlan } from "../poster/plan";
+import { renderInChild } from "../poster/run-child";
 import { json } from "../gemini";
 import { deepChecks } from "../quality";
 import { ensureReview, repairPost } from "../review";
@@ -401,14 +405,68 @@ Return JSON {"seo_title":"≤ 60 chars","seo_description":"120–160 chars","why
  * headline; tech logos; stat or snippet) and a fixed template renders it on the server — fonts, icons and layout are
  * bundled, so it needs no image model and still works (rule-based concept) when the Gemini quota is used up.
  */
-export async function generateImage({ postId }: { postId: string; prompt?: string }) {
+const GITHUB_HEAD_START_MS = 3 * 60_000;
+
+/**
+ * Offers the drawing to GitHub. The job waits 3 minutes before this server may take it, so GitHub claims it first
+ * when healthy. If GitHub can't be started or never claims it, the same job simply runs here.
+ */
+async function sendBannerToGitHub(postId: string, plan: PosterPlan, alt: string, categoryName: string) {
+  if (!env.githubDispatchToken || !env.githubRepo) return false;
+  const { data, error } = await db
+    .from("jobs")
+    .insert({ type: "generate_image", payload: { postId, plan, alt, categoryName }, priority: jobPriority("generate_image", "agent"), run_after: new Date(Date.now() + GITHUB_HEAD_START_MS).toISOString() })
+    .select("id")
+    .single();
+  if (error || !data) return false;
+  let problem: string;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${env.githubRepo}/actions/workflows/heavy-job.yml/dispatches`, {
+      method: "POST",
+      headers: { accept: "application/vnd.github+json", authorization: `Bearer ${env.githubDispatchToken}`, "content-type": "application/json", "x-github-api-version": "2022-11-28", "user-agent": "content-agent" },
+      body: JSON.stringify({ ref: "main", inputs: { job_id: data.id } }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (res.ok) {
+      if (process.env.RUN_JOBS_IN_PROCESS === "1") {
+        setTimeout(() => void import("../runner").then((m) => m.requestRun(30 * 60_000)).catch(() => {}), GITHUB_HEAD_START_MS + 5_000).unref();
+      }
+      return true;
+    }
+    problem = `GitHub answered ${res.status}`;
+  } catch (failure) {
+    problem = failure instanceof Error ? failure.message.slice(0, 120) : "request failed";
+  }
+  await db.from("jobs").update({ run_after: new Date().toISOString() }).eq("id", data.id).eq("status", "queued");
+  await raiseSignal({
+    kind: "quality_gate",
+    title: `GitHub heavy job didn't start (${problem}). Banner is being made on Render.`,
+    detail: { problem },
+    priority: "P2",
+    post_id: postId,
+    topic_id: null,
+    dedupe_key: `github-dispatch:${todayIst()}`,
+  });
+  return true;
+}
+
+async function drawBanner(context: { plan: PosterPlan; categoryId: string | null; categoryName: string }) {
+  if (process.env.HEAVY_WORKER !== "1") return renderInChild(context);
+  const { renderPoster } = await import("../poster/render");
+  return { webp: await renderPoster(context), peakMb: Math.round(process.resourceUsage().maxRSS / 1024) };
+}
+
+export async function generateImage({ postId, plan: savedPlan, alt: savedAlt, categoryName: savedCategory }: { postId: string; prompt?: string; plan?: PosterPlan; alt?: string; categoryName?: string }) {
   const [post, clusters] = await Promise.all([getPost(postId), allClusters()]);
-  const categoryName = clusters.find((c) => c.id === post.cluster_id)?.name ?? "PizzaScript Blog";
-  const poster = await makePoster(post, categoryName);
+  const categoryName = savedCategory ?? clusters.find((c) => c.id === post.cluster_id)?.name ?? "PizzaScript Blog";
+  const planned = savedPlan ? { plan: savedPlan, alt: savedAlt ?? `${savedPlan.headline} — ${categoryName} | PizzaScript blog banner`, ai: false } : await planPoster(post, categoryName);
+  if (!savedPlan && (await sendBannerToGitHub(post.id, planned.plan, planned.alt, categoryName))) return { type: planned.plan.type, aiDirected: planned.ai, handedOff: true };
+  const poster = { ...planned, ...(await drawBanner({ plan: planned.plan, categoryId: post.cluster_id, categoryName })) };
 
   const objectPath = `${post.slug}/banner-${Date.now()}.webp`;
   const { error } = await db.storage.from(BUCKET).upload(objectPath, poster.webp, { contentType: "image/webp", upsert: false });
   if (error) throw new Error(`upload: ${error.message}`);
+  if (!(await stillOwnsJob())) return { type: poster.plan.type, skipped: "another worker took this job" };
   const url = db.storage.from(BUCKET).getPublicUrl(objectPath).data.publicUrl;
 
   check(
@@ -420,7 +478,7 @@ export async function generateImage({ postId }: { postId: string; prompt?: strin
   );
   await enqueue("run_audit", { postId });
   if (post.stage === "live") await revalidate(post.slug);
-  return { url, type: poster.plan.type, aiDirected: poster.ai };
+  return { url, type: poster.plan.type, aiDirected: poster.ai, bannerPeakMb: poster.peakMb, drawnBy: process.env.HEAVY_WORKER === "1" ? "github" : "render" };
 }
 
 // ───────────────────────── run_audit ─────────────────────────
