@@ -119,8 +119,10 @@ export function keywordInHeading(post: Pick<StudioPost, "body_html" | "seo_plan"
 }
 
 /** Checks that need the compiler or embedding model; they run in the worker and are carried on the saved audit. */
-export const DEEP_CHECK_IDS = ["code", "duplicate", "numbers", "verified"];
+export const DEEP_CHECK_IDS = ["code", "duplicate", "numbers", "clients", "verified"];
 export const REVIEW_PENDING = "Review pending";
+/** After a failed technical review, wait this long before spending another AI request on the same text. */
+export const REVIEW_RETRY_MS = 3 * 3_600_000;
 export const deepChecksOf = (audit: Audit | null | undefined) => (audit?.checks ?? []).filter((c) => DEEP_CHECK_IDS.includes(c.id));
 
 /** Deterministic pre-publish audit (AGENT.md Part 9). Runs in the worker and is mirrored in the Station. */
@@ -172,6 +174,9 @@ export function auditPost(
   add("banner", "Banner image with alt text", Boolean(post.cover_image_url) && (post.cover_image_alt?.length ?? 0) > 20);
   const imgsWithoutAlt = (post.body_html.match(/<img(?![^>]*alt="[^"]+")[^>]*>/gi) ?? []).length;
   add("img-alt", "Inline images have alt text", imgsWithoutAlt === 0, imgsWithoutAlt ? `${imgsWithoutAlt} missing` : undefined);
+
+  const rawAnchors = internalLinks(post.body_html).filter((l) => l.text === l.href || /^\/[a-z0-9/-]*$/i.test(l.text));
+  add("anchors", "Links use readable text", rawAnchors.length === 0, rawAnchors.map((l) => l.text).slice(0, 3).join(", ") || undefined);
 
   const misses = keywordMisses(post);
   const headingTip = keywordInHeading(post) ? "" : "Tip: no heading mentions it yet";

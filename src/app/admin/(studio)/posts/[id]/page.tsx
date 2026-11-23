@@ -15,7 +15,7 @@ async function Editor({ params }: { params: PageProps<"/admin/posts/[id]">["para
   const post = data.posts.find((p) => p.id === id);
   if (!post) notFound();
 
-  const versions = await loadVersions(studio, post.id);
+  const versions = (await loadVersions(studio, post.id)).map((v) => ({ ...v, body_html: sanitizeHtml(v.body_html, SANITIZE_OPTIONS) }));
   const topic = data.topics.find((t) => t.id === post.topic_id) ?? null;
   // Article HTML is agent/admin written; sanitise before it renders inside the authenticated admin.
   const sections = splitSections(post.body_html).map((s) => ({ ...s, html: sanitizeHtml(s.html, SANITIZE_OPTIONS) }));

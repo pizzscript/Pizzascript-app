@@ -269,10 +269,60 @@ Keep every existing internal link unless the instruction says otherwise. Publish
     note = `${payload.scope === "section" ? `Section “${target.heading ?? "intro"}”` : "Selection"}: ${payload.instruction}`;
   }
 
-  await saveVersion(post, removeUnknownLinks(body, posts.map((p) => p.slug)), note.slice(0, 200));
+  const saved = await saveEdit(post, removeUnknownLinks(body, posts.map((p) => p.slug)), note.slice(0, 200), posts, true);
+  return { note, ...saved };
+}
+
+/**
+ * Saves an AI edit. Drafts save directly. A live article only changes if the edit passes the technical review and
+ * adds no new check failure; otherwise it's kept as a version for the owner to inspect and the live page stays as is.
+ */
+async function saveEdit(post: StudioPost, body: string, note: string, posts: StudioPost[], review: boolean) {
+  if (post.stage !== "live") {
+    await saveVersion(post, body, note);
+    await enqueue("run_audit", { postId: post.id });
+    return { held: false };
+  }
+  const [banned, ranges] = await Promise.all([settings.banned(), settings.wordRanges()]);
+  const wordRange = post.brief?.wordRange ?? wordRangeFor(post, ranges);
+  const check_ = async (candidate: StudioPost) => auditPost(candidate, { posts, bannedPhrases: banned, wordRange, deep: await deepChecks(candidate, posts) });
+  const before = await check_(post);
+  const reviewed = review ? await ensureReview({ ...post, body_html: body, stage: "audit" }) : { ...post, body_html: body };
+  const after = await check_(reviewed);
+  const alreadyFailing = new Set(before.checks.filter((c) => !c.pass).map((c) => c.id));
+  const blockers = after.checks.filter((c) => !c.pass && (c.id === "verified" || !alreadyFailing.has(c.id)));
+
+  if (blockers.length) {
+    const version = (post.version ?? 0) + 1;
+    const labels = blockers.map((c) => c.label).join(", ");
+    check(
+      await db.from("post_versions").insert({
+        post_id: post.id,
+        version,
+        title: post.title,
+        body_html: body,
+        cover_image_url: post.cover_image_url,
+        note: `Held, not live (${labels}): ${note}`.slice(0, 200),
+        author: "agent",
+      }),
+      "held version",
+    );
+    await db.from("posts").update({ version }).eq("id", post.id);
+    await raiseSignal({
+      kind: "quality_gate",
+      title: `${post.title}: AI edit held, live page unchanged (${labels})`,
+      detail: { checks: blockers, version },
+      priority: "P2",
+      post_id: post.id,
+      topic_id: post.topic_id,
+      dedupe_key: `held:${post.id}:${version}`,
+    });
+    return { held: true };
+  }
+  await saveVersion(post, body, note);
   await enqueue("run_audit", { postId: post.id });
-  if (post.stage === "live") await revalidate(post.slug);
-  return { note };
+  await revalidate(post.slug);
+  return { held: false };
 }
 
 // ───────────────────────── insert_link ─────────────────────────
@@ -298,11 +348,10 @@ Return JSON {"body_html":"...","anchor":"the anchor text used"}`,
     { temperature: 0.3, tier: "writer" },
   );
   if (!internalLinks(out.body_html).some((l) => l.href === toPath)) throw new Error("The agent didn't insert the link; try again.");
-  await saveVersion(post, out.body_html, `Link → ${toPath}`);
+  const { held } = await saveEdit(post, out.body_html, `Link → ${toPath}`, await allPosts(), false);
+  if (held) return { anchor: out.anchor, held };
   await db.from("link_plan").upsert({ from_slug: fromSlug, to_path: toPath, anchor: out.anchor, status: "inserted" }, { onConflict: "from_slug,to_path" });
   await db.from("signals").update({ status: "acted" }).eq("dedupe_key", `backlink:${fromSlug}:${toPath}`);
-  await enqueue("run_audit", { postId: post.id });
-  if (post.stage === "live") await revalidate(post.slug);
   return { anchor: out.anchor };
 }
 
@@ -399,6 +448,9 @@ export async function runAudit({ postId }: { postId: string }) {
   check(await db.from("posts").update({ audit, stage }).eq("id", postId), "audit save");
   // Passing now clears any earlier "SEO check failed" alert for this post.
   if (audit.ok) await db.from("signals").update({ status: "acted" }).eq("dedupe_key", `audit:${post.id}`).eq("status", "open");
+  if (audit.checks.find((c) => c.id === "verified")?.pass) {
+    await db.from("signals").update({ status: "acted" }).eq("post_id", post.id).eq("status", "open").like("dedupe_key", `verify:${post.id}:%`);
+  }
   if (!audit.ok && post.stage !== "live") {
     const failing = audit.checks.filter((c) => !c.pass);
     await db.from("signals").delete().eq("dedupe_key", `audit:${post.id}`);

@@ -9,6 +9,7 @@ const ai = new GoogleGenAI({ apiKey: env.geminiApiKey, apiVersion: "v1beta" });
 // Per-request timeout: an overloaded model can otherwise leave a request hanging for minutes and block the queue.
 // Small jobs (scoring, briefs) should fail over to the next backup quickly; a full article genuinely needs longer.
 const TIMEOUT_MS: Record<ModelTier, number> = { writer: 180_000, light: 35_000 };
+const GEMMA_TIMEOUT_MS = 120_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const DAY_MS = 86_400_000;
@@ -18,12 +19,37 @@ const GEMMA_MAX_PROMPT_CHARS = 48_000;
 // A depleted billing balance blocks every model on the account at once (HTTP 402, but the body still says
 // "RESOURCE_EXHAUSTED" like an ordinary per-model quota error) — it is not worth retrying or trying another model.
 // One bad outage once burned 78 requests in 40 minutes this way, cycling the whole chain every call.
-const BILLING_BLOCKED = /\b402\b|prepayment|payment required/i;
 let billingBlockedUntil = 0;
 const BILLING_RECHECK_MS = 5 * 60_000;
 
 function checkBilling() {
   if (Date.now() < billingBlockedUntil) throw new Error(`Gemini billing is blocked until ${new Date(billingBlockedUntil).toISOString()}`);
+}
+
+/** The API's HTTP status. Other numbers in a message, like a JSON parse position, must never be read as one. */
+export function apiStatus(message: string) {
+  const match = message.match(/"code":\s*(\d{3})\b/) ?? message.match(/^(?:HTTP|Antigravity)\s+(\d{3})\b/);
+  return match ? Number(match[1]) : null;
+}
+
+const hasApiStatus = (message: string, status: string) => new RegExp(`"status":\\s*"${status}"`).test(message);
+
+export function isBillingError(message: string) {
+  return apiStatus(message) === 402 || /prepayment credits|payment required|billing is blocked/i.test(message);
+}
+
+const isQuotaError = (message: string) => apiStatus(message) === 429 || hasApiStatus(message, "RESOURCE_EXHAUSTED");
+
+/** Failures worth another attempt later: quota, overload, timeouts, network errors and billing blocks. */
+export function isTransientError(message: string) {
+  const status = apiStatus(message);
+  return (
+    isBillingError(message) ||
+    isQuotaError(message) ||
+    (status !== null && [408, 500, 502, 503, 504].includes(status)) ||
+    ["UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL"].some((s) => hasApiStatus(message, s)) ||
+    /ECONNRESET|ETIMEDOUT|fetch failed|operation was aborted|timed out/i.test(message)
+  );
 }
 
 type Kind = "text" | "json";
@@ -85,21 +111,21 @@ async function route<T>(label: string, kind: Kind, promptChars: number, opts: Ca
         lastError = error;
         const message = error instanceof Error ? error.message : String(error);
         record(model, kind, message);
-        if (/API key|PERMISSION_DENIED|\b401\b/i.test(message)) throw new Error(`${label} failed: ${message}`);
-        if (BILLING_BLOCKED.test(message)) {
+        if (apiStatus(message) === 401 || hasApiStatus(message, "PERMISSION_DENIED") || /API key not valid/i.test(message)) throw new Error(`${label} failed: ${message}`);
+        if (isBillingError(message)) {
           billingBlockedUntil = Date.now() + BILLING_RECHECK_MS;
           throw new Error(`${label} failed (billing blocked, account-wide): ${message}`);
         }
-        if (/429|RESOURCE_EXHAUSTED/.test(message) && isDailyLimit(message, model)) {
+        if (isQuotaError(message) && isDailyLimit(message, model)) {
           blockedUntil.set(model, quotaDayStart() + DAY_MS);
           break;
         }
-        if (/\b404\b|NOT_FOUND/.test(message)) {
+        if (apiStatus(message) === 404 || hasApiStatus(message, "NOT_FOUND")) {
           blockedUntil.set(model, quotaDayStart() + DAY_MS);
           break;
         }
         // Google counts failed requests against the daily quota, so only a per-minute limit is worth waiting out.
-        if (!/429|RESOURCE_EXHAUSTED/.test(message) || attempt === 2) break;
+        if (!isQuotaError(message) || attempt === 2) break;
         const stated = Number(message.match(/retry in ([\d.]+)s/i)?.[1] ?? 0);
         await sleep(stated ? Math.min(stated + 1, 65) * 1000 : 2000 * 2 ** attempt + Math.random() * 1000);
       }
@@ -118,7 +144,8 @@ function request(model: string, prompt: string, system: string, temperature: num
       ...(gemma ? {} : { systemInstruction: system }),
       temperature,
       ...(asJson && !gemma ? { responseMimeType: "application/json" } : {}),
-      httpOptions: { timeout: TIMEOUT_MS[tier] },
+      // Gemma is the last-resort backup and answers far more slowly than Flash Lite.
+      httpOptions: { timeout: gemma ? GEMMA_TIMEOUT_MS : TIMEOUT_MS[tier] },
     },
   });
 }
@@ -133,18 +160,19 @@ export async function text(prompt: string, system: string, opts: CallOptions = {
 }
 
 /**
- * JSON.parse, but tolerant of raw control characters (line breaks, tabs) inside string values — the model sometimes
- * returns long HTML bodies that way, which strict JSON rejects even though the content is fine.
+ * JSON.parse, but tolerant of raw control characters inside string values and trailing commas — the two harmless
+ * mistakes models make in long replies, which strict JSON rejects even though the content is fine.
  */
 export function parseLenient(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch (error) {
-    if (!(error instanceof SyntaxError) || !/control character/i.test(error.message)) throw error;
+    if (!(error instanceof SyntaxError)) throw error;
     let out = "";
     let inString = false;
     let escaped = false;
-    for (const ch of text) {
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
       if (inString) {
         if (escaped) escaped = false;
         else if (ch === "\\") escaped = true;
@@ -154,6 +182,7 @@ export function parseLenient(text: string): unknown {
           continue;
         }
       } else if (ch === '"') inString = true;
+      else if (ch === "," && /^\s*[}\]]/.test(text.slice(i + 1))) continue;
       out += ch;
     }
     return JSON.parse(out);
@@ -197,7 +226,7 @@ export async function decide(input: string, questions: Record<string, string>): 
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     record(DECISION_MODEL, "json", message);
-    if (BILLING_BLOCKED.test(message)) billingBlockedUntil = Date.now() + BILLING_RECHECK_MS;
+    if (isBillingError(message)) billingBlockedUntil = Math.max(billingBlockedUntil, Date.now() + BILLING_RECHECK_MS);
     console.warn(`[decide] ${message.slice(0, 200)}`);
     return null;
   }

@@ -1,11 +1,12 @@
 name: Content agent doorbell
 
-# Every 30 minutes (cron is in UTC; :00 and :30 UTC are :30 and :00 IST, so 09:00 IST = 03:30 UTC is covered).
+# Every 30 minutes, off the busy top of the hour where GitHub delays or drops scheduled runs (cron is in UTC;
+# 03:37 UTC = 09:07 IST, the first run after the 09:00 IST publish slot).
 # This workflow does NO AI work. It asks the database (one cheap call) whether anything is due — all times IST —
 # then: publishes ready posts itself (no AI), and wakes the app server on Render only if AI work is waiting.
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "7,37 * * * *"
   workflow_dispatch: {}
 
 concurrency:
@@ -39,7 +40,8 @@ jobs:
           cache: "npm"
       - name: Publish posts that are due
         if: steps.check.outputs.publish == 'true'
-        run: npm ci && npm run publish:due
+        # Publishing uses no AI or image tools, so skip their heavy native install steps.
+        run: npm ci --ignore-scripts && npm run publish:due
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

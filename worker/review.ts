@@ -1,10 +1,9 @@
+import { REVIEW_RETRY_MS } from "../src/lib/studio/content";
 import type { StudioPost } from "../src/lib/studio/types";
 import { runAgent } from "./agent";
 import { db, raiseSignal } from "./db";
 import { json, parseLenient } from "./gemini";
 import { bodyHash } from "./quality";
-
-const RETRY_AFTER_MS = 3 * 3_600_000;
 
 interface ReviewResult {
   issues: { severity: string; claim: string; problem: string; source?: string }[];
@@ -59,7 +58,7 @@ export async function ensureReview(post: StudioPost): Promise<StudioPost> {
   const saved = post.seo_plan?.verification as { hash?: string } | undefined;
   if (saved?.hash === hash) return post;
   const attempt = post.seo_plan?.reviewAttempt as { hash?: string; at?: string } | undefined;
-  if (attempt?.hash === hash && attempt.at && Date.now() - Date.parse(attempt.at) < RETRY_AFTER_MS) return post;
+  if (attempt?.hash === hash && attempt.at && Date.now() - Date.parse(attempt.at) < REVIEW_RETRY_MS) return post;
 
   try {
     const result = await requestReview(post.body_html);

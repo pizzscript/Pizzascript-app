@@ -2,10 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { AGENT_MODEL, nextCooldownMs, quotaDayStart, type AgentState, type AgentTask } from "../src/lib/studio/models";
 import { db, setting } from "./db";
 import { env } from "./env";
-import { geminiBillingBlocked, record } from "./gemini";
-
-// Same billing account as the Gemini models: a depleted balance blocks Antigravity too, and it isn't a real hang.
-const BILLING_BLOCKED = /\b402\b|prepayment|payment required/i;
+import { apiStatus, geminiBillingBlocked, isBillingError, record } from "./gemini";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const START_LIMIT_MS = 2 * 60_000;
@@ -131,10 +128,10 @@ export async function runAgent(input: string, opts: { label: string; maxTokens: 
     stream?.controller?.abort();
     if (id && !finished) await cancel(id);
     // A billing block isn't Antigravity being unreliable — don't let it count toward the hang streak.
-    if (!/no text/i.test(message) && !BILLING_BLOCKED.test(message)) {
+    if (!/no text/i.test(message) && !isBillingError(message)) {
       await updateState((s) => {
         const failures = (s.consecutiveFailures ?? 0) + 1;
-        const until = /429|RESOURCE_EXHAUSTED/.test(message) ? quotaDayStart() + DAY_MS : Date.now() + nextCooldownMs(failures);
+        const until = apiStatus(message) === 429 ? quotaDayStart() + DAY_MS : Date.now() + nextCooldownMs(failures);
         return { ...s, cooldownUntil: new Date(until).toISOString(), reason: message.slice(0, 160), consecutiveFailures: failures, consecutiveSuccesses: 0 };
       });
     }

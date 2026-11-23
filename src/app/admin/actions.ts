@@ -1,8 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { POSTS_TAG } from "@/lib/blog";
 import { jobLabel, jobPriority } from "@/lib/studio/jobs";
 import { computeScore, priorityFor } from "@/lib/studio/scoring";
 import { requireAdmin, supabaseServer } from "@/lib/studio/server";
@@ -18,6 +19,12 @@ async function live() {
 
 function fail(error: { message: string } | null) {
   if (error) throw new Error(error.message);
+}
+
+function refreshPublicPost(post: { slug: string; stage: string } | null) {
+  if (post?.stage !== "live") return;
+  revalidateTag(POSTS_TAG, "max");
+  revalidateTag(`post:${post.slug}`, "max");
 }
 
 /**
@@ -78,8 +85,8 @@ export async function activeJobs() {
   const now = Date.now();
 
   // Nudge: jobs are due but nothing is genuinely running (none, or only one whose worker stopped) → start the agent.
-  const due = list.some((j) => j.status === "queued" && new Date(j.run_after).getTime() <= now);
   const alive = list.some((j) => j.status === "running" && now - new Date(j.heartbeat_at ?? j.started_at ?? 0).getTime() < 2 * 60_000);
+  const due = list.some((j) => j.status === "running" || (j.status === "queued" && new Date(j.run_after).getTime() <= now));
   if (due && !alive) startJobs();
 
   // Health: failures in the last 24h, and how long the oldest due job has been waiting.
@@ -180,8 +187,9 @@ const EDITABLE = ["title", "seo_title", "seo_description", "excerpt", "image_pro
 export async function updatePost(postId: string, fields: Partial<Record<(typeof EDITABLE)[number], string>>) {
   const db = await live();
   const clean = Object.fromEntries(Object.entries(fields).filter(([k]) => (EDITABLE as readonly string[]).includes(k)));
-  const { data: post, error } = await db.from("posts").update({ ...clean, audit: null }).eq("id", postId).select("stage,body_html").single();
+  const { data: post, error } = await db.from("posts").update({ ...clean, audit: null }).eq("id", postId).select("slug,stage,body_html").single();
   fail(error);
+  refreshPublicPost(post);
   // Title/SEO changes can fix (or break) the SEO check — re-run it, so a stuck post continues on its own.
   if (post?.body_html && post.stage !== "live") {
     await db.from("jobs").insert({ type: "run_audit", payload: { postId }, priority: jobPriority("run_audit", "admin") });
@@ -192,9 +200,16 @@ export async function updatePost(postId: string, fields: Partial<Record<(typeof 
 
 export async function saveBody(postId: string, bodyHtml: string, note: string) {
   const db = await live();
-  const { data: post, error } = await db.from("posts").select("title,version,cover_image_url").eq("id", postId).single();
+  const { data: post, error } = await db.from("posts").select("slug,stage,title,version,cover_image_url,body_html").eq("id", postId).single();
   fail(error);
   const version = (post!.version ?? 0) + 1;
+  // Imported articles have no history row yet: keep the text being replaced so it can always be restored.
+  if (post!.body_html && post!.version) {
+    await db.from("post_versions").upsert(
+      { post_id: postId, version: post!.version, title: post!.title, body_html: post!.body_html, cover_image_url: post!.cover_image_url, note: "Previous version", author: "admin" },
+      { onConflict: "post_id,version", ignoreDuplicates: true },
+    );
+  }
   fail(
     (
       await db
@@ -203,6 +218,7 @@ export async function saveBody(postId: string, bodyHtml: string, note: string) {
     ).error,
   );
   fail((await db.from("posts").update({ body_html: bodyHtml, version, audit: null }).eq("id", postId)).error);
+  refreshPublicPost(post);
   await db.from("jobs").insert({ type: "run_audit", payload: { postId }, priority: jobPriority("run_audit", "admin") });
   startJobs();
   revalidatePath(`/admin/posts/${postId}`);
@@ -315,7 +331,9 @@ export async function updateTaxonomy(postId: string, fields: { clusterId: string
   const db = await live();
   const tags = [...new Set(fields.tags.map((t) => t.trim()).filter(Boolean))].slice(0, 12);
   const { data: cluster } = fields.clusterId ? await db.from("clusters").select("name").eq("id", fields.clusterId).maybeSingle() : { data: null };
-  fail((await db.from("posts").update({ cluster_id: fields.clusterId, category: cluster?.name ?? null, tags }).eq("id", postId)).error);
+  const { data: post, error } = await db.from("posts").update({ cluster_id: fields.clusterId, category: cluster?.name ?? null, tags }).eq("id", postId).select("slug,stage").single();
+  fail(error);
+  refreshPublicPost(post);
   revalidatePath(`/admin/posts/${postId}`);
 }
 

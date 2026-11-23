@@ -80,7 +80,9 @@ export async function syncEmbeddings() {
 }
 
 export async function matchesFor(owner_type: "post" | "topic", owner_id: string, text: string, count = 5): Promise<Match[]> {
-  await store([{ owner_type, owner_id, text }]);
+  // Loading the model is the heaviest memory spike on the server, so only do it when the text actually changed.
+  const { data } = await db.from("content_embeddings").select("content_hash").eq("owner_type", owner_type).eq("owner_id", owner_id).maybeSingle();
+  if (data?.content_hash !== hash(text)) await store([{ owner_type, owner_id, text }]);
   return storedMatches(owner_type, owner_id, count);
 }
 

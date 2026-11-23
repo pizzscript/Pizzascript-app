@@ -37,6 +37,12 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // The test deployment must not compete with the real domain in search results.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "(?<host>.+)\\.onrender\\.com" }],
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
       {
         source: "/:path*",
         headers: [

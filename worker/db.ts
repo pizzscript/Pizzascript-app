@@ -51,6 +51,14 @@ export async function allFacts() {
   return check(await db.from("facts").select("*").eq("verified", true), "facts") as Fact[];
 }
 
+/** Everything the scheduler needs to decide what's next, without loading every full article into memory. */
+export async function pipelinePosts() {
+  return check(
+    await db.from("posts").select("id,slug,title,stage,status,scheduled_for,approved_at,batch_id,auto_pipeline,brief,audit,cover_image_url,seo_plan"),
+    "pipeline posts",
+  ) as unknown as StudioPost[];
+}
+
 export async function linkPlan() {
   return check(await db.from("link_plan").select("*"), "link_plan") as LinkPlan[];
 }
@@ -76,6 +84,13 @@ export async function raiseSignal(signal: Omit<Signal, "id" | "status" | "create
 
 export async function saveVersion(post: StudioPost, bodyHtml: string, note: string, extra: Partial<StudioPost> = {}) {
   const version = (post.version ?? 0) + 1;
+  // Imported articles have no history row yet: keep the text being replaced so it can always be restored.
+  if (post.body_html && post.version) {
+    await db.from("post_versions").upsert(
+      { post_id: post.id, version: post.version, title: post.title, body_html: post.body_html, cover_image_url: post.cover_image_url, note: "Previous version", author: "agent" },
+      { onConflict: "post_id,version", ignoreDuplicates: true },
+    );
+  }
   check(
     await db.from("post_versions").insert({
       post_id: post.id,

@@ -1,6 +1,6 @@
-import { DEEP_CHECK_IDS, REVIEW_PENDING, auditPost, deepChecksOf, internalLinks, wordRangeFor } from "../../src/lib/studio/content";
+import { DEEP_CHECK_IDS, REVIEW_PENDING, REVIEW_RETRY_MS, auditPost, deepChecksOf, internalLinks, wordRangeFor } from "../../src/lib/studio/content";
 import type { StudioPost } from "../../src/lib/studio/types";
-import { allBatches, allPosts, check, db, enqueue, linkPlan, raiseSignal, settings, todayIst } from "../db";
+import { allBatches, allPosts, check, db, enqueue, linkPlan, pipelinePosts, raiseSignal, settings, todayIst } from "../db";
 import { env } from "../env";
 import { RELATED_SIMILARITY, storedMatches } from "../research/embeddings";
 
@@ -22,12 +22,18 @@ export async function revalidate(slug?: string) {
   }
 }
 
+const reviewRetryWaiting = (post: StudioPost) => {
+  const at = (post.seo_plan?.reviewAttempt as { at?: string } | undefined)?.at;
+  return Boolean(at) && Date.now() - Date.parse(at!) < REVIEW_RETRY_MS;
+};
+
 /**
  * Publishes slots that are due. Autopilot rule: a post goes live on its own only when it passed the audit
  * AND either the post itself or its whole batch was approved. Anything else raises a signal and waits.
  */
 export async function publishDue() {
   const now = new Date().toISOString();
+  if (!(await pipelinePosts()).some((p) => p.stage !== "live" && p.scheduled_for && p.scheduled_for <= now)) return [];
   const [posts, batches, banned, ranges, autopilot] = await Promise.all([allPosts(), allBatches(), settings.banned(), settings.wordRanges(), settings.autopilot()]);
   const approvedBatches = new Set(batches.filter((b) => b.approved_at).map((b) => b.id));
   const due = posts.filter((p) => p.stage !== "live" && p.scheduled_for && p.scheduled_for <= now);
@@ -43,7 +49,7 @@ export async function publishDue() {
     // Edited or older posts still need the deeper checks and technical review: run them, then publish on a later pass.
     const missingChecks = deep.length < DEEP_CHECK_IDS.length;
     const reviewPending = deep.some((c) => c.id === "verified" && !c.pass && c.detail === REVIEW_PENDING);
-    if (approved && post.body_html && (reviewPending || (missingChecks && audit?.ok))) {
+    if (approved && post.body_html && !reviewRetryWaiting(post) && (reviewPending || (missingChecks && audit?.ok))) {
       const { count } = await db
         .from("jobs")
         .select("id", { count: "exact", head: true })
@@ -51,8 +57,8 @@ export async function publishDue() {
         .eq("payload->>postId", post.id)
         .in("status", ["queued", "running"]);
       if (!count) await enqueue("run_audit", { postId: post.id });
-      if (missingChecks) continue;
     }
+    if (approved && missingChecks && audit?.ok) continue;
 
     if (!approved || !audit?.ok) {
       // Keep one open "missed slot" alert per post: close earlier days' before raising today's.
@@ -135,7 +141,16 @@ function nextStep(post: StudioPost): (typeof PIPELINE)[number] | null {
   // Already checked and failing → leave it (it has an alert). Any edit clears the result, so it's re-checked then.
   if (post.stage === "draft") return post.cover_image_url ? (post.audit ? null : "run_audit") : "generate_image";
   if (post.stage === "image") return post.audit ? null : "run_audit";
+  if (needsEarlyReview(post)) return "run_audit";
   return null;
+}
+
+/** Runs the full checks up to 48 hours ahead, so a problem surfaces before the publish slot instead of at it. */
+function needsEarlyReview(post: StudioPost) {
+  if (!["audit", "slotted"].includes(post.stage) || !post.scheduled_for) return false;
+  if (Date.parse(post.scheduled_for) > Date.now() + 48 * 3_600_000 || reviewRetryWaiting(post)) return false;
+  const deep = deepChecksOf(post.audit);
+  return deep.length < DEEP_CHECK_IDS.length || deep.some((c) => c.id === "verified" && !c.pass && c.detail === REVIEW_PENDING);
 }
 
 /** 1 for a post already part-way through the pipeline (has a brief, draft or banner), else 0. */
@@ -150,7 +165,7 @@ const started = (p: StudioPost) => (p.stage === "draft" || p.stage === "image" |
  */
 export async function advancePipeline() {
   const [posts, batches, autopilot, active, failed] = await Promise.all([
-    allPosts(),
+    pipelinePosts(),
     allBatches(),
     settings.autopilot(),
     db.from("jobs").select("id").in("type", [...PIPELINE]).in("status", ["queued", "running"]).limit(1),

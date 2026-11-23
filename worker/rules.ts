@@ -39,7 +39,7 @@ Write the article in Markdown and return only the article: no preamble, no notes
 Rules:
 - The first line is the insight or counterintuitive finding, never setup.
 - No H1. Use ## for sections and ### for subsections. Use fenced code blocks with a language tag.
-- Links are Markdown links using only the exact paths you are given.
+- Links are Markdown links using only the exact paths you are given, with natural descriptive words as the link text, never the path itself.
 - Be specific and practical. No filler, dramatic metaphors, generic tip lists or repeated points.
 - Never end with a summary.
 - Never name a client or write about client work.

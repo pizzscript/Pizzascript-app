@@ -82,6 +82,23 @@ export function unsupportedNumbers(html: string, facts: { statement: string }[])
   return [...found];
 }
 
+const MEASURED = /\b(?:under|below|over|within)\s+\d+(?:\.\d+)?\s?(?:ms|milliseconds?|seconds?|kb|mb)\b|\b\d+(?:\.\d+)?\s*(?:to|–|-)\s*\d+(?:\.\d+)?\s?(?:ms|milliseconds?|seconds?|kb|mb)\b/gi;
+
+/** Time and size claims can be real documented thresholds, so these are shown for review rather than blocking. */
+export function measuredClaims(html: string) {
+  const prose = html.replace(/<pre[\s\S]*?<\/pre>/gi, " ").replace(/<code[^>]*>[\s\S]*?<\/code>/gi, " ").replace(/<[^>]+>/g, " ");
+  return [...new Set([...prose.matchAll(MEASURED)].map((m) => m[0].replace(/\s+/g, " ")))];
+}
+
+/** Client names from the facts list, in the text or in a link such as a case-study URL. */
+export function namedClients(html: string, facts: { subject: string }[]) {
+  const lower = html.toLowerCase();
+  return [...new Set(facts.map((f) => f.subject))].filter((name) => {
+    const plain = name.toLowerCase();
+    return lower.includes(plain) || lower.includes(plain.replace(/[^a-z0-9]+/g, "-"));
+  });
+}
+
 interface Verification {
   hash: string;
   issues?: { severity?: string; claim?: string; problem?: string }[];
@@ -100,10 +117,19 @@ function verifiedCheck(post: StudioPost): AuditCheck {
 /** Checks that need the compiler or the model: run by the audit job, then carried on the post's saved audit. */
 export async function deepChecks(post: StudioPost, posts: Pick<StudioPost, "id" | "slug" | "title">[]): Promise<AuditCheck[]> {
   const broken = codeErrors(post.body_html);
-  const numbers = unsupportedNumbers(post.body_html, await allFacts());
+  const facts = await allFacts();
+  const numbers = unsupportedNumbers(post.body_html, facts);
+  const measured = measuredClaims(post.body_html);
+  const clients = post.slug.startsWith("case-study-") ? [] : namedClients(post.body_html, facts);
   const checks: AuditCheck[] = [
     { id: "code", label: "Code examples compile", pass: broken.length === 0, detail: broken.slice(0, 3).join("; ") || undefined },
-    { id: "numbers", label: "No unproven statistics", pass: numbers.length === 0, detail: numbers.length ? `Add a source or remove: ${numbers.slice(0, 6).join(", ")}` : undefined },
+    {
+      id: "numbers",
+      label: "No unproven statistics",
+      pass: numbers.length === 0,
+      detail: numbers.length ? `Add a source or remove: ${numbers.slice(0, 6).join(", ")}` : measured.length ? `Double-check: ${measured.slice(0, 4).join(", ")}` : undefined,
+    },
+    { id: "clients", label: "No client names", pass: clients.length === 0, detail: clients.join(", ") || undefined },
     verifiedCheck(post),
   ];
   try {

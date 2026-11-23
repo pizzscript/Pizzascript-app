@@ -283,6 +283,12 @@ Return a JSON array of problems only (empty if all pass): [{"slug":"","issue":"s
 // ───────────────────────── performance_check (weekly) ─────────────────────────
 
 export async function performanceCheck() {
+  // Without Search Console data every post would look "not ranking", so there's nothing to judge yet.
+  const { count: gscRows } = await db.from("gsc_daily").select("date", { count: "exact", head: true });
+  if (!gscRows) {
+    await db.from("settings").upsert({ key: "last_performance_check", value: todayIst() });
+    return { checked: 0, skipped: "no Search Console data" };
+  }
   const posts = (await allPosts()).filter((p) => p.stage === "live" && p.published_at);
   for (const post of posts) {
     const ageDays = (Date.now() - new Date(post.published_at!).getTime()) / 86_400_000;

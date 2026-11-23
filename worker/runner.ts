@@ -2,6 +2,7 @@
 import type { JobType, RewritePayload } from "../src/lib/studio/types";
 import { db, enqueue, setting, todayIst } from "./db";
 import { env } from "./env";
+import { isBillingError, isTransientError } from "./gemini";
 import { fixTitle, generateImage, insertLink, rewrite, runAudit, scoreTopic, writeBrief } from "./jobs/content";
 import { writeDraft } from "./jobs/draft";
 import { dailyBriefing, discuss, performanceCheck, qualityGate } from "./jobs/ops";
@@ -25,10 +26,10 @@ const HANDLERS: Record<JobType, Handler> = {
   performance_check: () => performanceCheck(),
 };
 
-// 504/DEADLINE_EXCEEDED: a request that timed out, or every model in a tier doing the same — worth a fresh attempt
-// later rather than leaving the job (and the idea/article it's for) stuck until someone notices and re-clicks it.
-const TRANSIENT = /429|RESOURCE_EXHAUSTED|503|UNAVAILABLE|504|DEADLINE_EXCEEDED|ECONNRESET|ETIMEDOUT|fetch failed/i;
 const MAX_ATTEMPTS = 4;
+// A billing block can last hours, so those jobs wait longer and get more chances than a brief overload.
+const MAX_BILLING_ATTEMPTS = 12;
+const BILLING_RETRY_MS = 30 * 60_000;
 
 interface ClaimedJob {
   id: string;
@@ -44,31 +45,32 @@ async function runNext(): Promise<boolean> {
   if (!job) return false;
 
   const started = Date.now();
-  currentJob = job.id;
+  currentJob = { id: job.id, attempts: job.attempts };
+  // Every write is tied to this claim's attempt number, so a worker whose job was reclaimed can't overwrite the newer run.
+  const ownJob = <T extends { eq: (column: string, value: string | number) => T }>(query: T) =>
+    query.eq("id", job.id).eq("status", "running").eq("attempts", job.attempts);
   // Heartbeat: proves this worker is alive. If it stops (restart, sleep, crash), claim_job reclaims the job after 2 min.
   const beat = setInterval(() => {
-    db.from("jobs").update({ heartbeat_at: new Date().toISOString() }).eq("id", job.id).then(() => {});
+    ownJob(db.from("jobs").update({ heartbeat_at: new Date().toISOString() })).then(() => {});
   }, 30_000);
   try {
     const handler = HANDLERS[job.type];
     if (!handler) throw new Error(`Unknown job type ${job.type}`);
     const result = await handler(job.payload);
-    await db
-      .from("jobs")
-      .update({ status: "done", result: (result ?? {}) as object, finished_at: new Date().toISOString(), error: null })
-      .eq("id", job.id);
+    await ownJob(db.from("jobs").update({ status: "done", result: (result ?? {}) as object, finished_at: new Date().toISOString(), error: null }));
     console.log(`[job] ${job.type} done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const retry = TRANSIENT.test(message) && !/limit: 0\b/.test(message) && job.attempts < MAX_ATTEMPTS;
-    await db
-      .from("jobs")
-      .update(
+    const billing = isBillingError(message);
+    const retry = isTransientError(message) && !/limit: 0\b/.test(message) && job.attempts < (billing ? MAX_BILLING_ATTEMPTS : MAX_ATTEMPTS);
+    const delay = billing ? BILLING_RETRY_MS : 2 ** job.attempts * 60_000;
+    await ownJob(
+      db.from("jobs").update(
         retry
-          ? { status: "queued", error: message, run_after: new Date(Date.now() + 2 ** job.attempts * 60_000).toISOString() }
+          ? { status: "queued", error: message, run_after: new Date(Date.now() + delay).toISOString() }
           : { status: "failed", error: message, finished_at: new Date().toISOString() },
-      )
-      .eq("id", job.id);
+      ),
+    );
     console.error(`[job] ${job.type} ${retry ? "will retry" : "failed"}: ${message}`);
   } finally {
     clearInterval(beat);
@@ -77,7 +79,7 @@ async function runNext(): Promise<boolean> {
   return true;
 }
 
-let currentJob: string | null = null;
+let currentJob: { id: string; attempts: number } | null = null;
 
 /**
  * On shutdown (Render redeploys or puts the instance to sleep with SIGTERM), hand the running job back to the queue
@@ -89,9 +91,9 @@ function hookShutdown() {
   shutdownHooked = true;
   const release = async () => {
     if (!currentJob) return;
-    const id = currentJob;
+    const { id, attempts } = currentJob;
     currentJob = null;
-    await db.from("jobs").update({ status: "queued", run_after: new Date().toISOString(), error: "interrupted by server shutdown" }).eq("id", id).eq("status", "running");
+    await db.from("jobs").update({ status: "queued", run_after: new Date().toISOString(), error: "interrupted by server shutdown" }).eq("id", id).eq("status", "running").eq("attempts", attempts);
     console.log(`[job] ${id} handed back to the queue (shutdown)`);
   };
   for (const sig of ["SIGTERM", "SIGINT"] as const) process.once(sig, () => void release());
