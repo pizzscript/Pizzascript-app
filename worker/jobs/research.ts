@@ -14,6 +14,34 @@ interface ResearchState {
 }
 
 const config = async () => ({ ...RESEARCH_DEFAULTS, ...(await setting<Partial<ResearchSettings>>("research", {})) });
+
+interface ServiceSuggestion {
+  query: string;
+  service: string;
+  reason: string;
+  firstSeen: string;
+}
+
+/** Provider searches ("... company pune") go to a list of service page suggestions instead of the blog idea pool. */
+async function suggestServicePages(items: { query: string; service?: string; angle?: string }[]) {
+  if (!items.length) return 0;
+  const saved = await setting<{ items?: ServiceSuggestion[] }>("service_page_suggestions", {});
+  const list = saved.items ?? [];
+  const fresh = items.filter((i) => !list.some((s) => s.query === i.query));
+  if (!fresh.length) return 0;
+  const next = [...fresh.map((i) => ({ query: i.query, service: i.service ?? "", reason: i.angle ?? "", firstSeen: new Date().toISOString() })), ...list].slice(0, 30);
+  await db.from("settings").upsert({ key: "service_page_suggestions", value: { items: next } });
+  await raiseSignal({
+    kind: "quality_gate",
+    title: `Service page idea: people search "${fresh[0].query}"${fresh.length > 1 ? ` and ${fresh.length - 1} more` : ""}. These rank with service pages, not blog posts.`,
+    detail: { queries: fresh.map((i) => i.query) },
+    priority: "P2",
+    post_id: null,
+    topic_id: null,
+    dedupe_key: `service-page-ideas:${todayIst()}`,
+  });
+  return fresh.length;
+}
 const serviceList = (services: ServiceProfile[]) => services.map((s) => `${s.path} — ${s.title} — ${s.description}`).join("\n");
 
 /** Up to 2 light AI requests: suggest seeds, then choose ideas from the real phrases they return. */
@@ -59,7 +87,7 @@ Return {"ideas":[{"query":"","group":"core","category":"","service":"","audience
     { tier: "light", temperature: 0.4 },
   );
 
-  const { kept, dropped } = checkIdeas(picked.ideas ?? [], {
+  const { kept, dropped, servicePages } = checkIdeas(picked.ideas ?? [], {
     phrases,
     existing,
     services: services.map((s) => s.path),
@@ -100,7 +128,8 @@ Return {"ideas":[{"query":"","group":"core","category":"","service":"","audience
       dedupe_key: `research-service:${todayIst()}`,
     });
   }
-  return { added: chosen.length, dropped: dropped.length, phrases: phrases.size, group };
+  const servicePageIdeas = await suggestServicePages(servicePages);
+  return { added: chosen.length, dropped: dropped.length, servicePageIdeas, phrases: phrases.size, group };
 }
 
 /** Archives weak, expired, duplicate or overflow ideas. Can be restored from the Ideas page. */
@@ -109,7 +138,9 @@ export async function pruneIdeas() {
   const [posts, topics] = await Promise.all([allPosts(), allTopics()]);
   const archive = ideasToArchive(topics, posts.map((p) => p.seo_plan?.targetQuery ?? p.title), settings);
   for (const { id, reason } of archive) await db.from("topics").update({ status: "archived", reason: `Auto-archived: ${reason}` }).eq("id", id).eq("status", "candidate");
-  return { archived: archive.length };
+  const moved = archive.filter((a) => a.reason === "Better as a service page").map((a) => topics.find((t) => t.id === a.id)!);
+  const servicePageIdeas = await suggestServicePages(moved.map((t) => ({ query: t.query, service: (t.research as { service?: string } | undefined)?.service, angle: t.reason ?? "" })));
+  return { archived: archive.length, servicePageIdeas };
 }
 
 /** Runs when the queue is otherwise idle: research once a day after the briefing, upkeep once a week (Sunday). */

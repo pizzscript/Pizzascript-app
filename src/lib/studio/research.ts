@@ -37,6 +37,12 @@ export interface CheckedIdea extends IdeaCandidate {
 const WRONG_INTENT = /\b(jobs?|salary|login|sign in|download|crossword|clue|for sale|course|internship|apk)\b/i;
 const WRONG_PLACE = /\b(usa|uk|australia|canada|uae|philippines|kenya|south africa|america|dubai|singapore|nigeria|pakistan)\b/i;
 
+const SERVICE_WORDS = /\b(company|companies|agency|agencies|services?|near me|consultants?|firms?|providers?|hire|freelancers?)\b/i;
+const VENDOR_IN_CITY = /\b(software|solutions?|tools?|developers?|development)\s+(in\s+)?(pune|mumbai|bangalore|bengaluru|delhi|hyderabad|chennai|kolkata|ahmedabad)\b/i;
+
+/** Searches for a provider ("... company pune", "... services") rank with service pages, not blog articles. */
+export const isServiceIntent = (query: string) => SERVICE_WORDS.test(query) || VENDOR_IN_CITY.test(query);
+
 export const sameIntent = (a: string, b: string) => Math.min(keywordCoverage(a, b), keywordCoverage(b, a)) >= 0.7;
 const clamp = (n: unknown) => Math.max(0, Math.min(10, Number(n) || 0));
 export const ideaScore = (c: Pick<IdeaCandidate, "fit" | "newSite" | "value">) => Math.round((clamp(c.fit) * 0.4 + clamp(c.newSite) * 0.35 + clamp(c.value) * 0.25) * 10);
@@ -53,6 +59,7 @@ export function checkIdeas(
 ) {
   const kept: CheckedIdea[] = [];
   const dropped: { query: string; reason: string }[] = [];
+  const servicePages: CheckedIdea[] = [];
   const scored = candidates
     .filter((c) => c && typeof c.query === "string" && c.query.trim())
     .map((c) => ({ ...c, query: c.query.trim().toLowerCase(), score: ideaScore(c) }))
@@ -78,15 +85,17 @@ export function checkIdeas(
       continue;
     }
     const service = context.services.includes(c.service) ? c.service : "";
-    kept.push({
+    const checked: CheckedIdea = {
       ...c,
       group: c.group === "core" ? "core" : "broad",
       category: context.clusters.includes(c.category) ? c.category : context.clusters[0],
       service,
       needsService: !service,
-    });
+    };
+    if (isServiceIntent(c.query)) servicePages.push(checked);
+    else kept.push(checked);
   }
-  return { kept, dropped };
+  return { kept, dropped, servicePages };
 }
 
 /** Which group is furthest below its target share, so new ideas rebalance the pool. */
@@ -103,7 +112,8 @@ export function ideasToArchive(topics: Topic[], existingQueries: string[], setti
   const out = new Map<string, string>();
   for (const t of waiting) {
     const age = (now - Date.parse(t.created_at)) / day;
-    if (t.source === "trend" && age > settings.trendDays) out.set(t.id, `Trend older than ${settings.trendDays} days`);
+    if (isServiceIntent(t.query)) out.set(t.id, "Better as a service page");
+    else if (t.source === "trend" && age > settings.trendDays) out.set(t.id, `Trend older than ${settings.trendDays} days`);
     else if (t.score !== null && t.score !== undefined && t.score < settings.minScore) out.set(t.id, `Score ${t.score} below ${settings.minScore}`);
     else if ((t.score === null || t.score === undefined) && age > settings.staleDays) out.set(t.id, `Not scored in ${settings.staleDays} days`);
     else if (existingQueries.some((q) => sameIntent(t.query, q))) out.set(t.id, "Overlaps an existing article");
