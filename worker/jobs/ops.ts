@@ -150,7 +150,8 @@ Return a JSON array (max 3, empty if nothing passes): [{"name":"","type":1,"pass
       kind: "trend",
       title: `${trend.name} — ${trend.why}${trend.indiaAngle ? ` · ${profile.country} angle` : ""}`,
       detail: trend,
-      priority: "P0",
+      // A trend is an article idea, not an emergency.
+      priority: "P3",
       post_id: null,
       topic_id: topic?.id ?? null,
       dedupe_key: `trend:${slug}`,

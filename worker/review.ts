@@ -85,6 +85,14 @@ export async function ensureReview(post: StudioPost): Promise<StudioPost> {
     const seo_plan: StudioPost["seo_plan"] = { ...post.seo_plan, verification };
     delete seo_plan.reviewAttempt;
     await db.from("posts").update({ seo_plan }).eq("id", post.id);
+    // Alerts about earlier versions of the text no longer apply: close them, so only the current review's alert stays.
+    await db
+      .from("signals")
+      .update({ status: "acted" })
+      .eq("post_id", post.id)
+      .eq("status", "open")
+      .like("dedupe_key", `verify:${post.id}:%`)
+      .neq("dedupe_key", `verify:${post.id}:${hash}`);
     const errors = result.issues.filter((i) => issueBlocks(i, result.code));
     if (errors.length) {
       await raiseSignal({
