@@ -27,5 +27,10 @@ export const env = {
   /** Optional: lets the app start the GitHub heavy-job workflow. Without it, banners are drawn on this server. */
   githubDispatchToken: process.env.GITHUB_DISPATCH_TOKEN,
   githubRepo: process.env.GITHUB_REPO ?? process.env.RENDER_GIT_REPO_SLUG,
+  // The rest are optional; most clients set them in Connections instead.
+  pagespeedKey: process.env.PAGESPEED_API_KEY,
+  bingKey: process.env.BING_WEBMASTER_API_KEY,
+  gbpOauth: process.env.GBP_OAUTH_JSON,
+  gbpLocation: process.env.GBP_LOCATION,
   workerId: process.env.GITHUB_RUN_ID ?? `worker-${process.pid}`,
 };

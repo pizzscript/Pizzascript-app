@@ -1,4 +1,8 @@
 import { plainText, removeUnknownLinks, wordCount, wordRangeFor } from "../../src/lib/studio/content";
+import { isDefaultWorkspace } from "../workspace";
+import { addUsage, articlesThisMonth } from "../usage";
+import { currentPlan } from "../profile";
+import { ARTICLE_LIMIT_ERROR } from "../../src/lib/studio/plans";
 import { AGENT_MODEL } from "../../src/lib/studio/models";
 import type { Fact, StudioPost, Topic } from "../../src/lib/studio/types";
 import { runAgent } from "../agent";
@@ -55,9 +59,9 @@ async function prepare(post: StudioPost, facts: Fact[]): Promise<ArticleJob> {
   const live = posts.filter((p) => p.stage === "live" && p.id !== post.id);
   const liveSlugs = live.map((p) => p.slug);
   const required = [...(post.brief.linksTo ?? []), post.brief.servicePage].filter(
-    (l): l is string => Boolean(l) && (SERVICE_PAGES.includes(l!) || liveSlugs.includes(l!.replace("/blog/", ""))),
+    (l): l is string => Boolean(l) && (SERVICE_PAGES().includes(l!) || liveSlugs.includes(l!.replace("/blog/", ""))),
   );
-  const optional = [...SERVICE_PAGES, ...live.map((p) => `/blog/${p.slug}`)].filter((l) => !required.includes(l));
+  const optional = [...SERVICE_PAGES(), ...live.map((p) => `/blog/${p.slug}`)].filter((l) => !required.includes(l));
 
   const context = `QUERY: ${post.seo_plan?.targetQuery}
 AUDIENCE: ${post.brief.audience ?? "both"}
@@ -89,7 +93,7 @@ export function splitArticleSeo(reply: string): { article: string; seo: SeoField
 }
 
 async function writeWithAgent(job: ArticleJob) {
-  const { text: reply } = await runAgent(`${ARTICLE_RULES}\n\n${SEO_BLOCK}\n\nDo not use any tools, search, files or code execution.\n\n${job.context}`, {
+  const { text: reply } = await runAgent(`${ARTICLE_RULES()}\n\n${SEO_BLOCK}\n\nDo not use any tools, search, files or code execution.\n\n${job.context}`, {
     label: `article: ${job.post.slug}`,
     maxTokens: 60_000,
     timeoutMs: 15 * 60_000,
@@ -127,7 +131,7 @@ Write ONLY ${g === 0 ? "the opening paragraphs (no heading), then " : ""}these s
 ${headings.map((h) => `## ${h}`).join("\n")}
 ${left.length ? `Links still needed${isLast ? " (ALL must appear now)" : ""}: ${left.join(", ")}` : ""}
 ${isLast ? `This is the end of the article: no summary, finish with the next logical action or a natural service-page transition.\n\n${SEO_BLOCK}` : "Don't conclude; the article continues."}`,
-      ARTICLE_RULES,
+      ARTICLE_RULES(),
       { temperature: 0.7, tier: "writer", sticky },
     );
     const split = splitArticleSeo(out);
@@ -160,7 +164,7 @@ ${plainText(html)}
 2. unsupported_claims: every specific number or result stated as the studio's own experience, or as a share of projects or audits, that is NOT in the verified results. Documented technical values don't count. Empty if none.
 
 Return JSON {"title":"","seo_title":"","seo_description":"","excerpt":"","unsupported_claims":[]}`,
-        AGENT,
+        AGENT(),
         { temperature: 0.3 },
       );
   const meta = { ...backup, ...written, unsupported_claims: backup?.unsupported_claims ?? [] } as { title: string; seo_title: string; seo_description: string; excerpt: string; unsupported_claims: string[] };
@@ -199,7 +203,24 @@ Return JSON {"title":"","seo_title":"","seo_description":"","excerpt":"","unsupp
 }
 
 /** Antigravity writes first. If it hangs or fails, the normal writers take over automatically. */
+/**
+ * Writes the article. A first draft counts towards the client's monthly article limit; a client at its limit stops here
+ * (PizzaScript's own blog is never limited). Redrafts don't count again.
+ */
 export async function writeDraft({ postId }: { postId: string }): Promise<{ words: number }> {
+  const before = await getPost(postId);
+  const first = !before.body_html?.trim();
+  if (first && !isDefaultWorkspace()) {
+    const plan = currentPlan();
+    const done = await articlesThisMonth();
+    if (done >= plan.articlesPerMonth) throw new Error(`${ARTICLE_LIMIT_ERROR}: ${done} of ${plan.articlesPerMonth} articles this month on the ${plan.name} plan.`);
+  }
+  const result = await draftArticle(postId);
+  if (first) await addUsage({ articles: 1 });
+  return result;
+}
+
+async function draftArticle(postId: string): Promise<{ words: number }> {
   let post = await getPost(postId);
   if (!post.brief?.angle) {
     await writeBrief({ postId });

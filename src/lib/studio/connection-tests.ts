@@ -69,6 +69,23 @@ export async function testConnection(name: ConnectionName, value: string, relate
         if (res.ok) return { ok: true, detail: `GitHub accepted this token for ${repo}`, expiresAt };
         return { ok: false, detail: res.status === 401 ? "GitHub rejected this token" : `GitHub answered ${res.status}. Check it has access to ${repo}`, expiresAt };
       }
+      case "pagespeed_api_key": {
+        const res = await call(`https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=${encodeURIComponent(key)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ origin: "https://www.google.com" }) });
+        if (res.ok) return { ok: true, detail: "Google accepted this key" };
+        return { ok: false, detail: res.status === 400 || res.status === 403 ? "Google rejected this key or the Chrome UX Report API isn't enabled" : `Google answered ${res.status}` };
+      }
+      case "bing_webmaster_api_key": {
+        const res = await call(`https://ssl.bing.com/webmaster/api.svc/json/GetUserSites?apikey=${encodeURIComponent(key)}`);
+        if (res.ok) return { ok: true, detail: "Bing accepted this key" };
+        return { ok: false, detail: `Bing answered ${res.status}` };
+      }
+      case "gbp_oauth_json": {
+        const json = JSON.parse(key) as { client_id: string; client_secret: string; refresh_token: string };
+        const res = await call("https://oauth2.googleapis.com/token", { method: "POST", body: new URLSearchParams({ ...json, grant_type: "refresh_token" }) });
+        return res.ok ? { ok: true, detail: "Google issued an access token" } : { ok: false, detail: `Google refused the refresh token (${res.status})` };
+      }
+      case "gbp_location":
+        return { ok: true, detail: "Saved. It's checked on the first profile post" };
     }
   } catch (error) {
     return { ok: false, detail: `Check failed: ${error instanceof Error ? error.message.slice(0, 120) : "unknown error"}` };

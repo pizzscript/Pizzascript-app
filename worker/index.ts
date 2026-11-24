@@ -4,6 +4,8 @@
  *   npm run worker            # long-running: polls jobs + runs the IST schedule (local use only)
  *   npm run worker -- --once  # runs the schedule once, drains the queue, exits (GitHub Actions)
  */
+import { anyWorkspace, forEachWorkspace } from "./db";
+import { withProfile } from "./profile";
 import { env } from "./env";
 import { advancePipeline, runNext, runOnce, schedule } from "./runner";
 
@@ -24,9 +26,9 @@ async function main() {
     try {
       if (Date.now() - lastSchedule > 60_000) {
         lastSchedule = Date.now();
-        await schedule();
+        await forEachWorkspace(withProfile(() => schedule()));
       }
-      const worked = (await runNext()) || (await advancePipeline());
+      const worked = (await runNext()) || (await anyWorkspace(withProfile(() => advancePipeline())));
       if (!worked) await new Promise((r) => setTimeout(r, 3000));
     } catch (err) {
       console.error("[worker]", err instanceof Error ? err.message : err);

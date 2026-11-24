@@ -1,5 +1,7 @@
 import { db, raiseSignal, setting, todayIst } from "../db";
 import { env } from "../env";
+import { currentProfile } from "../profile";
+import { isDefaultWorkspace } from "../workspace";
 
 export interface ServiceProfile {
   path: string;
@@ -19,7 +21,8 @@ export const savedServices = async () => (await setting<{ pages?: ServiceProfile
 
 /** Finds every /services/ page in the live sitemap and records what it offers, so new services get their own ideas. */
 export async function scanServices() {
-  const base = env.revalidateUrls[0] ?? env.siteUrl;
+  // PizzaScript keeps reading its own deploy address; other clients use the site on their profile.
+  const base = isDefaultWorkspace() ? (env.revalidateUrls[0] ?? env.siteUrl) : currentProfile().siteUrl.replace(/\/$/, "");
   const before = await savedServices();
   const xml = await get(`${base}/sitemap.xml`);
   const paths = [...new Set([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname.replace(/\/$/, "")).filter((p) => /^\/services\/[^/]+$/.test(p)))];

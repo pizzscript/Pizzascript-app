@@ -28,7 +28,13 @@ async function Shell({ children }: { children: React.ReactNode }) {
     });
   return (
     <StudioProvider preview={studio.mode === "preview"} initialJobs={initialJobs}>
-      <CmsShell tickets={tickets} counts={counts} email={studio.mode === "live" ? studio.email : null}>
+      <CmsShell
+        tickets={tickets}
+        counts={counts}
+        email={studio.mode === "live" ? studio.email : null}
+        client={{ id: studio.workspace.id, name: studio.workspace.name, status: studio.workspace.status }}
+        clients={studio.workspaces.map((w) => ({ id: w.id, name: w.name, status: w.status }))}
+      >
         {children}
       </CmsShell>
     </StudioProvider>

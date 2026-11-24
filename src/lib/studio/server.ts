@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SCORING } from "./scoring";
+import { DEFAULT_WORKSPACE, scopeClient } from "./workspace-scope";
 import type {
   AgentMessage,
   Batch,
@@ -41,15 +42,48 @@ export async function supabaseServer() {
   });
 }
 
-export type Studio = { mode: "live"; db: SupabaseClient; email: string } | { mode: "preview" };
+export interface WorkspaceInfo {
+  id: string;
+  slug: string;
+  name: string;
+  site_url: string;
+  status: "active" | "paused" | "archived";
+  approval_mode: "owner" | "client" | "automatic";
+  cms: string;
+  location: string | null;
+  language: string;
+  plan: Record<string, unknown>;
+  created_at: string;
+}
 
-/** Resolves the admin session or redirects to login. Call inside a Suspense boundary. */
+const PREVIEW_WORKSPACE: WorkspaceInfo = {
+  id: DEFAULT_WORKSPACE,
+  slug: "pizzascript",
+  name: "PizzaScript",
+  site_url: "https://www.pizzascript.com",
+  status: "active",
+  approval_mode: "automatic",
+  cms: "hosted",
+  location: "Pune, India",
+  language: "en",
+  plan: {},
+  created_at: new Date(0).toISOString(),
+};
+
+/** The cookie that remembers which client the admin is working on. */
+export const CLIENT_COOKIE = "ps_client";
+
+export type Studio =
+  | { mode: "live"; db: SupabaseClient; email: string; workspace: WorkspaceInfo; workspaces: WorkspaceInfo[] }
+  | { mode: "preview"; workspace: WorkspaceInfo; workspaces: WorkspaceInfo[] };
+
+/** Resolves the admin session and the client being worked on, or redirects to login. Call inside a Suspense boundary. */
 export async function requireAdmin(): Promise<Studio> {
   // Establishes dynamic rendering before any Date.now()/Math.random() use further down (e.g. todayIst()),
   // which cacheComponents otherwise flags during prerendering.
   await connection();
   if (isPreview()) {
-    return { mode: "preview" };
+    return { mode: "preview", workspace: PREVIEW_WORKSPACE, workspaces: [PREVIEW_WORKSPACE] };
   }
   if (!process.env.SUPABASE_URL) redirect("/admin/login?error=not-configured");
   const db = await supabaseServer();
@@ -57,8 +91,16 @@ export async function requireAdmin(): Promise<Studio> {
   if (!data.user?.email) redirect("/admin/login");
   const { data: isAdmin } = await db.rpc("is_admin");
   if (!isAdmin) redirect("/admin/login?error=forbidden");
-  return { mode: "live", db, email: data.user.email };
+  const { data: list } = await db.from("workspaces").select("id,slug,name,site_url,status,approval_mode,cms,location,language,plan,created_at").order("created_at");
+  const workspaces = ((list ?? []) as WorkspaceInfo[]).filter((w) => w.status !== "archived" || w.id === DEFAULT_WORKSPACE);
+  const archived = ((list ?? []) as WorkspaceInfo[]).filter((w) => w.status === "archived");
+  const chosen = (await cookies()).get(CLIENT_COOKIE)?.value;
+  // An unknown or deleted client falls back to PizzaScript; an archived one can still be opened to export or delete it.
+  const workspace = [...workspaces, ...archived].find((w) => w.id === chosen) ?? workspaces.find((w) => w.id === DEFAULT_WORKSPACE) ?? PREVIEW_WORKSPACE;
+  return { mode: "live", db: scopeClient(db, () => workspace.id), email: data.user.email, workspace, workspaces: [...workspaces, ...archived] };
 }
+
+export const isDefaultClient = (studio: Studio) => studio.workspace.id === DEFAULT_WORKSPACE;
 
 export interface StudioData {
   clusters: Cluster[];
@@ -244,4 +286,57 @@ export async function loadVersions(studio: Studio, postId: string): Promise<Post
   return rows<PostVersion[]>(
     studio.db.from("post_versions").select("*").eq("post_id", postId).order("version", { ascending: false }),
   );
+}
+
+export interface ClientOverview {
+  workspace: WorkspaceInfo;
+  /** This month (IST): articles drafted and AI requests; today's AI requests. */
+  usage: { articles: number; aiMonth: number; aiToday: number };
+  profile: Record<string, unknown>;
+  members: { email: string; role: string }[];
+  /** Setup checklist for a new client. */
+  setup: { profile: boolean; searchConsole: boolean; competitors: boolean; local: boolean; autopilot: boolean; crawled: boolean; live: number };
+}
+
+/** Every client with this month's usage and saved profile, for the Clients page. */
+export async function loadClientsOverview(studio: Studio): Promise<ClientOverview[]> {
+  if (studio.mode === "preview") {
+    const setup = { profile: true, searchConsole: false, competitors: false, local: false, autopilot: false, crawled: false, live: 0 };
+    return studio.workspaces.map((workspace) => ({ workspace, usage: { articles: 0, aiMonth: 0, aiToday: 0 }, profile: {}, members: [], setup }));
+  }
+  const raw = await supabaseServer();
+  const month = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 8) + "01";
+  const [{ data: usage }, { data: profiles }, { data: members }, { data: flags }, { data: crawls }, { data: livePosts }, gsc] = await Promise.all([
+    raw.from("usage_ledger").select("workspace_id,day,ai_requests,articles").gte("day", month).limit(10_000),
+    raw.from("settings").select("workspace_id,value").eq("key", "profile"),
+    raw.from("workspace_members").select("workspace_id,email,role"),
+    raw.from("settings").select("workspace_id,key,value").in("key", ["competitors", "local_profile", "autopilot"]),
+    raw.from("crawl_runs").select("workspace_id").limit(1000),
+    raw.from("posts").select("workspace_id").eq("stage", "live").limit(10_000),
+    Promise.all(studio.workspaces.map(async (w) => [w.id, ((await raw.rpc("connection_status", { ws: w.id })).data ?? []) as { name: string; in_vault: boolean }[]] as const)),
+  ]);
+  const flag = (ws: string, key: string) => ((flags ?? []) as { workspace_id: string; key: string; value: unknown }[]).find((f) => f.workspace_id === ws && f.key === key)?.value;
+  const today = todayIst();
+  return studio.workspaces.map((workspace) => {
+    const rows = ((usage ?? []) as { workspace_id: string; day: string; ai_requests: number; articles: number }[]).filter((r) => r.workspace_id === workspace.id);
+    return {
+      workspace,
+      usage: {
+        articles: rows.reduce((s, r) => s + r.articles, 0),
+        aiMonth: rows.reduce((s, r) => s + r.ai_requests, 0),
+        aiToday: rows.filter((r) => r.day === today).reduce((s, r) => s + r.ai_requests, 0),
+      },
+      profile: ((profiles ?? []) as { workspace_id: string; value: Record<string, unknown> }[]).find((p) => p.workspace_id === workspace.id)?.value ?? {},
+      members: ((members ?? []) as { workspace_id: string; email: string; role: string }[]).filter((m) => m.workspace_id === workspace.id).map(({ email, role }) => ({ email, role })),
+      setup: {
+        profile: Boolean(((profiles ?? []) as { workspace_id: string; value: Record<string, unknown> }[]).find((p) => p.workspace_id === workspace.id)?.value?.description) || workspace.id === DEFAULT_WORKSPACE,
+        searchConsole: Boolean(new Map(gsc).get(workspace.id)?.find((c) => c.name === "gsc_site_url")?.in_vault) || (workspace.id === DEFAULT_WORKSPACE && Boolean(process.env.GSC_SITE_URL)),
+        competitors: ((flag(workspace.id, "competitors") as string[] | undefined) ?? []).length > 0,
+        local: Boolean((flag(workspace.id, "local_profile") as { phone?: string } | undefined)?.phone),
+        autopilot: (flag(workspace.id, "autopilot") as { enabled?: boolean } | undefined)?.enabled === true,
+        crawled: ((crawls ?? []) as { workspace_id: string }[]).some((c) => c.workspace_id === workspace.id),
+        live: ((livePosts ?? []) as { workspace_id: string }[]).filter((p) => p.workspace_id === workspace.id).length,
+      },
+    };
+  });
 }

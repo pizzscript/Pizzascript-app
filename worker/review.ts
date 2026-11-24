@@ -36,17 +36,30 @@ function parseReview(text: string) {
   return parsed;
 }
 
-async function requestReview(body: string): Promise<ReviewResult & { by: string }> {
+/**
+ * After a repair, the reviewer sees what it found last time. It confirms those are fixed and raises a new error only if
+ * it is certain, so each round doesn't turn up a fresh set of nitpicks in text it already passed.
+ */
+function followUp(previous: ReviewIssue[]) {
+  if (!previous.length) return "";
+  return `
+This is a corrected version of an article you already reviewed. Your earlier findings were:
+${previous.slice(0, 12).map((i, n) => `${n + 1}. [${i.severity}] ${String(i.claim).slice(0, 160)}: ${String(i.problem).slice(0, 200)}`).join("\n")}
+First check whether each earlier error is fixed and report any that isn't. Report a NEW error only if it is clearly wrong and you can prove it; everything else new is a warning. At most 5 errors.`;
+}
+
+async function requestReview(body: string, previous: ReviewIssue[] = []): Promise<ReviewResult & { by: string }> {
+  const again = followUp(previous);
   try {
     const { text } = await runAgent(
-      prompt(body, `Check the riskiest claims (at most 10) against official documentation only: ${QUALITY.officialSources.join(", ")}. Run standalone code if it needs no packages.`),
+      prompt(body, `Check the riskiest claims (at most 10) against official documentation only: ${QUALITY.officialSources.join(", ")}. Run standalone code if it needs no packages.${again}`),
       { label: "technical review", maxTokens: 40_000, timeoutMs: 6 * 60_000 },
     );
     return { ...parseReview(text), by: "antigravity" };
   } catch (error) {
     console.warn(`[review] agent unavailable: ${error instanceof Error ? error.message.slice(0, 160) : error}`);
   }
-  const out = await json<ReviewResult>(prompt(body, "You can't browse or run code, so cite only documentation you're certain of and mark anything else as a warning."), "You are a strict senior web engineer reviewing code and technical claims.", {
+  const out = await json<ReviewResult>(prompt(body, `You can't browse or run code, so cite only documentation you're certain of and mark anything else as a warning.${again}`), "You are a strict senior web engineer reviewing code and technical claims.", {
     tier: "writer",
     temperature: 0.1,
   });
@@ -64,7 +77,10 @@ export async function ensureReview(post: StudioPost): Promise<StudioPost> {
   if (attempt?.hash === hash && attempt.at && Date.now() - Date.parse(attempt.at) < REVIEW_RETRY_MS) return post;
 
   try {
-    const result = await requestReview(post.body_html);
+    // A text that came out of a repair is a follow-up review of the same article.
+    const repaired = (post.seo_plan?.reviewRepair as { to?: string } | undefined)?.to === hash;
+    const previous = repaired ? ((saved as { issues?: ReviewIssue[] } | undefined)?.issues ?? []) : [];
+    const result = await requestReview(post.body_html, previous);
     const verification = { hash, ranAt: new Date().toISOString(), by: result.by, issues: result.issues, code: result.code ?? [] };
     const seo_plan: StudioPost["seo_plan"] = { ...post.seo_plan, verification };
     delete seo_plan.reviewAttempt;
@@ -173,7 +189,7 @@ Rules:
 - Include "seo" only for fields that need changing, or if a fix changes what the article promises. title and seo_title stay within 60 characters, seo_description is 120-160 characters, and all must match the corrected article.
 - If a reported error is itself wrong, don't edit that passage. Add it to "disputes" with the reason and an official documentation URL.
 
-${WRITING}
+${WRITING()}
 
 ${linkTargets.length ? `LINKS YOU MAY ADD (to fix the related-pages problem, add one naturally inside an existing paragraph with descriptive link text): ${linkTargets.join(", ")}
 

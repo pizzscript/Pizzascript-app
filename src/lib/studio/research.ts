@@ -37,7 +37,7 @@ export interface CheckedIdea extends IdeaCandidate {
 const WRONG_INTENT = /\b(jobs?|salary|login|sign in|download|crossword|clue|for sale|course|internship|apk)\b/i;
 const WRONG_PLACE = /\b(usa|uk|australia|canada|uae|philippines|kenya|south africa|america|dubai|singapore|nigeria|pakistan)\b/i;
 
-const SERVICE_WORDS = /\b(company|companies|agency|agencies|services?|near me|consultants?|firms?|providers?|hire|freelancers?)\b/i;
+const SERVICE_WORDS = /\b(company|companies|agency|agencies|studios?|services?|near me|consultants?|experts?|firms?|providers?|hire|freelancers?)\b/i;
 const VENDOR_IN_CITY = /\b(software|solutions?|tools?|developers?|development)\s+(in\s+)?(pune|mumbai|bangalore|bengaluru|delhi|hyderabad|chennai|kolkata|ahmedabad)\b/i;
 
 /** Searches for a provider ("... company pune", "... services") rank with service pages, not blog articles. */

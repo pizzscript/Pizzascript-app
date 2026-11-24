@@ -3,10 +3,12 @@ import type { JobType } from "../../src/lib/studio/types";
 import { allClusters, allPosts, allTopics, db, enqueue, raiseSignal, setting, todayIst } from "../db";
 import { json } from "../gemini";
 import { autocomplete } from "../research/autocomplete";
+import { currentPlan, currentProfile } from "../profile";
+import { hasModule } from "../../src/lib/studio/plans";
 import { savedServices, scanServices, type ServiceProfile } from "../research/services";
 
 export const RESEARCH_JOBS: JobType[] = ["discover_ideas", "prune_ideas", "scan_services"];
-const STUDIO = "PizzaScript, a web development studio in Pune, India, that also builds business automation and custom software for small and medium businesses";
+const studio = () => `${currentProfile().name}, ${currentProfile().researchDescription}`;
 
 interface ResearchState {
   discovered?: string;
@@ -61,8 +63,8 @@ export async function discoverIdeas() {
   const broadSeeds = group === "broad" ? 8 : 4;
 
   const seeds = await json<{ seeds: { phrase: string }[] }>(
-    `Propose 12 short Google search phrases (2 to 5 words) to look up in autocomplete, for ${STUDIO}.
-Readers: business owners in Pune first, then the rest of India.
+    `Propose 12 short Google search phrases (2 to 5 words) to look up in autocomplete, for ${studio()}.
+Readers: ${currentProfile().market}.
 About ${broadSeeds} broad phrases (business automation, tools, software, operations problems a development studio can solve) and the rest core (websites, web development, speed, SEO).
 SERVICES:\n${serviceList(services)}
 ALREADY COVERED (avoid): ${existing.slice(0, 60).join("; ")}
@@ -70,11 +72,11 @@ Return {"seeds":[{"phrase":""}]}`,
     "You are an SEO researcher. Return only JSON.",
     { tier: "light", temperature: 0.8 },
   );
-  const phrases = await autocomplete((seeds.seeds ?? []).map((s) => s.phrase));
+  const phrases = await autocomplete((seeds.seeds ?? []).map((s) => s.phrase), 1200, currentProfile().countryCode, currentProfile().language);
   if (phrases.size < 10) return { skipped: "autocomplete returned too few phrases" };
 
   const picked = await json<{ ideas: IdeaCandidate[] }>(
-    `Choose up to 12 article ideas for ${STUDIO} from these REAL phrases people typed into Google in India. Use a phrase exactly as written for "query".
+    `Choose up to 12 article ideas for ${studio()} from these REAL phrases people typed into Google in ${currentProfile().country}. Use a phrase exactly as written for "query".
 Rules: the reader must plausibly need this studio next. Skip jobs, logins, downloads, puzzles, other countries and navigational searches. Prefer specific long-tail and local phrases a new website can rank for. Prefer ${group} ideas.
 "group": "core" for websites, web development, speed and SEO; "broad" for automation, tools, software and business operations.
 SERVICES (use the path that fits, or "" if none does):\n${serviceList(services)}
@@ -146,7 +148,8 @@ export async function pruneIdeas() {
 /** Runs when the queue is otherwise idle: research once a day after the briefing, upkeep once a week (Sunday). */
 export async function scheduleResearch(): Promise<boolean> {
   const settings = await config();
-  if (!settings.enabled) return false;
+  const plan = currentPlan();
+  if (!settings.enabled || !hasModule(plan, "research") || plan.researchLevel === "off") return false;
   const today = todayIst();
   const [{ data: briefing }, state, { count: pending }] = await Promise.all([
     db.from("briefings").select("date").eq("date", today).maybeSingle(),
@@ -163,6 +166,9 @@ export async function scheduleResearch(): Promise<boolean> {
     await enqueue("prune_ideas");
     return true;
   }
+  // Light research looks for new ideas twice a week (Monday and Thursday); full research daily.
+  const weekday = new Date(Date.now() + 5.5 * 3_600_000).getUTCDay();
+  if (plan.researchLevel === "light" && ![1, 4].includes(weekday)) return false;
   if (state.discovered !== today) {
     await save({ ...state, discovered: today });
     await enqueue("discover_ideas");

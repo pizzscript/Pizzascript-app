@@ -1,6 +1,14 @@
 /** Job handlers, the IST schedule and the queue drain, shared by the CLI loop (index.ts) and the HTTP server (server.ts). */
 import type { JobType, RewritePayload } from "../src/lib/studio/types";
-import { activeClaim, db, enqueue, setting, todayIst } from "./db";
+import { backlinkScan, competitorScan, findOpportunities, localCheck, localPost, scheduleOffsite } from "./jobs/offsite";
+import { contentGrowth, scheduleGrowth } from "./jobs/growth";
+import { inspectUrls, rankingAlerts, scheduleMonitoring, speedCheck } from "./jobs/monitor";
+import { crawlSite, scheduleCrawl } from "./jobs/crawl";
+import { inModule } from "./usage";
+import { isBudgetError, moduleForJob, nextBudgetDay } from "../src/lib/studio/plans";
+import { activeClaim, anyWorkspace, db, enqueue, forEachWorkspace, setting, todayIst } from "./db";
+import { loadProfile, withProfile } from "./profile";
+import { DEFAULT_WORKSPACE, inWorkspace } from "./workspace";
 import { env } from "./env";
 import { isBillingError, isTransientError } from "./gemini";
 import { fixTitle, generateImage, insertLink, rewrite, runAudit, scoreTopic, writeBrief } from "./jobs/content";
@@ -10,7 +18,7 @@ import { applyConnections } from "./connections";
 import { autoPick } from "./jobs/autopick";
 import { discoverIdeas, pruneIdeas, scheduleResearch } from "./jobs/research";
 import { scanServices } from "./research/services";
-import { advancePipeline, publishDue } from "./jobs/publish";
+import { advancePipeline, approvalReminders, publishDue, unpublishPost } from "./jobs/publish";
 
 type Handler = (payload: Record<string, unknown>) => Promise<unknown>;
 
@@ -31,6 +39,17 @@ const HANDLERS: Record<JobType, Handler> = {
   discover_ideas: () => discoverIdeas(),
   prune_ideas: () => pruneIdeas(),
   scan_services: () => scanServices(),
+  unpublish_post: (p) => unpublishPost(p as { postId: string }),
+  crawl_site: () => crawlSite(),
+  speed_check: () => speedCheck(),
+  inspect_urls: () => inspectUrls(),
+  sync_rankings: () => rankingAlerts(),
+  content_growth: () => contentGrowth(),
+  backlink_scan: () => backlinkScan(),
+  find_opportunities: () => findOpportunities(),
+  competitor_scan: () => competitorScan(),
+  local_post: () => localPost(),
+  local_check: () => localCheck(),
 };
 
 const MAX_ATTEMPTS = 4;
@@ -43,6 +62,7 @@ interface ClaimedJob {
   type: JobType;
   payload: Record<string, unknown>;
   attempts: number;
+  workspace_id?: string;
 }
 
 async function runNext(): Promise<boolean> {
@@ -58,7 +78,17 @@ const memory = () => ({ rssMb: Math.round(process.memoryUsage().rss / 1_048_576)
 const withMemory = (result: unknown) => ({ ...(result && typeof result === "object" && !Array.isArray(result) ? result : {}), memory: memory() });
 
 /** Runs a job this worker already holds. With handBack, a failure returns it to the queue at once for another worker. */
-export async function runClaimed(job: ClaimedJob, options: { handBack?: boolean } = {}): Promise<boolean> {
+/** Runs a job this worker already holds, inside the job's own workspace. */
+export function runClaimed(job: ClaimedJob, options: { handBack?: boolean } = {}): Promise<boolean> {
+  return inWorkspace(job.workspace_id ?? DEFAULT_WORKSPACE, () => runInWorkspace(job, options));
+}
+
+function runInWorkspace(job: ClaimedJob, options: { handBack?: boolean }): Promise<boolean> {
+  return inModule(moduleForJob(job.type), () => runJob(job, options));
+}
+
+async function runJob(job: ClaimedJob, options: { handBack?: boolean }): Promise<boolean> {
+  await loadProfile();
   const started = Date.now();
   currentJob = { id: job.id, attempts: job.attempts };
   activeClaim.job = currentJob;
@@ -78,6 +108,12 @@ export async function runClaimed(job: ClaimedJob, options: { handBack?: boolean 
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (isBudgetError(message)) {
+      // This client's AI budget is spent for today: wait for tomorrow without using up a retry. Other clients carry on.
+      await ownJob(db.from("jobs").update({ status: "queued", error: message, attempts: Math.max(0, job.attempts - 1), run_after: nextBudgetDay().toISOString() }));
+      console.warn(`[job] ${job.type} waits for tomorrow: ${message}`);
+      return false;
+    }
     const billing = isBillingError(message);
     const retry = options.handBack ? job.attempts < MAX_ATTEMPTS : isTransientError(message) && !/limit: 0\b/.test(message) && job.attempts < (billing ? MAX_BILLING_ATTEMPTS : MAX_ATTEMPTS);
     const delay = options.handBack ? 0 : billing ? BILLING_RETRY_MS : 2 ** job.attempts * 60_000;
@@ -153,6 +189,11 @@ async function schedule() {
   }
 
   await publishDue();
+  await approvalReminders();
+  await scheduleOffsite().catch((error) => console.warn(`[offsite] ${error instanceof Error ? error.message : error}`));
+  await scheduleGrowth().catch((error) => console.warn(`[growth] ${error instanceof Error ? error.message : error}`));
+  await scheduleMonitoring().catch((error) => console.warn(`[monitor] ${error instanceof Error ? error.message : error}`));
+  await scheduleCrawl().catch((error) => console.warn(`[crawl] ${error instanceof Error ? error.message : error}`));
 
   if (Date.now() - lastGateCheck > 60 * 60_000) {
     lastGateCheck = Date.now();
@@ -194,17 +235,17 @@ export async function runOnce(budgetMs = Number(process.env.PASS_BUDGET_MS ?? 7 
   const stopKeepAwake = keepAwake();
   const deadline = Date.now() + budgetMs;
   try {
-    await schedule();
+    await forEachWorkspace(withProfile(() => schedule()));
     for (let i = 0; i < 200 && Date.now() < deadline; i++) {
       await drain(deadline);
       if (Date.now() >= deadline) break;
-      if (await advancePipeline()) continue;
-      const researching = await scheduleResearch().catch((error) => {
+      if (await anyWorkspace(withProfile(() => advancePipeline()))) continue;
+      const researching = await anyWorkspace(withProfile(() => scheduleResearch())).catch((error) => {
         console.error(`[research] ${error instanceof Error ? error.message : error}`);
         return false;
       });
       if (researching) continue;
-      const picked = await autoPick().catch((error) => {
+      const picked = await anyWorkspace(withProfile(() => autoPick())).catch((error) => {
         console.error(`[auto-pick] ${error instanceof Error ? error.message : error}`);
         return false;
       });

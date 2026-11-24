@@ -35,7 +35,11 @@ export interface PosterContext {
   plan: PosterPlan;
   categoryId: string | null;
   categoryName: string;
+  /** Footer branding. Without it, banners show PizzaScript's. */
+  brand?: { name: string; label: string; logo: boolean };
 }
+
+const PIZZASCRIPT_BRAND = { name: "PizzaScript", label: "pizzascript.com/blog", logo: true };
 
 // ───────────── shared pieces ─────────────
 
@@ -64,11 +68,11 @@ function chip(name: string, accent: string): El {
   ]);
 }
 
-async function footer(): Promise<El> {
+async function footer(brand = PIZZASCRIPT_BRAND): Promise<El> {
   return h("div", { alignItems: "center", gap: 16 }, [
-    img(await logoDataUri(), 46, { borderRadius: 12 }),
-    h("div", { fontFamily: "Playfair", fontWeight: 600, fontSize: 28, color: C.cream }, "PizzaScript"),
-    h("div", { fontFamily: "Inter", fontWeight: 400, fontSize: 20, color: C.faint }, "pizzascript.com/blog"),
+    brand.logo ? img(await logoDataUri(), 46, { borderRadius: 12 }) : null,
+    h("div", { fontFamily: "Playfair", fontWeight: 600, fontSize: 28, color: C.cream }, brand.name),
+    h("div", { fontFamily: "Inter", fontWeight: 400, fontSize: 20, color: C.faint }, brand.label),
   ]);
 }
 
@@ -274,7 +278,7 @@ export async function renderPoster(ctx: PosterContext, size: { width: number; he
             h("div", { fontFamily: "Inter", fontWeight: 400, fontSize: 27, lineHeight: 1.4, color: C.muted, maxWidth: 680 }, sanitize(plan.kicker)),
             showTechUnderKicker ? techRow(plan.tech) : null,
           ]),
-          await footer(),
+          await footer(ctx.brand),
         ]),
         h("div", { alignItems: "center", justifyContent: "flex-end", width: size.width - PAD_X * 2 - LEFT_W - 40, flexShrink: 0 }, [hero]),
       ]),

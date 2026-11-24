@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { DEFAULT_WORKSPACE } from "./studio/workspace-scope";
 import { cacheLife, cacheTag } from "next/cache";
 import sanitizeHtml from "sanitize-html";
 
@@ -94,6 +95,7 @@ export async function getPublishedPosts(): Promise<PostSummary[]> {
   const { data, error } = await client
     .from("posts")
     .select(SUMMARY_COLUMNS)
+    .eq("workspace_id", DEFAULT_WORKSPACE)
     .order("published_at", { ascending: false });
   if (error) throw new Error(`[blog] Failed to load posts: ${error.message}`);
   return (data ?? []).map(toSummary);
@@ -109,11 +111,15 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
   const { data, error } = await client
     .from("posts")
     .select(`${SUMMARY_COLUMNS},body_html,seo_title,seo_description,og_image_url,tags,word_count`)
+    .eq("workspace_id", DEFAULT_WORKSPACE)
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw new Error(`[blog] Failed to load post "${slug}": ${error.message}`);
   if (!data) return null;
-  const row = data as Row;
+  return toPost(data as Row);
+}
+
+function toPost(row: Row): Post {
   return {
     ...toSummary(row),
     bodyHtml: sanitizeHtml(row.body_html as string, SANITIZE_OPTIONS),
@@ -123,6 +129,62 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     tags: (row.tags as string[]) ?? [],
     wordCount: (row.word_count as number | null) ?? null,
   };
+}
+
+// ───────────────────────── Hosted client blogs (/c/<client>/blog) ─────────────────────────
+
+export interface ClientSite {
+  id: string;
+  slug: string;
+  name: string;
+  siteUrl: string;
+  language: string;
+  /** The client's article address; {slug} becomes the article's slug. */
+  articleUrl: string;
+}
+
+export const clientPostsTag = (workspaceId: string) => `client-posts:${workspaceId}`;
+
+/** A client whose articles the embed shows. Null for unknown or paused clients (and for PizzaScript). */
+export async function getClientSite(slug: string): Promise<ClientSite | null> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(`client-site:${slug}`);
+  const client = supabase();
+  if (!client || !/^[a-z0-9-]{2,39}$/.test(slug)) return null;
+  const { data, error } = await client.rpc("public_workspace", { ws_slug: slug });
+  if (error) throw new Error(`[blog] Failed to load client "${slug}": ${error.message}`);
+  const row = (data as Row[] | null)?.[0];
+  if (!row) return null;
+  const siteUrl = row.site_url as string;
+  return { id: row.id as string, slug: row.slug as string, name: row.name as string, siteUrl, language: (row.language as string) ?? "en", articleUrl: (row.article_url as string) || `${siteUrl}/blog?article={slug}` };
+}
+
+export async function getClientPosts(workspaceId: string): Promise<PostSummary[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(clientPostsTag(workspaceId));
+  const client = supabase();
+  if (!client) return [];
+  const { data, error } = await client.from("posts").select(SUMMARY_COLUMNS).eq("workspace_id", workspaceId).order("published_at", { ascending: false });
+  if (error) throw new Error(`[blog] Failed to load client posts: ${error.message}`);
+  return (data ?? []).map(toSummary);
+}
+
+export async function getClientPost(workspaceId: string, slug: string): Promise<Post | null> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(clientPostsTag(workspaceId), `${clientPostsTag(workspaceId)}:${slug}`);
+  const client = supabase();
+  if (!client) return null;
+  const { data, error } = await client
+    .from("posts")
+    .select(`${SUMMARY_COLUMNS},body_html,seo_title,seo_description,og_image_url,tags,word_count`)
+    .eq("workspace_id", workspaceId)
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw new Error(`[blog] Failed to load client post "${slug}": ${error.message}`);
+  return data ? toPost(data as Row) : null;
 }
 
 export { formatPostDate } from "./format";

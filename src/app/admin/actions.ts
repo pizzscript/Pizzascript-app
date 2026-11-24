@@ -4,18 +4,31 @@ import { AUTO_PICK_DEFAULTS } from "@/lib/studio/autopick";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { POSTS_TAG } from "@/lib/blog";
+import { POSTS_TAG, clientPostsTag } from "@/lib/blog";
 import { jobLabel, jobPriority } from "@/lib/studio/jobs";
 import { computeScore, priorityFor } from "@/lib/studio/scoring";
 import { requireAdmin, supabaseServer } from "@/lib/studio/server";
 import type { JobType, ScoringSettings, Topic, TopicStatus } from "@/lib/studio/types";
+import { DEFAULT_WORKSPACE } from "@/lib/studio/workspace-scope";
 
 const PREVIEW = "Preview mode — connect Supabase to make changes.";
 
-async function live() {
+async function liveStudio() {
   const studio = await requireAdmin();
   if (studio.mode === "preview") throw new Error(PREVIEW);
-  return studio.db;
+  return studio;
+}
+
+async function live() {
+  return (await liveStudio()).db;
+}
+
+/** A client's live article that was edited here: refresh that client's cached feed so their site shows the change. */
+async function syncClientPost(post: { stage?: string; slug?: string } | null) {
+  const studio = await liveStudio();
+  if (post?.stage !== "live" || studio.workspace.id === DEFAULT_WORKSPACE) return;
+  revalidateTag(clientPostsTag(studio.workspace.id), "max");
+  if (post.slug) revalidateTag(`${clientPostsTag(studio.workspace.id)}:${post.slug}`, "max");
 }
 
 function fail(error: { message: string } | null) {
@@ -184,7 +197,8 @@ export async function setAutoPick(enabled: boolean) {
 }
 
 export async function approvePost(postId: string, approved: boolean) {
-  const db = await live();
+  const studio = await liveStudio();
+  const db = studio.db;
   const { data: post, error } = await db.from("posts").select("stage,audit,scheduled_for").eq("id", postId).single();
   fail(error);
   const ready = approved && post!.audit?.ok && post!.scheduled_for && ["audit", "slotted"].includes(post!.stage);
@@ -192,7 +206,7 @@ export async function approvePost(postId: string, approved: boolean) {
     (
       await db
         .from("posts")
-        .update({ approved_at: approved ? new Date().toISOString() : null, stage: ready ? "slotted" : post!.stage === "slotted" ? "audit" : post!.stage })
+        .update({ approved_at: approved ? new Date().toISOString() : null, approved_by: approved ? studio.email : null, stage: ready ? "slotted" : post!.stage === "slotted" ? "audit" : post!.stage })
         .eq("id", postId)
     ).error,
   );
@@ -207,6 +221,7 @@ export async function updatePost(postId: string, fields: Partial<Record<(typeof 
   const { data: post, error } = await db.from("posts").update({ ...clean, audit: null }).eq("id", postId).select("slug,stage,body_html").single();
   fail(error);
   refreshPublicPost(post);
+  await syncClientPost(post);
   // Title/SEO changes can fix (or break) the SEO check — re-run it, so a stuck post continues on its own.
   if (post?.body_html && post.stage !== "live") {
     await db.from("jobs").insert({ type: "run_audit", payload: { postId }, priority: jobPriority("run_audit", "admin") });
@@ -236,7 +251,16 @@ export async function saveBody(postId: string, bodyHtml: string, note: string) {
   );
   fail((await db.from("posts").update({ body_html: bodyHtml, version, audit: null }).eq("id", postId)).error);
   refreshPublicPost(post);
+  await syncClientPost(post);
   await db.from("jobs").insert({ type: "run_audit", payload: { postId }, priority: jobPriority("run_audit", "admin") });
+  startJobs();
+  revalidatePath(`/admin/posts/${postId}`);
+}
+
+/** Takes a live article off the site. It returns to Ready without a date; nothing is deleted. */
+export async function unpublishPost(postId: string) {
+  const db = await live();
+  fail((await db.from("jobs").insert({ type: "unpublish_post", payload: { postId }, priority: jobPriority("unpublish_post", "admin") })).error);
   startJobs();
   revalidatePath(`/admin/posts/${postId}`);
 }
@@ -307,7 +331,7 @@ export async function sendMessage(thread: string, content: string) {
   await enqueue("discuss", { thread });
 }
 
-const SETTING_KEYS = ["schedule", "banned_phrases", "word_ranges", "never_cover", "research"] as const;
+const SETTING_KEYS = ["schedule", "banned_phrases", "word_ranges", "never_cover", "research", "competitors", "local_profile"] as const;
 
 export async function saveSetting(key: (typeof SETTING_KEYS)[number], value: unknown) {
   if (!(SETTING_KEYS as readonly string[]).includes(key)) throw new Error("Unknown setting");
@@ -358,4 +382,11 @@ export async function signOut() {
   const db = await supabaseServer();
   await db.auth.signOut();
   redirect("/admin/login");
+}
+
+/** A link idea was sent, won or isn't worth it. */
+export async function setOpportunityStatus(id: string, status: "new" | "sent" | "won" | "dismissed") {
+  const db = await live();
+  fail((await db.from("link_opportunities").update({ status }).eq("id", id)).error);
+  revalidatePath("/admin/links");
 }

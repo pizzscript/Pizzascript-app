@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { POSTS_TAG } from "@/lib/blog";
+import { POSTS_TAG, clientPostsTag } from "@/lib/blog";
 
 function authorized(request: Request) {
   const secret = process.env.REVALIDATE_SECRET;
@@ -22,12 +22,21 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     slug?: string;
+    /** A hosted client blog: its workspace id and short name. */
+    workspace?: string;
+    client?: string;
     record?: { slug?: string };
     old_record?: { slug?: string };
   };
   const slugs = [body.slug, body.record?.slug, body.old_record?.slug].filter(
     (slug): slug is string => typeof slug === "string" && slug.length > 0,
   );
+
+  if (body.workspace && /^[0-9a-f-]{36}$/.test(body.workspace)) {
+    revalidateTag(clientPostsTag(body.workspace), "max");
+    if (body.slug) revalidateTag(`${clientPostsTag(body.workspace)}:${body.slug}`, "max");
+    return Response.json({ revalidated: true, client: body.client ?? body.workspace });
+  }
 
   revalidateTag(POSTS_TAG, "max");
   for (const slug of new Set(slugs)) revalidateTag(`post:${slug}`, "max");

@@ -6,6 +6,7 @@ import { REVIEW_PENDING, keywordCoverage } from "../src/lib/studio/content";
 import { QUALITY, copiedShare, issueBlocks, type ReviewCode, type ReviewIssue } from "../src/lib/studio/quality";
 import type { AuditCheck, StudioPost } from "../src/lib/studio/types";
 import { allFacts } from "./db";
+import { currentProfile } from "./profile";
 import { DUPLICATE_SIMILARITY, matchesFor, postText } from "./research/embeddings";
 
 const decode = (s: string) =>
@@ -79,7 +80,7 @@ export function unsupportedNumbers(html: string, facts: { statement: string }[])
   const prose = html.replace(/<pre[\s\S]*?<\/pre>/gi, " ").replace(/<code[^>]*>[\s\S]*?<\/code>/gi, " ");
   for (const block of prose.match(/<(p|li|td|blockquote|h[2-4])[^>]*>[\s\S]*?<\/\1>/gi) ?? []) {
     for (const sentence of block.split(/(?<=[.!?])\s+/)) {
-      if (/<a\s[^>]*href="https?:\/\/(?!www\.pizzascript\.com)/i.test(sentence)) continue;
+      if (externalLink().test(sentence)) continue;
       const text = sentence.replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/gi, " ");
       for (const match of text.matchAll(STAT)) {
         const value = match[0].replace(/\s+/g, " ").trim();
@@ -91,6 +92,9 @@ export function unsupportedNumbers(html: string, facts: { statement: string }[])
   }
   return [...found];
 }
+
+/** A link to another site in the same sentence counts as a source; links to the client's own site don't. */
+const externalLink = () => new RegExp(`<a\\s[^>]*href="https?:\\/\\/(?!${new URL(currentProfile().origin).host.replace(/\./g, "\\.")})`, "i");
 
 const MEASURED = /\b(?:under|below|over|within)\s+\d+(?:\.\d+)?\s?(?:ms|milliseconds?|seconds?|kb|mb)\b|\b\d+(?:\.\d+)?\s*(?:to|–|-)\s*\d+(?:\.\d+)?\s?(?:ms|milliseconds?|seconds?|kb|mb)\b/gi;
 

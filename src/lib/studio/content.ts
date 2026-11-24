@@ -11,13 +11,36 @@ export const SERVICE_PATHS = [
   "/services/website-speed-optimization",
 ] as const;
 
-const STATIC_PATHS = new Set<string>(["/", "/services", "/portfolio", "/about", "/blog", "/freelance-pune", ...SERVICE_PATHS]);
+export interface SiteRules {
+  origin: string;
+  servicePaths: string[];
+  staticPaths: string[];
+}
+
+let siteRulesProvider: () => SiteRules = () => ({
+  origin: "https://www.pizzascript.com",
+  servicePaths: [...SERVICE_PATHS],
+  staticPaths: ["/", "/services", "/portfolio", "/about", "/blog", "/freelance-pune"],
+});
+
+/** The worker points this at the current client's site; elsewhere it stays PizzaScript's. */
+export function setSiteRules(provider: () => SiteRules) {
+  siteRulesProvider = provider;
+}
+const siteRules = () => siteRulesProvider();
+const staticPaths = () => {
+  const rules = siteRules();
+  return new Set<string>([...rules.staticPaths, ...rules.servicePaths]);
+};
+const stripOrigin = (href: string) => {
+  const origin = siteRules().origin;
+  return origin && href.startsWith(origin) ? href.slice(origin.length) || "/" : href;
+};
 
 export function internalLinks(html: string) {
   const links: { href: string; text: string }[] = [];
   for (const match of html.matchAll(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
-    let href = match[1];
-    if (href.startsWith("https://www.pizzascript.com")) href = href.slice("https://www.pizzascript.com".length) || "/";
+    const href = stripOrigin(match[1]);
     if (!href.startsWith("/")) continue;
     links.push({ href: href.split("#")[0] || "/", text: match[2].replace(/<[^>]+>/g, "").trim() });
   }
@@ -27,11 +50,12 @@ export function internalLinks(html: string) {
 /** Unwraps internal links to pages that don't exist, keeping their text, so a model can't publish a dead link. */
 export function removeUnknownLinks(html: string, blogSlugs: Iterable<string>) {
   const slugs = new Set(blogSlugs);
+  const known_ = staticPaths();
   return html.replace(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (whole, rawHref: string, inner: string) => {
-    const href = rawHref.startsWith("https://www.pizzascript.com") ? rawHref.slice("https://www.pizzascript.com".length) || "/" : rawHref;
+    const href = stripOrigin(rawHref);
     if (!href.startsWith("/")) return whole;
     const path = href.split(/[?#]/)[0].replace(/(.)\/$/, "$1") || "/";
-    const known = path.startsWith("/blog/") ? slugs.has(path.slice(6)) : STATIC_PATHS.has(path) || path.startsWith("/portfolio/");
+    const known = path.startsWith("/blog/") ? slugs.has(path.slice(6)) : known_.has(path) || path.startsWith("/portfolio/");
     return known ? whole : inner;
   });
 }
@@ -78,7 +102,7 @@ export function funnelViolations(post: Pick<StudioPost, "slug" | "track" | "role
     if (!ok) issues.push("Add a link to an in-depth guide or the main article in this category");
   }
   if (post.track === 2 || post.role === "pillar") {
-    if (!links.some((h) => (SERVICE_PATHS as readonly string[]).includes(h))) {
+    if (!links.some((h) => siteRules().servicePaths.includes(h))) {
       issues.push("Add a link to a service page");
     }
   }
@@ -174,7 +198,7 @@ export function auditPost(
   const known = new Set(context.posts.map((p) => p.slug));
   const broken = internalLinks(post.body_html)
     .map((l) => l.href)
-    .filter((href) => (href.startsWith("/blog/") ? !known.has(href.slice(6)) : !STATIC_PATHS.has(href) && !href.startsWith("/portfolio/")));
+    .filter((href) => (href.startsWith("/blog/") ? !known.has(href.slice(6)) : !staticPaths().has(href) && !href.startsWith("/portfolio/")));
   add("links", "All internal links work", broken.length === 0, broken.join(", ") || undefined);
 
   const funnel = funnelViolations(post, context.posts);

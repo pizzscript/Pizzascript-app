@@ -1,5 +1,6 @@
 import type { StudioPost } from "../../src/lib/studio/types";
 import { json } from "../gemini";
+import { currentProfile } from "../profile";
 import { CATEGORY_STYLE } from "./assets";
 import { mergePlan, planPrompt, rulePlan, type PosterInput, type PosterPlan } from "./plan";
 
@@ -30,13 +31,13 @@ export async function planPoster(
     try {
       // Art direction is optional: give it 30s, then go with the rule-based concept rather than hold up the banner.
       const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("art direction timed out")), 30_000));
-      const answer = await Promise.race([json<Partial<PosterPlan>>(planPrompt(input, rules), "You design blog banners. Return only JSON."), timeout]);
+      const answer = await Promise.race([json<Partial<PosterPlan>>(planPrompt(input, rules, currentProfile().name), "You design blog banners. Return only JSON."), timeout]);
       plan = mergePlan(answer, rules, input.bodyHtml);
       ai = true;
     } catch (error) {
       console.warn(`[poster] AI art direction unavailable, using rules: ${error instanceof Error ? error.message.slice(0, 120) : error}`);
     }
   }
-  const alt = `${plan.headline} — ${categoryName} | PizzaScript blog banner`;
+  const alt = `${plan.headline} — ${categoryName} | ${currentProfile().name} blog banner`;
   return { plan, alt, ai };
 }

@@ -8,10 +8,10 @@ const KNOWN: Record<string, Set<string>> = {
   portfolio: new Set(CASE_STUDIES.map((s) => s.slug)),
 };
 
-const PUBLIC_ADMIN = ["/admin/login"];
+const PUBLIC_ADMIN = ["/admin/login", "/portal/login", "/portal/auth"];
 
-/** Refreshes the Supabase session cookie and keeps signed-out visitors on the login page. */
-async function admin(request: NextRequest) {
+/** Refreshes the Supabase session cookie and keeps signed-out visitors on the login page (admin or client portal). */
+async function admin(request: NextRequest, login = "/admin/login") {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_PUBLISHABLE_KEY) return NextResponse.next();
   let response = NextResponse.next({ request });
   const supabase = createServerClient(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
@@ -26,13 +26,14 @@ async function admin(request: NextRequest) {
   });
   const { data } = await supabase.auth.getUser();
   const isPublic = PUBLIC_ADMIN.some((path) => request.nextUrl.pathname.startsWith(path));
-  if (!data.user && !isPublic) return NextResponse.redirect(new URL("/admin/login", request.url));
+  if (!data.user && !isPublic) return NextResponse.redirect(new URL(login, request.url));
   return response;
 }
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return admin(request);
+  if (pathname === "/portal" || pathname.startsWith("/portal/")) return admin(request, "/portal/login");
 
   // With Cache Components the prerendered shell starts streaming before notFound() runs, which would
   // send a 200. Rewriting unknown slugs to an unmatched path returns a real 404 before streaming.
@@ -43,5 +44,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/services/:slug", "/portfolio/:slug", "/admin", "/admin/:path*"],
+  matcher: ["/services/:slug", "/portfolio/:slug", "/admin", "/admin/:path*", "/portal", "/portal/:path*"],
 };

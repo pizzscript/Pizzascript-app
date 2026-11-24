@@ -4,6 +4,7 @@ import path from "node:path";
 import { plainText } from "../../src/lib/studio/content";
 import type { StudioPost, Topic } from "../../src/lib/studio/types";
 import { allPosts, allTopics, check, db } from "../db";
+import { currentWorkspace } from "../workspace";
 
 export const DUPLICATE_SIMILARITY = 0.82;
 export const RELATED_SIMILARITY = 0.45;
@@ -90,7 +91,7 @@ export async function matchesFor(owner_type: "post" | "topic", owner_id: string,
 export async function storedMatches(owner_type: "post" | "topic", owner_id: string, count = 5): Promise<Match[]> {
   const { data } = await db.from("content_embeddings").select("embedding").eq("owner_type", owner_type).eq("owner_id", owner_id).maybeSingle();
   if (!data) return [];
-  const { data: matches, error } = await db.rpc("match_content", { query_embedding: data.embedding, exclude_id: owner_id, match_count: count });
+  const { data: matches, error } = await db.rpc("match_content", { query_embedding: data.embedding, exclude_id: owner_id, match_count: count, ws: currentWorkspace() });
   if (error) throw new Error(`match_content: ${error.message}`);
   return (matches ?? []) as Match[];
 }

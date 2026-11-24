@@ -1,18 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
 import { DECISION_MODEL, MODEL_CHAINS, MODEL_LIMITS, quotaDayStart, type ModelTier } from "../src/lib/studio/models";
+import { aiKeyOwner, geminiKey } from "./connections";
 import { db } from "./db";
 import { env } from "./env";
+import { addUsage, assertAiBudget } from "./usage";
 
 // v1beta: preview models in the backup chain (e.g. 3 Flash) return 404 on the SDK's default version.
-// Rebuilt when the key changes, so a key replaced in the admin panel is used without a redeploy.
-let aiClient: GoogleGenAI | null = null;
-let aiKey = "";
+// One client per key (a client may bring its own); rebuilt when a key is replaced in the admin panel.
+const aiClients = new Map<string, GoogleGenAI>();
 const ai = () => {
-  if (!aiClient || aiKey !== env.geminiApiKey) {
-    aiKey = env.geminiApiKey;
-    aiClient = new GoogleGenAI({ apiKey: aiKey, apiVersion: "v1beta" });
+  const key = geminiKey();
+  let client = aiClients.get(key);
+  if (!client) {
+    if (aiClients.size > 20) aiClients.clear();
+    client = new GoogleGenAI({ apiKey: key, apiVersion: "v1beta" });
+    aiClients.set(key, client);
   }
-  return aiClient;
+  return client;
 };
 
 // Per-request timeout: an overloaded model can otherwise leave a request hanging for minutes and block the queue.
@@ -28,11 +32,14 @@ const GEMMA_MAX_PROMPT_CHARS = 48_000;
 // A depleted billing balance blocks every model on the account at once (HTTP 402, but the body still says
 // "RESOURCE_EXHAUSTED" like an ordinary per-model quota error) — it is not worth retrying or trying another model.
 // One bad outage once burned 78 requests in 40 minutes this way, cycling the whole chain every call.
-let billingBlockedUntil = 0;
+// Pauses, billing blocks and pacing belong to a key, so one client's own key never pauses another's.
+const billingBlocked = new Map<string, number>();
 const BILLING_RECHECK_MS = 5 * 60_000;
+const billingBlockedUntil = () => billingBlocked.get(aiKeyOwner()) ?? 0;
+const blockBilling = (until: number) => billingBlocked.set(aiKeyOwner(), Math.max(billingBlockedUntil(), until));
 
 function checkBilling() {
-  if (Date.now() < billingBlockedUntil) throw new Error(`Gemini billing is blocked until ${new Date(billingBlockedUntil).toISOString()}`);
+  if (Date.now() < billingBlockedUntil()) throw new Error(`Gemini billing is blocked until ${new Date(billingBlockedUntil()).toISOString()}`);
 }
 
 /** The API's HTTP status. Other numbers in a message, like a JSON parse position, must never be read as one. */
@@ -73,8 +80,10 @@ export interface CallOptions {
 /** Logs one Gemini request for the usage panel. Never fails the job. */
 export function record(model: string, kind: Kind, error?: string) {
   const limit = error?.match(/limit: (\d+)/)?.[1];
+  // Google counts failed requests too, so both count against the client's daily budget.
+  void addUsage({ ai: 1 });
   db.from("ai_calls")
-    .insert({ model, kind, ok: !error, error: error?.slice(0, 500) ?? null, quota_limit: limit === undefined ? null : Number(limit) })
+    .insert({ model, kind, ok: !error, error: error?.slice(0, 500) ?? null, quota_limit: limit === undefined ? null : Number(limit), key_owner: aiKeyOwner() })
     .then(({ error: e }) => e && console.warn("[usage] " + e.message));
 }
 
@@ -82,8 +91,9 @@ const nextSlot = new Map<string, number>();
 async function pace(model: string) {
   const interval = Math.ceil(60_000 / (MODEL_LIMITS[model]?.rpm ?? 5)) + 1000;
   const now = Date.now();
-  const slot = Math.max(now, nextSlot.get(model) ?? 0);
-  nextSlot.set(model, slot + interval);
+  const key = `${aiKeyOwner()}:${model}`;
+  const slot = Math.max(now, nextSlot.get(key) ?? 0);
+  nextSlot.set(key, slot + interval);
   if (slot > now) await sleep(slot - now);
 }
 
@@ -94,7 +104,11 @@ const OVERLOAD_PAUSE_MS = 10 * 60_000;
 /** Clears model pauses. Only the offline test harness uses this between scenarios. */
 export function clearModelPauses() {
   blockedUntil.clear();
+  billingBlocked.clear();
+  nextSlot.clear();
 }
+const pausedUntil = (model: string) => blockedUntil.get(`${aiKeyOwner()}:${model}`) ?? 0;
+const pauseModel = (model: string, until: number) => blockedUntil.set(`${aiKeyOwner()}:${model}`, until);
 
 function isDailyLimit(message: string, model: string) {
   const limit = Number(message.match(/limit: (\d+)/)?.[1] ?? -1);
@@ -104,12 +118,13 @@ function isDailyLimit(message: string, model: string) {
 function chainFor(tier: ModelTier, promptChars: number, preferred?: string) {
   const base = tier === "writer" ? [env.textModel, ...MODEL_CHAINS.writer] : MODEL_CHAINS.light;
   const ordered = [...new Set(preferred ? [preferred, ...base] : base)];
-  return ordered.filter((m) => (blockedUntil.get(m) ?? 0) <= Date.now() && !(m.startsWith("gemma") && promptChars > GEMMA_MAX_PROMPT_CHARS));
+  return ordered.filter((m) => pausedUntil(m) <= Date.now() && !(m.startsWith("gemma") && promptChars > GEMMA_MAX_PROMPT_CHARS));
 }
 
 /** Tries each model in the tier: waits out per-minute limits, and moves on at once when one is used up, overloaded or returns junk. */
 async function route<T>(label: string, kind: Kind, promptChars: number, opts: CallOptions, call: (model: string) => Promise<T>): Promise<T> {
   checkBilling();
+  await assertAiBudget();
   const tier = opts.tier ?? "light";
   const chain = chainFor(tier, promptChars, opts.sticky?.model);
   let lastError: unknown = new Error("every model in this tier is used up for today");
@@ -128,20 +143,20 @@ async function route<T>(label: string, kind: Kind, promptChars: number, opts: Ca
         record(model, kind, message);
         if (apiStatus(message) === 401 || hasApiStatus(message, "PERMISSION_DENIED") || /API key not valid/i.test(message)) throw new Error(`${label} failed: ${message}`);
         if (isBillingError(message)) {
-          billingBlockedUntil = Date.now() + BILLING_RECHECK_MS;
+          blockBilling(Date.now() + BILLING_RECHECK_MS);
           throw new Error(`${label} failed (billing blocked, account-wide): ${message}`);
         }
         // Overloaded or timing out: skip this model for a while instead of trying it again on every request.
         if ([503, 504].includes(apiStatus(message) ?? 0) || hasApiStatus(message, "UNAVAILABLE") || hasApiStatus(message, "DEADLINE_EXCEEDED")) {
-          blockedUntil.set(model, Date.now() + OVERLOAD_PAUSE_MS);
+          pauseModel(model, Date.now() + OVERLOAD_PAUSE_MS);
           break;
         }
         if (isQuotaError(message) && isDailyLimit(message, model)) {
-          blockedUntil.set(model, quotaDayStart() + DAY_MS);
+          pauseModel(model, quotaDayStart() + DAY_MS);
           break;
         }
         if (apiStatus(message) === 404 || hasApiStatus(message, "NOT_FOUND")) {
-          blockedUntil.set(model, quotaDayStart() + DAY_MS);
+          pauseModel(model, quotaDayStart() + DAY_MS);
           break;
         }
         // Google counts failed requests against the daily quota, so only a per-minute limit is worth waiting out.
@@ -228,10 +243,11 @@ export async function decide(input: string, questions: Record<string, string>): 
   if (!keys.length) return {};
   try {
     checkBilling();
+    await assertAiBudget();
     await pace(DECISION_MODEL);
     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/decisions", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": env.geminiApiKey },
+      headers: { "content-type": "application/json", "x-goog-api-key": geminiKey() },
       body: JSON.stringify({
         model: DECISION_MODEL,
         input,
@@ -246,7 +262,7 @@ export async function decide(input: string, questions: Record<string, string>): 
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     record(DECISION_MODEL, "json", message);
-    if (isBillingError(message)) billingBlockedUntil = Math.max(billingBlockedUntil, Date.now() + BILLING_RECHECK_MS);
+    if (isBillingError(message)) blockBilling(Date.now() + BILLING_RECHECK_MS);
     console.warn(`[decide] ${message.slice(0, 200)}`);
     return null;
   }
@@ -254,5 +270,5 @@ export async function decide(input: string, questions: Record<string, string>): 
 
 /** True while the account's billing balance is known to be blocked, so callers can skip Gemini entirely rather than fail into it. */
 export function geminiBillingBlocked() {
-  return Date.now() < billingBlockedUntil;
+  return Date.now() < billingBlockedUntil();
 }

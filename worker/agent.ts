@@ -1,7 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
+import { assertAiBudget } from "./usage";
+import { geminiKey } from "./connections";
 import { AGENT_MODEL, nextCooldownMs, quotaDayStart, type AgentState, type AgentTask } from "../src/lib/studio/models";
 import { db, setting } from "./db";
-import { env } from "./env";
 import { apiStatus, geminiBillingBlocked, isBillingError, record } from "./gemini";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/interactions";
@@ -35,8 +36,8 @@ type StreamingClient = {
 let agentClient: StreamingClient | null = null;
 let agentKey = "";
 const client = () => {
-  if (!agentClient || agentKey !== env.geminiApiKey) {
-    agentKey = env.geminiApiKey;
+  if (!agentClient || agentKey !== geminiKey()) {
+    agentKey = geminiKey();
     agentClient = new GoogleGenAI({ apiKey: agentKey, httpOptions: { apiVersion: "v1beta" } }) as unknown as StreamingClient;
   }
   return agentClient;
@@ -53,11 +54,12 @@ async function updateState(change: (state: AgentState) => AgentState) {
 const logTask = (task: AgentTask) =>
   updateState((s) => ({ ...s, tasks: [task, ...(s.tasks ?? []).filter((t) => t.id !== task.id)].slice(0, 20) }));
 
-const cancel = (id: string) => fetch(`${BASE}/${id}:cancel`, { method: "POST", headers: { "x-goog-api-key": env.geminiApiKey } }).catch(() => {});
+const cancel = (id: string) => fetch(`${BASE}/${id}:cancel`, { method: "POST", headers: { "x-goog-api-key": geminiKey() } }).catch(() => {});
 
 /** One Antigravity task. Fails fast if no step starts, then pauses the agent so later articles go straight to the backups. */
 export async function runAgent(input: string, opts: { label: string; maxTokens: number; timeoutMs: number }) {
   if (geminiBillingBlocked()) throw new Error("Antigravity skipped: Gemini billing is currently blocked (account-wide)");
+  await assertAiBudget();
   const state = await readState();
   if (state.cooldownUntil && Date.parse(state.cooldownUntil) > Date.now()) throw new Error(`Antigravity paused until ${state.cooldownUntil}`);
 

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Code2, ExternalLink, ImagePlus, Loader2, RefreshCw, Sparkles, WandSparkles } from "lucide-react";
-import { approvePost, enqueue, restoreVersion, saveBody, slotPost, updatePost, updateTaxonomy } from "@/app/admin/actions";
+import { approvePost, enqueue, restoreVersion, saveBody, slotPost, unpublishPost, updatePost, updateTaxonomy } from "@/app/admin/actions";
 import { istDate } from "@/lib/studio/briefing";
 import { wordCount } from "@/lib/studio/content";
 import type { AgentMessage, Audit, Cluster, Fact, PostVersion, RewritePayload, StudioPost, Topic } from "@/lib/studio/types";
@@ -300,7 +300,23 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
           <div className="card px-5">
             <Panel title="Publish" open>
               {post.stage === "live" ? (
-                <p className="s-dim">Published {formatDate(post.published_at)}</p>
+                <div className="space-y-2">
+                  <p className="s-dim">Published {formatDate(post.published_at)}</p>
+                  {post.published_url && (
+                    <a className="underline text-[13px] break-all" href={post.published_url} target="_blank" rel="noopener noreferrer">
+                      {post.published_url.replace(/^https:\/\//, "")} ↗
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    className="s-btn s-btn--sm w-full"
+                    onClick={() => {
+                      if (window.confirm("Take this article off the site? It goes back to Ready without a date. Nothing is deleted.")) run("Unpublishing", () => unpublishPost(post.id), { type: "unpublish_post", postId: post.id });
+                    }}
+                  >
+                    Unpublish
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-3">
                   <div>
@@ -323,7 +339,9 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
                   >
                     {post.approved_at ? "Approved ✓ — click to undo" : "Approve for publishing"}
                   </button>
-                  <p className="s-hint">{audit?.ok ? "Approved posts publish automatically on their date." : "Approval unlocks once the quality check passes."}</p>
+                  <p className="s-hint">
+                    {audit?.ok ? "Approved posts publish automatically on their date." : "Approval unlocks once the quality check passes."}
+                  </p>
                 </div>
               )}
             </Panel>

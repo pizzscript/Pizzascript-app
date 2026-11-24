@@ -44,13 +44,13 @@ export function parseFeed(xml: string, feed: string): FeedItem[] {
 const PRERELEASE = /canary|alpha|beta|\brc\b|-rc|experimental|nightly/i;
 
 /** New items since the last confirmed scan. Costs no AI; call markFeedsSeen only after they have been judged. */
-export async function newFeedItems() {
+export async function newFeedItems(feeds: { name: string; url: string; stableOnly?: boolean }[] = FEEDS) {
   const seen = await setting<Record<string, string>>("feeds_seen", {});
   const fallback = new Date(Date.now() - 48 * 3_600_000).toISOString();
   const latest: Record<string, string> = { ...seen };
   const items: FeedItem[] = [];
   await Promise.all(
-    FEEDS.map(async (f) => {
+    feeds.map(async (f) => {
       try {
         const res = await fetch(f.url, { signal: AbortSignal.timeout(20_000), headers: { "user-agent": "content-agent-feed-reader" } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

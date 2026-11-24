@@ -136,6 +136,10 @@ export interface StudioPost {
   seo_plan: { targetQuery?: string; [key: string]: unknown };
   /** From an approved idea: the pipeline carries it through draft, banner and SEO check without clicks. */
   auto_pipeline?: boolean;
+  /** The article's address on the client's own site (Phase 2). */
+  remote?: RemoteInfo;
+  published_url?: string | null;
+  approved_by?: string | null;
   updated_at: string;
 }
 
@@ -242,8 +246,25 @@ export const JOB_TYPES = [
   "discover_ideas",
   "prune_ideas",
   "scan_services",
+  "unpublish_post",
+  "crawl_site",
+  "speed_check",
+  "inspect_urls",
+  "sync_rankings",
+  "content_growth",
+  "backlink_scan",
+  "find_opportunities",
+  "competitor_scan",
+  "local_post",
+  "local_check",
 ] as const;
 export type JobType = (typeof JOB_TYPES)[number];
+
+export interface RemoteInfo {
+  url?: string;
+  status?: "publish" | "draft";
+  syncedAt?: string;
+}
 
 export interface Job {
   id: string;

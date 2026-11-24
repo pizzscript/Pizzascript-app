@@ -1,12 +1,12 @@
-/** Phrases people really type, from Google autocomplete (India, English). Free and unofficial, so used lightly. */
-export async function autocomplete(seeds: string[], gapMs = 1200) {
+/** Phrases people really type, from Google autocomplete for the client's country. Free and unofficial, so used lightly. */
+export async function autocomplete(seeds: string[], gapMs = 1200, country = "in", language = "en") {
   const phrases = new Set<string>();
   for (const seed of seeds.slice(0, 15)) {
     const q = seed.trim().toLowerCase();
     if (!q) continue;
     phrases.add(q);
     try {
-      const res = await fetch(`https://suggestqueries.google.com/complete/search?client=firefox&hl=en&gl=in&q=${encodeURIComponent(q)}`, {
+      const res = await fetch(`https://suggestqueries.google.com/complete/search?client=firefox&hl=${encodeURIComponent(language)}&gl=${encodeURIComponent(country)}&q=${encodeURIComponent(q)}`, {
         headers: { "user-agent": "Mozilla/5.0" },
         signal: AbortSignal.timeout(15_000),
       });

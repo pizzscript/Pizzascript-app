@@ -4,9 +4,11 @@
  *
  *   npm run publish:due
  */
+import { forEachWorkspace } from "./db";
 import { publishDue } from "./jobs/publish";
+import { withProfile } from "./profile";
 
-publishDue()
+forEachWorkspace(withProfile(() => publishDue()))
   .then(() => console.log("[publish] done"))
   .catch((err) => {
     console.error("[publish]", err instanceof Error ? err.message : err);

@@ -177,8 +177,8 @@ export function mergePlan(ai: Partial<PosterPlan> | null, rules: PosterPlan, bod
 }
 
 /** The prompt for the AI art director. */
-export function planPrompt(input: PosterInput, rules: PosterPlan) {
-  return `You are the art director for PizzaScript's blog banners (dark, warm, premium developer-studio look).
+export function planPrompt(input: PosterInput, rules: PosterPlan, brand = "PizzaScript") {
+  return `You are the art director for ${brand}'s blog banners (dark, warm, premium developer-studio look).
 Decide what the banner for this article should SAY and SHOW. A fixed template draws it; you only choose content.
 
 ARTICLE

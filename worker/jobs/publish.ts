@@ -1,26 +1,15 @@
 import { DEEP_CHECK_IDS, REVIEW_PENDING, REVIEW_RETRY_MS, auditPost, deepChecksOf, internalLinks, wordRangeFor } from "../../src/lib/studio/content";
 import type { StudioPost } from "../../src/lib/studio/types";
-import { allBatches, allPosts, check, db, enqueue, linkPlan, pipelinePosts, raiseSignal, settings, todayIst } from "../db";
-import { env } from "../env";
+import { isApproved } from "../../src/lib/studio/approval";
+import { allBatches, allPosts, check, db, enqueue, getPost, linkPlan, pipelinePosts, raiseSignal, settings, todayIst } from "../db";
+import { currentApprovalMode } from "../profile";
 import { bodyHash } from "../quality";
+import { publishToSite, refreshSite, unpublishFromSite } from "../publishers";
 import { RELATED_SIMILARITY, storedMatches } from "../research/embeddings";
 
+/** After a live article changes: refresh the cached feed (and PizzaScript's blog pages) so the change shows. */
 export async function revalidate(slug?: string) {
-  if (!env.revalidateSecret) return;
-  // Every deployment that serves the blog needs its cache refreshed (e.g. the Render app and, later, the real domain).
-  for (const base of env.revalidateUrls) {
-    try {
-      const res = await fetch(`${base}/api/revalidate`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-revalidate-secret": env.revalidateSecret },
-        body: JSON.stringify({ slug }),
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (!res.ok) console.warn(`[revalidate] ${base} ${slug ?? "all"} → ${res.status}`);
-    } catch (error) {
-      console.warn(`[revalidate] ${base} unreachable: ${error instanceof Error ? error.message : error}`);
-    }
-  }
+  await refreshSite(slug);
 }
 
 const reviewRetryWaiting = (post: StudioPost) => {
@@ -44,11 +33,12 @@ export async function publishDue() {
   if (!(await pipelinePosts()).some((p) => p.stage !== "live" && p.scheduled_for && p.scheduled_for <= now)) return [];
   const [posts, batches, banned, ranges, autopilot] = await Promise.all([allPosts(), allBatches(), settings.banned(), settings.wordRanges(), settings.autopilot()]);
   const approvedBatches = new Set(batches.filter((b) => b.approved_at).map((b) => b.id));
+  const mode = currentApprovalMode();
   const due = posts.filter((p) => p.stage !== "live" && p.scheduled_for && p.scheduled_for <= now);
   const published: string[] = [];
 
   for (const post of due) {
-    const approved = autopilot || Boolean(post.approved_at) || (post.batch_id !== null && approvedBatches.has(post.batch_id));
+    const approved = isApproved(post, { mode, autopilot, approvedBatches });
     const deep = currentDeepChecks(post);
     const audit = post.body_html
       ? auditPost(post, { posts, bannedPhrases: banned, wordRange: post.brief?.wordRange ?? wordRangeFor(post, ranges), deep })
@@ -77,7 +67,7 @@ export async function publishDue() {
         .eq("status", "open")
         .like("dedupe_key", `missed:${post.id}:%`)
         .neq("dedupe_key", `missed:${post.id}:${todayIst()}`);
-      const reason = !post.body_html ? `still at ${post.stage}` : !audit?.ok ? "audit failing" : "not approved";
+      const reason = !post.body_html ? `still at ${post.stage}` : !audit?.ok ? "audit failing" : mode === "client" ? "waiting for the client's approval" : "not approved";
       await raiseSignal({
         kind: "audit_failed",
         title: `Missed slot: "${post.title}" is ${reason}`,
@@ -90,10 +80,11 @@ export async function publishDue() {
       continue;
     }
 
+    const site = await publishToSite(post);
     check(
       await db
         .from("posts")
-        .update({ status: "published", stage: "live", published_at: post.scheduled_for, audit })
+        .update({ status: "published", stage: "live", published_at: post.scheduled_for, audit, remote: site.remote, published_url: site.url })
         .eq("id", post.id),
       "publish",
     );
@@ -105,7 +96,7 @@ export async function publishDue() {
   }
 
   if (published.length) {
-    for (const slug of published) await revalidate(slug);
+    for (const slug of published) await refreshSite(slug);
     console.log(`[publish] live: ${published.join(", ")}`);
   }
   return published;
@@ -201,4 +192,42 @@ export async function advancePipeline() {
     return true;
   }
   return false;
+}
+
+/** Takes a live article down. It goes back to "ready" without a date, so it can't republish until it's scheduled again. */
+export async function unpublishPost({ postId }: { postId: string }) {
+  const post = await getPost(postId);
+  if (post.stage !== "live") return { skipped: "not live" };
+  const remote = await unpublishFromSite(post);
+  check(
+    await db.from("posts").update({ status: "draft", stage: "audit", published_at: null, scheduled_for: null, approved_at: null, remote }).eq("id", postId),
+    "unpublish",
+  );
+  await db.from("agent_messages").insert({ thread: `post:${postId}`, role: "agent", content: "Unpublished. It's back in Ready without a date." });
+  await refreshSite(post.slug);
+  return { unpublished: post.slug };
+}
+
+/** For clients who approve their own articles: a reminder 2 days before the slot, once per article. */
+export async function approvalReminders() {
+  const mode = currentApprovalMode();
+  if (mode === "automatic") return 0;
+  const soon = new Date(Date.now() + 48 * 3_600_000).toISOString();
+  const [posts, batches] = await Promise.all([pipelinePosts(), allBatches()]);
+  const approvedBatches = new Set(batches.filter((b) => b.approved_at).map((b) => b.id));
+  const waiting = posts.filter(
+    (p) => ["audit", "slotted"].includes(p.stage) && p.scheduled_for && p.scheduled_for <= soon && p.audit?.ok && !isApproved(p as StudioPost, { mode, autopilot: false, approvedBatches }),
+  );
+  for (const post of waiting) {
+    await raiseSignal({
+      kind: "quality_gate",
+      title: `Approve "${post.title}" before ${post.scheduled_for!.slice(0, 10)}${mode === "client" ? " (waiting for the client)" : ""}. It passed every check.`,
+      detail: { scheduledFor: post.scheduled_for },
+      priority: "P1",
+      post_id: post.id,
+      topic_id: null,
+      dedupe_key: `approve:${post.id}`,
+    });
+  }
+  return waiting.length;
 }

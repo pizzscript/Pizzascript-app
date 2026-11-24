@@ -29,7 +29,7 @@ function Row({ c }: { c: ConnectionView }) {
     setValue("");
     setPassword("");
   };
-  const source = c.source === "admin" ? "Saved here" : c.source === "server" ? "From Render settings" : "Not set";
+  const source = c.source === "admin" ? "Saved here" : c.source === "server" ? "From Render settings" : c.source === "shared" ? "Using PizzaScript's (shared quota)" : "Not set";
   return (
     <li className="py-4 space-y-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -56,7 +56,7 @@ function Row({ c }: { c: ConnectionView }) {
             </button>
             {c.source === "admin" && (
               <button type="button" className="s-btn s-btn--sm" disabled={busy} onClick={() => setMode("clear")}>
-                Use Render value
+                {c.scope === "client" ? "Remove" : "Use shared value"}
               </button>
             )}
           </div>
@@ -90,7 +90,11 @@ function Row({ c }: { c: ConnectionView }) {
             ))}
           <input className="s-input w-full" type="password" placeholder="Your admin password, to confirm" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
           <p className="s-faint text-[13px]">
-            {mode === "replace" ? "It's tested first and saved only if it works. The full value is never shown again." : "This removes the key saved here, and the app goes back to the value in Render's settings."}
+            {mode === "replace"
+              ? "It's tested first and saved only if it works. The full value is never shown again."
+              : c.scope === "client"
+                ? "This removes the value saved for this client."
+                : "This removes the key saved here; the shared value (or Render's setting) is used again."}
           </p>
           <div className="flex gap-2">
             <button type="submit" className="s-btn s-btn--sm s-btn--primary" disabled={busy || !password || (mode === "replace" && !value.trim())}>

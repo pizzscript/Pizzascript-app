@@ -2,9 +2,32 @@ import { createClient } from "@supabase/supabase-js";
 import { jobPriority } from "../src/lib/studio/jobs";
 import { DEFAULT_SCORING } from "../src/lib/studio/scoring";
 import type { Batch, Cluster, Fact, JobType, LinkPlan, ScheduleSettings, ScoringSettings, Signal, StudioPost, Topic } from "../src/lib/studio/types";
+import { scopeClient } from "../src/lib/studio/workspace-scope";
 import { env } from "./env";
+import { currentWorkspace, inWorkspace } from "./workspace";
 
-export const db = createClient(env.supabaseUrl, env.supabaseSecretKey, { auth: { persistSession: false } });
+/** Unscoped client, only for platform-level lookups (finding a job's workspace, listing workspaces). */
+export const rawDb = createClient(env.supabaseUrl, env.supabaseSecretKey, { auth: { persistSession: false } });
+/** Every query through `db` is limited to the current workspace (see worker/workspace.ts). */
+export const db = scopeClient(rawDb, currentWorkspace);
+
+/** Active client workspaces, PizzaScript first. */
+export async function activeWorkspaces(): Promise<string[]> {
+  const { data, error } = await rawDb.from("workspaces").select("id").eq("status", "active").order("created_at");
+  if (error) throw new Error(`workspaces: ${error.message}`);
+  return (data ?? []).map((w: { id: string }) => w.id);
+}
+
+/** Runs a duty once for every active workspace, each inside its own workspace. */
+export async function forEachWorkspace(work: () => Promise<unknown>) {
+  for (const id of await activeWorkspaces()) await inWorkspace(id, work);
+}
+
+/** Runs a step for each workspace in turn and stops at the first one that did something. */
+export async function anyWorkspace(work: () => Promise<boolean>) {
+  for (const id of await activeWorkspaces()) if (await inWorkspace(id, work)) return true;
+  return false;
+}
 
 export function check<T>(result: { data: T; error: { message: string } | null }, what: string): T {
   if (result.error) throw new Error(`${what}: ${result.error.message}`);

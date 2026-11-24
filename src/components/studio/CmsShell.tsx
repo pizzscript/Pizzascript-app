@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDays, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Plus, Search, Settings, Tags, X } from "lucide-react";
+import { Activity, BarChart3, Building2, CalendarDays, Link2, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Plus, Search, Settings, Tags, X } from "lucide-react";
 import { enqueue, signOut } from "@/app/admin/actions";
+import { switchClient } from "@/app/admin/clients";
 import { BrandMark } from "@/components/BrandMark";
 import { STATUS_LABEL, type Stage } from "@/lib/studio/types";
 import { AgentActivity } from "./AgentActivity";
@@ -16,8 +17,18 @@ const NAV = [
   { href: "/admin/ideas", label: "Ideas", icon: Lightbulb, count: "ideas" as const },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/admin/categories", label: "Categories", icon: Tags },
+  { href: "/admin/health", label: "Site health", icon: Activity },
+  { href: "/admin/links", label: "Links & local", icon: Link2 },
+  { href: "/admin/report", label: "Report", icon: BarChart3 },
   { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/clients", label: "Clients", icon: Building2 },
 ];
+
+export interface ShellClient {
+  id: string;
+  name: string;
+  status: string;
+}
 
 export interface PaletteTicket {
   id: string;
@@ -34,14 +45,19 @@ export function CmsShell({
   tickets,
   counts,
   email,
+  client,
+  clients,
   children,
 }: {
   tickets: PaletteTicket[];
   counts: { alerts: number; ideas: number };
   email: string | null;
+  client: ShellClient;
+  clients: ShellClient[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { preview, pending, run } = useStudio();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -80,6 +96,32 @@ export function CmsShell({
             <X size={18} aria-hidden="true" />
           </button>
         </div>
+        <label className="block mb-3">
+          <span className="sr-only">Client</span>
+          <select
+            className="s-input w-full"
+            value={client.id}
+            disabled={preview || clients.length < 2}
+            aria-label="Client you are working on"
+            onChange={(e) => {
+              const id = e.target.value;
+              run("Switched client", async () => {
+                await switchClient(id);
+                router.refresh();
+              });
+            }}
+          >
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.status !== "active" ? ` (${c.status})` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        {client.status !== "active" && (
+          <p className="s-chip s-chip--warn mb-3 w-full justify-center">This client is {client.status}: its jobs wait</p>
+        )}
         <Link href="/admin/ideas?new=1" className="s-btn s-btn--primary w-full mb-4">
           <Plus size={16} aria-hidden="true" /> New idea
         </Link>
