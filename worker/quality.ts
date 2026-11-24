@@ -164,7 +164,7 @@ export async function deepChecks(post: StudioPost, posts: Pick<StudioPost, "id" 
       label: "No unproven statistics",
       pass: numbers.length === 0,
       detail: numbers.length ? `Add a source or remove: ${numbers.slice(0, 6).join(", ")}` : measured.length ? `Double-check: ${measured.slice(0, 4).join(", ")}` : undefined,
-      level: numbers.length || !measured.length ? "blocker" : "warning",
+      level: numbers.length ? "autofix" : measured.length ? "warning" : "blocker",
     },
     { id: "clients", label: "No client names", pass: clients.length === 0, detail: clients.join(", ") || undefined, level: "blocker" },
     verifiedCheck(post),

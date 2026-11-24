@@ -79,6 +79,8 @@ export interface StudioData {
   autopilot: boolean;
   /** Lets the agent choose and schedule its own ideas. Needs autopilot. */
   autoPick: { enabled: boolean; pausedReason: string | null };
+  /** Daily idea research settings (on unless switched off). */
+  research: Record<string, unknown> & { enabled: boolean };
   /** Gemini requests in the last 7 days, for the usage panel. */
   aiUsage: AiCall[];
 }
@@ -172,6 +174,7 @@ async function loadPreview(): Promise<StudioData> {
     wordRanges: DEFAULT_WORD_RANGES,
     autopilot: false,
     autoPick: { enabled: false, pausedReason: null },
+    research: { enabled: false },
     aiUsage: [],
   };
 }
@@ -228,6 +231,10 @@ export async function loadStudio(studio: Studio): Promise<StudioData> {
       enabled: setting<{ enabled?: boolean }>("autopick", {}).enabled === true,
       pausedReason: setting<{ pausedReason?: string }>("autopick_state", {}).pausedReason ?? null,
     },
+    research: (() => {
+      const saved = setting<Record<string, unknown>>("research", {});
+      return { ...saved, enabled: saved.enabled !== false };
+    })(),
     aiUsage,
   };
 }

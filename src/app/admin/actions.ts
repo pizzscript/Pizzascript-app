@@ -307,7 +307,7 @@ export async function sendMessage(thread: string, content: string) {
   await enqueue("discuss", { thread });
 }
 
-const SETTING_KEYS = ["schedule", "banned_phrases", "word_ranges", "never_cover"] as const;
+const SETTING_KEYS = ["schedule", "banned_phrases", "word_ranges", "never_cover", "research"] as const;
 
 export async function saveSetting(key: (typeof SETTING_KEYS)[number], value: unknown) {
   if (!(SETTING_KEYS as readonly string[]).includes(key)) throw new Error("Unknown setting");

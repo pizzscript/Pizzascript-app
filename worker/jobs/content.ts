@@ -222,6 +222,16 @@ Return JSON: {"title":"working title ≤ 60 chars","angle":"one sentence: the sh
   const linksTo = [...new Set([...(post.brief?.linksTo ?? []), ...plannedLinks, ...(brief.linksTo ?? [])])].filter(
     (l) => known.has(l) || SERVICE_PAGES.includes(l),
   );
+  const isGuide = (path: string) => {
+    const target = posts.find((p) => `/blog/${p.slug}` === path);
+    return Boolean(target && (target.track === 2 || target.role === "pillar"));
+  };
+  if (post.track === 1 && post.role !== "pillar" && !linksTo.some(isGuide)) {
+    const guide = posts
+      .filter((p) => p.stage === "live" && p.id !== post!.id && (p.track === 2 || p.role === "pillar"))
+      .sort((a, b) => Number(b.cluster_id === post!.cluster_id) - Number(a.cluster_id === post!.cluster_id))[0];
+    if (guide) linksTo.push(`/blog/${guide.slug}`);
+  }
   const needsService = post.track === 2 || post.role === "pillar";
   const servicePage = SERVICE_PAGES.includes(brief.servicePage ?? "") ? brief.servicePage : needsService ? SERVICE_PAGES[0] : undefined;
   check(
@@ -531,6 +541,6 @@ export async function runAudit({ postId }: { postId: string }) {
     await db.from("signals").update({ status: "acted" }).eq("dedupe_key", `audit:${post.id}`);
   }
   // Runs after the failing result is saved, so the post stays blocked from publishing while the repair is in progress.
-  const repaired = audit.ok ? false : await repairPost({ ...post, stage }, audit.checks.filter((c) => !c.pass), posts.map((p) => p.slug));
+  const repaired = audit.ok ? false : await repairPost({ ...post, stage }, audit.checks.filter((c) => !c.pass), posts);
   return { ok: audit.ok, stage, repaired };
 }

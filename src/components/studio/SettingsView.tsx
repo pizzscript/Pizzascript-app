@@ -7,6 +7,7 @@ import type { AiCall } from "@/lib/studio/server";
 import { SCORE_FACTORS, type Batch, type Fact, type ScheduleSettings, type ScoreFactor, type ScoringSettings } from "@/lib/studio/types";
 import type { ConnectionView } from "@/lib/studio/connections-server";
 import { AutoPickToggle } from "./AutoPickToggle";
+import { ResearchToggle } from "./ResearchToggle";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { AutopilotToggle } from "./AutopilotToggle";
 import { useStudio } from "./StudioProvider";
@@ -56,10 +57,11 @@ interface Props {
   autopilot: boolean;
   autoPick: { enabled: boolean; pausedReason: string | null };
   connections: ConnectionView[];
+  research: Record<string, unknown> & { enabled: boolean };
   aiUsage: AiCall[];
 }
 
-export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, batches, email, autopilot, autoPick, connections, aiUsage }: Props) {
+export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, batches, email, autopilot, autoPick, connections, research, aiUsage }: Props) {
   const { run, busy, preview } = useStudio();
   const [tab, setTab] = useState<TabId>((TABS.find((t) => t.id === initialTab)?.id ?? "schedule") as TabId);
   const [sched, setSched] = useState(schedule);
@@ -121,6 +123,14 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
                   text="When it's on, the agent chooses at most one qualified idea a day and schedules it at least 3 days ahead, so you can remove it first. It skips overlapping topics, checks quota first, and pauses after 2 failed articles in a row."
                 />
                 <AutoPickToggle enabled={autoPick.enabled} autopilot={autopilot} pausedReason={autoPick.pausedReason} />
+              </div>
+
+              <div className="pt-4 border-t s-line space-y-3">
+                <Intro
+                  title="Idea research"
+                  text="Each morning after the briefing, the agent finds new ideas from real Google searches (Pune and India first), checks them against your service pages and existing articles, and keeps the best. Weekly it re-reads your service pages and archives weak, old or duplicate ideas. It uses only the light AI models, about 2 requests a day."
+                />
+                <ResearchToggle settings={research} />
               </div>
 
               <div className="pt-4 border-t s-line">

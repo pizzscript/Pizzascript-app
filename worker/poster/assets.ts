@@ -110,4 +110,6 @@ export const CATEGORY_STYLE: Record<string, { accent: string; icon: TopicIcon }>
   "ai-workflows": { accent: "#7fd18a", icon: "sparkles" },
   deployment: { accent: "#f08a8a", icon: "cloud" },
   "case-studies": { accent: "#f3e9dc", icon: "briefcase" },
+  "business-automation": { accent: "#5fd3c6", icon: "zap" },
+  "software-tools": { accent: "#9aa7ff", icon: "layers" },
 };

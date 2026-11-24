@@ -178,7 +178,7 @@ export function auditPost(
   add("links", "All internal links work", broken.length === 0, broken.join(", ") || undefined);
 
   const funnel = funnelViolations(post, context.posts);
-  add("funnel", "Links to the right related pages", funnel.length === 0, funnel.join("; ") || undefined);
+  add("funnel", "Links to the right related pages", funnel.length === 0, funnel.join("; ") || undefined, "autofix");
 
   add("banner", "Banner image with alt text", Boolean(post.cover_image_url) && (post.cover_image_alt?.length ?? 0) > 20);
   const imgsWithoutAlt = (post.body_html.match(/<img(?![^>]*alt="[^"]+")[^>]*>/gi) ?? []).length;

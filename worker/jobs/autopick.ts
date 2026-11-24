@@ -4,7 +4,7 @@ import type { StudioPost } from "../../src/lib/studio/types";
 import { allFacts, allPosts, allTopics, check, db, enqueue, raiseSignal, setting, settings, todayIst } from "../db";
 import { isBillingError } from "../gemini";
 
-const BUSY_JOBS = ["daily_briefing", "score_topic", "write_brief", "write_draft", "generate_image", "run_audit"];
+const BUSY_JOBS = ["daily_briefing", "score_topic", "write_brief", "write_draft", "generate_image", "run_audit", "discover_ideas", "prune_ideas", "scan_services"];
 const PIPELINE_JOBS = ["write_brief", "write_draft", "generate_image", "run_audit"];
 
 const saveState = async (state: AutoPickState) => check(await db.from("settings").upsert({ key: "autopick_state", value: state }), "autopick state");

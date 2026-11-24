@@ -89,6 +89,12 @@ async function pace(model: string) {
 
 /** Models known to be out for this quota day, so a job doesn't spend time asking them again. */
 const blockedUntil = new Map<string, number>();
+const OVERLOAD_PAUSE_MS = 10 * 60_000;
+
+/** Clears model pauses. Only the offline test harness uses this between scenarios. */
+export function clearModelPauses() {
+  blockedUntil.clear();
+}
 
 function isDailyLimit(message: string, model: string) {
   const limit = Number(message.match(/limit: (\d+)/)?.[1] ?? -1);
@@ -124,6 +130,11 @@ async function route<T>(label: string, kind: Kind, promptChars: number, opts: Ca
         if (isBillingError(message)) {
           billingBlockedUntil = Date.now() + BILLING_RECHECK_MS;
           throw new Error(`${label} failed (billing blocked, account-wide): ${message}`);
+        }
+        // Overloaded or timing out: skip this model for a while instead of trying it again on every request.
+        if ([503, 504].includes(apiStatus(message) ?? 0) || hasApiStatus(message, "UNAVAILABLE") || hasApiStatus(message, "DEADLINE_EXCEEDED")) {
+          blockedUntil.set(model, Date.now() + OVERLOAD_PAUSE_MS);
+          break;
         }
         if (isQuotaError(message) && isDailyLimit(message, model)) {
           blockedUntil.set(model, quotaDayStart() + DAY_MS);

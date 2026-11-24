@@ -21,6 +21,7 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/admin/sett
       email={studio.mode === "live" ? studio.email : null}
       autopilot={data.autopilot}
       autoPick={data.autoPick}
+      research={data.research}
       connections={connections}
       aiUsage={data.aiUsage}
     />

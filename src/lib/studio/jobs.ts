@@ -12,6 +12,9 @@ export const JOB_LABELS: Partial<Record<JobType, string>> = {
   insert_link: "Link",
   fix_title: "Title",
   discuss: "Agent reply",
+  discover_ideas: "Idea research",
+  prune_ideas: "Idea cleanup",
+  scan_services: "Service scan",
 };
 
 export function jobLabel(type: JobType) {
@@ -33,6 +36,9 @@ export const JOB_ACTIVITY: Partial<Record<JobType, string>> = {
   discuss: "Replying",
   quality_gate: "Quality check",
   performance_check: "Performance check",
+  discover_ideas: "Researching new ideas",
+  prune_ideas: "Cleaning up ideas",
+  scan_services: "Reading service pages",
 };
 
 export function jobActivity(type: JobType) {

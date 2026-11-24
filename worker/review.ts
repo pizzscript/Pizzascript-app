@@ -1,4 +1,4 @@
-import { REVIEW_RETRY_MS, removeUnknownLinks } from "../src/lib/studio/content";
+import { REVIEW_RETRY_MS, SERVICE_PATHS, removeUnknownLinks } from "../src/lib/studio/content";
 import { QUALITY, canDispute, cleanSeo, issueBlocks, type ReviewCode, type ReviewIssue, type SeoFields } from "../src/lib/studio/quality";
 import type { AuditCheck, StudioPost } from "../src/lib/studio/types";
 import { runAgent } from "./agent";
@@ -133,7 +133,8 @@ async function requestRepair(instructions: string, system: string): Promise<Repa
  * Fixes proven technical errors and fixable SEO problems in one request, then queues a fresh check. Limited to
  * QUALITY.maxRepairs per article text, so it can never loop. A manual edit starts a new count.
  */
-export async function repairPost(post: StudioPost, failing: AuditCheck[], blogSlugs: string[]) {
+export async function repairPost(post: StudioPost, failing: AuditCheck[], posts: Pick<StudioPost, "slug" | "track" | "role" | "stage" | "cluster_id">[]) {
+  const blogSlugs = posts.map((p) => p.slug);
   if (post.stage === "live" || !post.body_html) return false;
   const hash = bodyHash(post.body_html);
   const saved = post.seo_plan?.verification as { hash?: string; issues?: ReviewIssue[]; code?: ReviewCode[] } | undefined;
@@ -147,6 +148,17 @@ export async function repairPost(post: StudioPost, failing: AuditCheck[], blogSl
   const count = last?.to === hash ? (last.count ?? 1) : 0;
   if (count >= QUALITY.maxRepairs) return false;
 
+  // For a missing related link: the exact pages the funnel rule accepts, same category first.
+  const linkTargets = !seoProblems.some((c) => c.id === "funnel")
+    ? []
+    : post.track === 1 && post.role !== "pillar"
+      ? posts
+          .filter((p) => p.stage === "live" && p.slug !== post.slug && (p.track === 2 || p.role === "pillar"))
+          .sort((a, b) => Number(b.cluster_id === post.cluster_id) - Number(a.cluster_id === post.cluster_id))
+          .slice(0, 6)
+          .map((p) => `/blog/${p.slug}`)
+      : [...SERVICE_PATHS];
+
   let reply: RepairReply = {};
   try {
     reply = await requestRepair(
@@ -157,13 +169,15 @@ Rules:
 - "find" must be copied exactly from the HTML, including tags and entities, and must appear only once. Use enough text to be unique.
 - "replace" is the corrected HTML for that passage. Keep < > & escaped inside code blocks.
 - Code must actually do what the text says. Prefer a correct, widely supported approach and include a fallback where browser support varies.
-- Don't add statistics, results or client names.
+- Don't add statistics, results or client names. For an unproven statistic, remove the figure or reword it without a number. Never invent a source.
 - Include "seo" only for fields that need changing, or if a fix changes what the article promises. title and seo_title stay within 60 characters, seo_description is 120-160 characters, and all must match the corrected article.
 - If a reported error is itself wrong, don't edit that passage. Add it to "disputes" with the reason and an official documentation URL.
 
 ${WRITING}
 
-TARGET KEYWORD: ${post.seo_plan?.targetQuery ?? ""}
+${linkTargets.length ? `LINKS YOU MAY ADD (to fix the related-pages problem, add one naturally inside an existing paragraph with descriptive link text): ${linkTargets.join(", ")}
+
+` : ""}TARGET KEYWORD: ${post.seo_plan?.targetQuery ?? ""}
 CURRENT SEO: ${JSON.stringify({ title: post.title, seo_title: post.seo_title, seo_description: post.seo_description, excerpt: post.excerpt })}
 
 SEO PROBLEMS:

@@ -8,6 +8,8 @@ import { writeDraft } from "./jobs/draft";
 import { dailyBriefing, discuss, performanceCheck, qualityGate } from "./jobs/ops";
 import { applyConnections } from "./connections";
 import { autoPick } from "./jobs/autopick";
+import { discoverIdeas, pruneIdeas, scheduleResearch } from "./jobs/research";
+import { scanServices } from "./research/services";
 import { advancePipeline, publishDue } from "./jobs/publish";
 
 type Handler = (payload: Record<string, unknown>) => Promise<unknown>;
@@ -26,6 +28,9 @@ const HANDLERS: Record<JobType, Handler> = {
   discuss: (p) => discuss(p as { thread: string }),
   quality_gate: () => qualityGate(),
   performance_check: () => performanceCheck(),
+  discover_ideas: () => discoverIdeas(),
+  prune_ideas: () => pruneIdeas(),
+  scan_services: () => scanServices(),
 };
 
 const MAX_ATTEMPTS = 4;
@@ -194,6 +199,11 @@ export async function runOnce(budgetMs = Number(process.env.PASS_BUDGET_MS ?? 7 
       await drain(deadline);
       if (Date.now() >= deadline) break;
       if (await advancePipeline()) continue;
+      const researching = await scheduleResearch().catch((error) => {
+        console.error(`[research] ${error instanceof Error ? error.message : error}`);
+        return false;
+      });
+      if (researching) continue;
       const picked = await autoPick().catch((error) => {
         console.error(`[auto-pick] ${error instanceof Error ? error.message : error}`);
         return false;

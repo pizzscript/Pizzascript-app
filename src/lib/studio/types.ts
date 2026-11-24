@@ -239,6 +239,9 @@ export const JOB_TYPES = [
   "discuss",
   "quality_gate",
   "performance_check",
+  "discover_ideas",
+  "prune_ideas",
+  "scan_services",
 ] as const;
 export type JobType = (typeof JOB_TYPES)[number];
 
