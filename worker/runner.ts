@@ -6,6 +6,7 @@ import { isBillingError, isTransientError } from "./gemini";
 import { fixTitle, generateImage, insertLink, rewrite, runAudit, scoreTopic, writeBrief } from "./jobs/content";
 import { writeDraft } from "./jobs/draft";
 import { dailyBriefing, discuss, performanceCheck, qualityGate } from "./jobs/ops";
+import { applyConnections } from "./connections";
 import { autoPick } from "./jobs/autopick";
 import { advancePipeline, publishDue } from "./jobs/publish";
 
@@ -184,6 +185,7 @@ export async function runOnce(budgetMs = Number(process.env.PASS_BUDGET_MS ?? 7 
   if (running) return false;
   running = true;
   hookShutdown();
+  await applyConnections().catch((error) => console.warn(`[connections] ${error instanceof Error ? error.message : error}`));
   const stopKeepAwake = keepAwake();
   const deadline = Date.now() + budgetMs;
   try {

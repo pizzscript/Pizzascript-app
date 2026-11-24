@@ -32,7 +32,15 @@ type StreamingClient = {
   };
 };
 
-const client = new GoogleGenAI({ apiKey: env.geminiApiKey, httpOptions: { apiVersion: "v1beta" } }) as unknown as StreamingClient;
+let agentClient: StreamingClient | null = null;
+let agentKey = "";
+const client = () => {
+  if (!agentClient || agentKey !== env.geminiApiKey) {
+    agentKey = env.geminiApiKey;
+    agentClient = new GoogleGenAI({ apiKey: agentKey, httpOptions: { apiVersion: "v1beta" } }) as unknown as StreamingClient;
+  }
+  return agentClient;
+};
 
 const readState = () => setting<AgentState>("agent_state", {});
 
@@ -62,7 +70,7 @@ export async function runAgent(input: string, opts: { label: string; maxTokens: 
   let timer: ReturnType<typeof setInterval> | undefined;
 
   try {
-    stream = await client.interactions.create(
+    stream = await client().interactions.create(
       {
         agent: AGENT_MODEL,
         input,
@@ -96,10 +104,10 @@ export async function runAgent(input: string, opts: { label: string; maxTokens: 
     await Promise.race([consume, watchdog]);
     if (!id) throw new Error("Antigravity returned no task ID");
 
-    let final = await client.interactions.get(id);
+    let final = await client().interactions.get(id);
     while (final.status === "in_progress" && Date.now() - begin < opts.timeoutMs) {
       await new Promise((r) => setTimeout(r, 5000));
-      final = await client.interactions.get(id);
+      final = await client().interactions.get(id);
     }
     if (final.status !== "completed") throw new Error(`Antigravity ended as ${final.status}: ${JSON.stringify(final.error ?? "").slice(0, 200)}`);
     finished = true;

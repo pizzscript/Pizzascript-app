@@ -4,7 +4,16 @@ import { db } from "./db";
 import { env } from "./env";
 
 // v1beta: preview models in the backup chain (e.g. 3 Flash) return 404 on the SDK's default version.
-const ai = new GoogleGenAI({ apiKey: env.geminiApiKey, apiVersion: "v1beta" });
+// Rebuilt when the key changes, so a key replaced in the admin panel is used without a redeploy.
+let aiClient: GoogleGenAI | null = null;
+let aiKey = "";
+const ai = () => {
+  if (!aiClient || aiKey !== env.geminiApiKey) {
+    aiKey = env.geminiApiKey;
+    aiClient = new GoogleGenAI({ apiKey: aiKey, apiVersion: "v1beta" });
+  }
+  return aiClient;
+};
 
 // Per-request timeout: an overloaded model can otherwise leave a request hanging for minutes and block the queue.
 // Small jobs (scoring, briefs) should fail over to the next backup quickly; a full article genuinely needs longer.
@@ -137,7 +146,7 @@ async function route<T>(label: string, kind: Kind, promptChars: number, opts: Ca
 /** Gemma has no system-instruction or JSON mode, so both go in the prompt and the reply is parsed leniently. */
 function request(model: string, prompt: string, system: string, temperature: number, asJson: boolean, tier: ModelTier) {
   const gemma = model.startsWith("gemma");
-  return ai.models.generateContent({
+  return ai().models.generateContent({
     model,
     contents: gemma ? `${system}\n\n${prompt}` : prompt,
     config: {

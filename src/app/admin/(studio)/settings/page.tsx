@@ -1,12 +1,14 @@
 import { Suspense } from "react";
 import { RoomSkeleton } from "@/components/studio/RoomSkeleton";
 import { SettingsView } from "@/components/studio/SettingsView";
+import { loadConnections } from "@/lib/studio/connections-server";
 import { getStudio } from "@/lib/studio/session";
 
 export const metadata = { title: "Settings" };
 
 async function Settings({ searchParams }: { searchParams: PageProps<"/admin/settings">["searchParams"] }) {
   const [{ studio, data }, params] = await Promise.all([getStudio(), searchParams]);
+  const connections = await loadConnections(studio);
   return (
     <SettingsView
       initialTab={typeof params.tab === "string" ? params.tab : "schedule"}
@@ -19,6 +21,7 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/admin/sett
       email={studio.mode === "live" ? studio.email : null}
       autopilot={data.autopilot}
       autoPick={data.autoPick}
+      connections={connections}
       aiUsage={data.aiUsage}
     />
   );

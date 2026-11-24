@@ -5,7 +5,9 @@ import { Trash2 } from "lucide-react";
 import { addFact, approveBatch, deleteFact, runAgent, saveScoring, saveSetting, setFactVerified, signOut } from "@/app/admin/actions";
 import type { AiCall } from "@/lib/studio/server";
 import { SCORE_FACTORS, type Batch, type Fact, type ScheduleSettings, type ScoreFactor, type ScoringSettings } from "@/lib/studio/types";
+import type { ConnectionView } from "@/lib/studio/connections-server";
 import { AutoPickToggle } from "./AutoPickToggle";
+import { ConnectionsPanel } from "./ConnectionsPanel";
 import { AutopilotToggle } from "./AutopilotToggle";
 import { useStudio } from "./StudioProvider";
 import { UsagePanel } from "./UsagePanel";
@@ -14,6 +16,7 @@ import { PageHead } from "./ui";
 const TABS = [
   { id: "schedule", label: "Schedule" },
   { id: "autopilot", label: "Autopilot" },
+  { id: "connections", label: "Connections" },
   { id: "usage", label: "AI usage" },
   { id: "writing", label: "Writing rules" },
   { id: "scoring", label: "Idea scoring" },
@@ -52,10 +55,11 @@ interface Props {
   email: string | null;
   autopilot: boolean;
   autoPick: { enabled: boolean; pausedReason: string | null };
+  connections: ConnectionView[];
   aiUsage: AiCall[];
 }
 
-export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, batches, email, autopilot, autoPick, aiUsage }: Props) {
+export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, batches, email, autopilot, autoPick, connections, aiUsage }: Props) {
   const { run, busy, preview } = useStudio();
   const [tab, setTab] = useState<TabId>((TABS.find((t) => t.id === initialTab)?.id ?? "schedule") as TabId);
   const [sched, setSched] = useState(schedule);
@@ -262,6 +266,16 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
                   </button>
                 </div>
               </form>
+            </>
+          )}
+
+          {tab === "connections" && (
+            <>
+              <Intro
+                title="Connections"
+                text="Keys for the services the agent uses. A key saved here replaces the one in Render's settings within about 5 minutes, with no redeploy. Keys are tested before saving, stored encrypted, and never shown again in full."
+              />
+              <ConnectionsPanel connections={connections} />
             </>
           )}
 
