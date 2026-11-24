@@ -41,21 +41,37 @@ export async function speedCheck() {
     previous.set(r.url, { ...(previous.get(r.url) ?? {}), [r.metric]: r.value });
   }
   let checked = 0;
+  let lastError = "";
   const drops: string[] = [];
   for (const url of pages) {
     const api = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=mobile&category=performance${key ? `&key=${encodeURIComponent(key)}` : ""}`;
     try {
       const res = await fetch(api, { signal: AbortSignal.timeout(90_000) });
-      if (!res.ok) throw new Error(`PageSpeed answered ${res.status}`);
+      if (!res.ok) throw new Error(res.status === 429 ? "Google's PageSpeed quota is used up" : `PageSpeed answered ${res.status}`);
       const metrics = readPageSpeed(await res.json());
       const rows = Object.entries(metrics).map(([metric, value]) => ({ date: todayIst(), url, metric, value }));
       if (rows.length) await db.from("metrics_daily").upsert(rows, { onConflict: "workspace_id,date,url,metric" });
       for (const d of speedDrops(previous.get(url) ?? {}, metrics)) drops.push(`${url.replace(/^https?:\/\/[^/]+/, "") || "/"}: ${d.metric.toUpperCase()} is now ${d.to}`);
       checked++;
     } catch (error) {
-      console.warn(`[speed] ${url}: ${error instanceof Error ? error.message : error}`);
+      lastError = error instanceof Error ? error.message : String(error);
+      console.warn(`[speed] ${url}: ${lastError}`);
     }
     await sleep(2000);
+  }
+  if (!checked && pages.length) {
+    // Nothing measured (usually no PageSpeed key, or Google's shared quota is used up): say why and try again tomorrow.
+    const s = await state();
+    await saveState({ ...s, speed: daysAgo(6) });
+    await raiseSignal({
+      kind: "quality_gate",
+      title: `Speed check couldn't measure any page (${lastError || "no answer"}).${key ? "" : " Add a free PageSpeed key in Settings → Connections."} It tries again tomorrow.`,
+      detail: { error: lastError },
+      priority: "P2",
+      post_id: null,
+      topic_id: null,
+      dedupe_key: `speed-failed:${todayIst()}`,
+    });
   }
   if (drops.length) {
     await raiseSignal({ kind: "quality_gate", title: `Speed got worse: ${drops.slice(0, 3).join("; ")}`, detail: { drops }, priority: "P2", post_id: null, topic_id: null, dedupe_key: `speed:${todayIst()}` });
