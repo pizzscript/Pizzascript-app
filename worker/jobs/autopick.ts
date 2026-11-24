@@ -2,6 +2,7 @@ import { AUTO_PICK_DEFAULTS, chooseTopic, istSlot, nextOpenDate, nextToScore, ty
 import { MODEL_CHAINS, MODEL_LIMITS, quotaDayStart, type AgentState } from "../../src/lib/studio/models";
 import type { StudioPost } from "../../src/lib/studio/types";
 import { allFacts, allPosts, allTopics, check, db, enqueue, raiseSignal, setting, settings, todayIst } from "../db";
+import { isBillingError } from "../gemini";
 
 const BUSY_JOBS = ["daily_briefing", "score_topic", "write_brief", "write_draft", "generate_image", "run_audit"];
 const PIPELINE_JOBS = ["write_brief", "write_draft", "generate_image", "run_audit"];
@@ -16,8 +17,10 @@ async function notify(today: string, key: string, title: string, topicId: string
 
 async function writerRequestsLeft() {
   const since = new Date(quotaDayStart()).toISOString();
-  const { data } = await db.from("ai_calls").select("model").gte("created_at", since).in("model", MODEL_CHAINS.writer);
-  return MODEL_CHAINS.writer.reduce((left, model) => left + Math.max(0, MODEL_LIMITS[model].rpd - (data ?? []).filter((call) => call.model === model).length), 0);
+  const { data } = await db.from("ai_calls").select("model,error").gte("created_at", since).in("model", MODEL_CHAINS.writer);
+  // A billing block is refused before it reaches the model, so it doesn't use the daily request limit.
+  const used = (data ?? []).filter((call) => !(call.error && isBillingError(call.error)));
+  return MODEL_CHAINS.writer.reduce((left, model) => left + Math.max(0, MODEL_LIMITS[model].rpd - used.filter((call) => call.model === model).length), 0);
 }
 
 /**
