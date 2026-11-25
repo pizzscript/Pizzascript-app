@@ -6,39 +6,31 @@ import { db, setting } from "./db";
 import { apiStatus, geminiBillingBlocked, isBillingError, record } from "./gemini";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/interactions";
-const START_LIMIT_MS = 2 * 60_000;
+const POLL_MS = 5000;
 const DAY_MS = 86_400_000;
-const LIFECYCLE = new Set(["interaction.created", "interaction.status_update"]);
-
-interface AgentEvent {
-  event_type?: string;
-  type?: string;
-  id?: string;
-  interaction_id?: string;
-  interaction?: { id?: string };
-  error?: unknown;
-}
 
 interface Interaction {
+  id?: string;
+  interaction?: { id?: string };
   status?: string;
   error?: unknown;
   usage?: { total_tokens?: number };
   steps?: { type?: string; content?: { text?: string }[] }[];
 }
 
-type StreamingClient = {
+type AgentClient = {
   interactions: {
-    create(params: Record<string, unknown>, options: { timeout: number }): Promise<AsyncIterable<AgentEvent> & { controller?: AbortController }>;
+    create(params: Record<string, unknown>, options?: { timeout: number }): Promise<Interaction>;
     get(id: string): Promise<Interaction>;
   };
 };
 
-let agentClient: StreamingClient | null = null;
+let agentClient: AgentClient | null = null;
 let agentKey = "";
 const client = () => {
   if (!agentClient || agentKey !== geminiKey()) {
     agentKey = geminiKey();
-    agentClient = new GoogleGenAI({ apiKey: agentKey, httpOptions: { apiVersion: "v1beta" } }) as unknown as StreamingClient;
+    agentClient = new GoogleGenAI({ apiKey: agentKey, httpOptions: { apiVersion: "v1beta" } }) as unknown as AgentClient;
   }
   return agentClient;
 };
@@ -56,7 +48,8 @@ const logTask = (task: AgentTask) =>
 
 const cancel = (id: string) => fetch(`${BASE}/${id}:cancel`, { method: "POST", headers: { "x-goog-api-key": geminiKey() } }).catch(() => {});
 
-/** One Antigravity task. Fails fast if no step starts, then pauses the agent so later articles go straight to the backups. */
+/** One Antigravity task, tracked by polling its status (not streaming — see the comment below). Fails after
+ * opts.timeoutMs with no result, then pauses the agent so later articles go straight to the backups. */
 export async function runAgent(input: string, opts: { label: string; maxTokens: number; timeoutMs: number }) {
   if (geminiBillingBlocked()) throw new Error("Antigravity skipped: Gemini billing is currently blocked (account-wide)");
   await assertAiBudget();
@@ -66,52 +59,25 @@ export async function runAgent(input: string, opts: { label: string; maxTokens: 
   const begin = Date.now();
   const startedAt = new Date(begin).toISOString();
   let id: string | undefined;
-  let working = false;
   let finished = false;
-  let stream: Awaited<ReturnType<StreamingClient["interactions"]["create"]>> | undefined;
-  let timer: ReturnType<typeof setInterval> | undefined;
 
   try {
-    stream = await client().interactions.create(
-      {
-        agent: AGENT_MODEL,
-        input,
-        environment: "remote",
-        stream: true,
-        agent_config: { type: "antigravity", model: "gemini-4-hydrogen", max_total_tokens: opts.maxTokens },
-      },
+    // No streaming: the stream's step events never arrive reliably, so progress is read by polling status
+    // instead (confirmed directly against the live API — polling gets real output where streaming didn't).
+    let final = await client().interactions.create(
+      { agent: AGENT_MODEL, input, environment: "remote", agent_config: { type: "antigravity", model: "gemini-4-hydrogen", max_total_tokens: opts.maxTokens } },
       { timeout: opts.timeoutMs },
     );
-    const active = stream;
-    const consume = (async () => {
-      for await (const event of active) {
-        const type = event.event_type ?? event.type ?? "";
-        if (!id) {
-          id = event.interaction?.id ?? event.interaction_id ?? event.id;
-          if (id) await logTask({ id, label: opts.label, status: "running", startedAt });
-        }
-        if (type === "error") throw new Error(`Antigravity error: ${JSON.stringify(event.error ?? event).slice(0, 300)}`);
-        if (type && !LIFECYCLE.has(type)) working = true;
-        if (type === "interaction.completed") finished = true;
-      }
-    })();
-    const watchdog = new Promise<never>((_, reject) => {
-      timer = setInterval(() => {
-        const elapsed = Date.now() - begin;
-        if (!working && elapsed > START_LIMIT_MS) reject(new Error("Antigravity hung: no step started"));
-        if (elapsed > opts.timeoutMs) reject(new Error("Antigravity timed out"));
-      }, 2000);
-    });
-    consume.catch(() => {});
-    await Promise.race([consume, watchdog]);
+    id = final.id ?? final.interaction?.id;
     if (!id) throw new Error("Antigravity returned no task ID");
+    await logTask({ id, label: opts.label, status: "running", startedAt });
 
-    let final = await client().interactions.get(id);
     while (final.status === "in_progress" && Date.now() - begin < opts.timeoutMs) {
-      await new Promise((r) => setTimeout(r, 5000));
+      await new Promise((r) => setTimeout(r, POLL_MS));
       final = await client().interactions.get(id);
     }
-    if (final.status !== "completed") throw new Error(`Antigravity ended as ${final.status}: ${JSON.stringify(final.error ?? "").slice(0, 200)}`);
+    if (final.status === "in_progress") throw new Error("Antigravity timed out");
+    if (final.status !== "completed" && final.status !== "incomplete") throw new Error(`Antigravity ended as ${final.status}: ${JSON.stringify(final.error ?? "").slice(0, 200)}`);
     finished = true;
 
     const text = (final.steps ?? [])
@@ -135,7 +101,6 @@ export async function runAgent(input: string, opts: { label: string; maxTokens: 
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     record(AGENT_MODEL, "json", message);
-    stream?.controller?.abort();
     if (id && !finished) await cancel(id);
     // A billing block isn't Antigravity being unreliable — don't let it count toward the hang streak.
     if (!/no text/i.test(message) && !isBillingError(message)) {
@@ -147,7 +112,5 @@ export async function runAgent(input: string, opts: { label: string; maxTokens: 
     }
     if (id) await logTask({ id, label: opts.label, status: "failed", startedAt, error: message.slice(0, 160) });
     throw error;
-  } finally {
-    if (timer) clearInterval(timer);
   }
 }
