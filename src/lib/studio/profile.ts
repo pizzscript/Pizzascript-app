@@ -18,6 +18,10 @@ export interface ClientProfile {
   description: string;
   /** Short description used in the writer's first line. */
   shortDescription: string;
+  /** Used instead of description/shortDescription for broad-audience business topics (not developer topics), so
+   * the business doesn't read as narrower than it is. Falls back to description/shortDescription when unset. */
+  broadDescription?: string;
+  broadShortDescription?: string;
   /** How the writer should speak for the business. */
   voiceRule: string;
   /** Positioning rule in the writing rules. */
@@ -66,6 +70,8 @@ export const PIZZASCRIPT_PROFILE: ClientProfile = {
   domainLabel: "pizzascript.com",
   description: "a custom web engineering studio in Pune, India (React, Next.js, performance, technical SEO, scroll animation)",
   shortDescription: "a custom web engineering studio in Pune, India",
+  broadDescription: "a Pune, India studio that builds custom software, automation and websites for small and medium businesses",
+  broadShortDescription: "a studio that builds custom software and automation for small businesses",
   voiceRule: 'Say "we", never "freelancer".',
   positioning: 'Studio positioning: never "freelancer"; always "studio" / "we" / "our process". Never imply limited capacity. The India angle is an asset (faster delivery, direct access).',
   brandQuery: "pizzascript",

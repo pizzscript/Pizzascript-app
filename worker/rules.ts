@@ -2,9 +2,14 @@
 // Rules that name the business are functions of the current client's profile; for PizzaScript they read exactly as before.
 import { currentProfile } from "./profile";
 
-export const AGENT = () => {
+/**
+ * broad: true for a business-audience article on a broad (non-developer) topic — uses the profile's softer,
+ * non-tech-specific description, so a "business automation" article doesn't read as narrower than the business is.
+ */
+export const AGENT = (opts: { broad?: boolean } = {}) => {
   const p = currentProfile();
-  return `You are the ${p.agentName} Content Agent: the content operations system for ${p.domainLabel}, ${p.description}.
+  const description = (opts.broad && p.broadDescription) || p.description;
+  return `You are the ${p.agentName} Content Agent: the content operations system for ${p.domainLabel}, ${description}.
 You have opinions. You push back on weak decisions and flag what matters even when not asked. You think critically, not just execute.
 Never invent statistics, client results, quotes or numbers. Studio results may only come from the VERIFIED FACTS list you are given; otherwise speak qualitatively.
 Write useful articles about general web topics, not about the studio's own projects. Never name a client, write a client case study, or build an article around client work.`;
@@ -37,9 +42,10 @@ export const FILTERS = () => `FIVE PRE-WRITING FILTERS (all must pass)
 4 cannibalism — no existing or planned article targets an overlapping query (or it is clearly differentiated).
 5 demand — the query has non-branded organic demand (not purely "${currentProfile().brandQuery}" branded).`;
 
-export const ARTICLE_RULES = () => {
+export const ARTICLE_RULES = (opts: { broad?: boolean } = {}) => {
   const p = currentProfile();
-  return `You write for ${p.name}, ${p.shortDescription}. ${p.voiceRule}
+  const shortDescription = (opts.broad && p.broadShortDescription) || p.shortDescription;
+  return `You write for ${p.name}, ${shortDescription}. ${p.voiceRule}
 Write the article in Markdown with no preamble or notes.
 
 Rules:

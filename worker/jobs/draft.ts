@@ -31,6 +31,8 @@ interface ArticleJob {
   required: string[];
   optional: string[];
   context: string;
+  /** A business-audience article on a broad (non-developer) topic: softens the studio's tech-specific framing. */
+  broad: boolean;
 }
 
 /** At most one client fact, and only if it directly proves something in this article. */
@@ -74,7 +76,8 @@ LINKS YOU MUST USE: ${required.join(", ") || "none"}
 OTHER LINKS YOU MAY USE (exact paths only): ${optional.join(", ")}
 ${fact ? `ONE REAL RESULT YOU MAY CITE as "on a recent project", only if it fits naturally: ${fact}` : "Cite no studio or client results."}`;
 
-  return { post, outline: post.brief.outline ?? [], liveSlugs, wordRange, required, optional, context };
+  const broad = (topic?.research as { group?: string } | undefined)?.group === "broad" && post.brief.audience !== "developer";
+  return { post, outline: post.brief.outline ?? [], liveSlugs, wordRange, required, optional, context, broad };
 }
 
 const toHtml = (job: ArticleJob, markdown: string) => removeUnknownLinks(markdownToHtml(markdown), job.liveSlugs);
@@ -93,7 +96,7 @@ export function splitArticleSeo(reply: string): { article: string; seo: SeoField
 }
 
 async function writeWithAgent(job: ArticleJob) {
-  const { text: reply } = await runAgent(`${ARTICLE_RULES()}\n\n${SEO_BLOCK}\n\nDo not use any tools, search, files or code execution.\n\n${job.context}`, {
+  const { text: reply } = await runAgent(`${ARTICLE_RULES({ broad: job.broad })}\n\n${SEO_BLOCK}\n\nDo not use any tools, search, files or code execution.\n\n${job.context}`, {
     label: `article: ${job.post.slug}`,
     maxTokens: 60_000,
     timeoutMs: 15 * 60_000,
@@ -131,7 +134,7 @@ Write ONLY ${g === 0 ? "the opening paragraphs (no heading), then " : ""}these s
 ${headings.map((h) => `## ${h}`).join("\n")}
 ${left.length ? `Links still needed${isLast ? " (ALL must appear now)" : ""}: ${left.join(", ")}` : ""}
 ${isLast ? `This is the end of the article: no summary, finish with the next logical action or a natural service-page transition.\n\n${SEO_BLOCK}` : "Don't conclude; the article continues."}`,
-      ARTICLE_RULES(),
+      ARTICLE_RULES({ broad: job.broad }),
       { temperature: 0.7, tier: "writer", sticky },
     );
     const split = splitArticleSeo(out);
