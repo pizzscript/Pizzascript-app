@@ -6,6 +6,7 @@ import { currentApprovalMode } from "../profile";
 import { bodyHash } from "../quality";
 import { publishToSite, refreshSite, unpublishFromSite } from "../publishers";
 import { RELATED_SIMILARITY, storedMatches } from "../research/embeddings";
+import { regenerateSitemap } from "./sitemap";
 
 /** After a live article changes: refresh the cached feed (and PizzaScript's blog pages) so the change shows. */
 export async function revalidate(slug?: string) {
@@ -97,6 +98,7 @@ export async function publishDue() {
 
   if (published.length) {
     for (const slug of published) await refreshSite(slug);
+    await regenerateSitemap();
     console.log(`[publish] live: ${published.join(", ")}`);
   }
   return published;
@@ -205,6 +207,7 @@ export async function unpublishPost({ postId }: { postId: string }) {
   );
   await db.from("agent_messages").insert({ thread: `post:${postId}`, role: "agent", content: "Unpublished. It's back in Ready without a date." });
   await refreshSite(post.slug);
+  await regenerateSitemap();
   return { unpublished: post.slug };
 }
 
