@@ -63,7 +63,9 @@ export async function autoPick(): Promise<boolean> {
 
   const failedIds = new Set((failedJobs.data ?? []).map((job) => (job.payload as { postId?: string }).postId));
   const picked = posts.filter((post) => pickedAt(post) && post.stage !== "live").sort((a, b) => pickedAt(b).localeCompare(pickedAt(a)));
-  const failed = (post: StudioPost) => failedIds.has(post.id) || post.audit?.ok === false;
+  // A post still waiting on review, or with only an autofixable/warning issue, is not a failure — only a real
+  // blocker (or an actual failed pipeline job) counts. Otherwise Auto-pick pauses on posts still mid-pipeline.
+  const failed = (post: StudioPost) => failedIds.has(post.id) || (post.audit?.checks ?? []).some((c) => !c.pass && c.level === "blocker");
   const recent = posts.filter((post) => pickedAt(post)).sort((a, b) => pickedAt(b).localeCompare(pickedAt(a))).slice(0, config.maxFailures);
   if (recent.length === config.maxFailures && recent.every(failed)) {
     const pausedReason = `${config.maxFailures} picked articles in a row failed`;
