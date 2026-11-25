@@ -77,14 +77,41 @@ export interface CallOptions {
   sticky?: { model?: string };
 }
 
-/** Logs one Gemini request for the usage panel. Never fails the job. */
-export function record(model: string, kind: Kind, error?: string) {
+/** Logs one Gemini request for the usage panel. tokens = input/prompt tokens only (what Google calls TPM);
+ * total = input+output+thinking, for our own cost picture. Never fails the job. */
+export function record(model: string, kind: Kind, error?: string, tokens?: number, total?: number) {
   const limit = error?.match(/limit: (\d+)/)?.[1];
   // Google counts failed requests too, so both count against the client's daily budget.
   void addUsage({ ai: 1 });
   db.from("ai_calls")
-    .insert({ model, kind, ok: !error, error: error?.slice(0, 500) ?? null, quota_limit: limit === undefined ? null : Number(limit), key_owner: aiKeyOwner() })
+    .insert({ model, kind, ok: !error, error: error?.slice(0, 500) ?? null, quota_limit: limit === undefined ? null : Number(limit), key_owner: aiKeyOwner(), input_tokens: tokens ?? null, total_tokens: total ?? null })
     .then(({ error: e }) => e && console.warn("[usage] " + e.message));
+  if (!error && tokens) void checkTpm(model, tokens);
+}
+
+/** One 1-minute-TPM alert per model per day, so a real squeeze is surfaced without repeating every call. */
+async function checkTpm(model: string, latestTokens: number) {
+  const tpm = MODEL_LIMITS[model]?.tpm;
+  if (!tpm) return;
+  try {
+    const since = new Date(Date.now() - 60_000).toISOString();
+    const { data } = await db.from("ai_calls").select("input_tokens").eq("model", model).gte("created_at", since);
+    // The insert above is fire-and-forget, so this query can race it; count this call's own tokens explicitly.
+    const total = latestTokens + (data ?? []).reduce((sum: number, r: { input_tokens: number | null }) => sum + (r.input_tokens ?? 0), 0);
+    if (total < tpm * 0.8) return;
+    const { raiseSignal, todayIst } = await import("./db");
+    await raiseSignal({
+      kind: "quality_gate",
+      title: `${MODEL_LIMITS[model].label}: token use this minute is near its limit (${Math.round((total / tpm) * 100)}% of ${tpm.toLocaleString("en-US")} TPM). Articles may fail over to a backup model.`,
+      detail: { model, tokensThisMinute: total, tpm },
+      priority: "P3",
+      post_id: null,
+      topic_id: null,
+      dedupe_key: `tpm:${model}:${todayIst()}`,
+    });
+  } catch (e) {
+    console.warn(`[usage] tpm check: ${e instanceof Error ? e.message : e}`);
+  }
 }
 
 const nextSlot = new Map<string, number>();
@@ -122,7 +149,7 @@ function chainFor(tier: ModelTier, promptChars: number, preferred?: string) {
 }
 
 /** Tries each model in the tier: waits out per-minute limits, and moves on at once when one is used up, overloaded or returns junk. */
-async function route<T>(label: string, kind: Kind, promptChars: number, opts: CallOptions, call: (model: string) => Promise<T>): Promise<T> {
+async function route<T>(label: string, kind: Kind, promptChars: number, opts: CallOptions, call: (model: string) => Promise<{ value: T; tokens?: number; total?: number }>): Promise<T> {
   checkBilling();
   await assertAiBudget();
   const tier = opts.tier ?? "light";
@@ -134,9 +161,9 @@ async function route<T>(label: string, kind: Kind, promptChars: number, opts: Ca
       try {
         await pace(model);
         const result = await call(model);
-        record(model, kind);
+        record(model, kind, undefined, result.tokens, result.total);
         if (opts.sticky) opts.sticky.model = model;
-        return result;
+        return result.value;
       } catch (error) {
         lastError = error;
         const message = error instanceof Error ? error.message : String(error);
@@ -190,7 +217,7 @@ export async function text(prompt: string, system: string, opts: CallOptions = {
     const res = await request(model, prompt, system, opts.temperature ?? 0.7, false, opts.tier ?? "light");
     const out = res.text?.trim();
     if (!out) throw new Error("empty response");
-    return out;
+    return { value: out, tokens: res.usageMetadata?.promptTokenCount, total: res.usageMetadata?.totalTokenCount };
   });
 }
 
@@ -233,7 +260,7 @@ export async function json<T>(prompt: string, system: string, opts: CallOptions 
     const start = raw.search(/[[{]/);
     const end = Math.max(raw.lastIndexOf("}"), raw.lastIndexOf("]"));
     if (start === -1 || end === -1) throw new Error(`no JSON in response: ${raw.slice(0, 200)}`);
-    return parseLenient(raw.slice(start, end + 1)) as T;
+    return { value: parseLenient(raw.slice(start, end + 1)) as T, tokens: res.usageMetadata?.promptTokenCount, total: res.usageMetadata?.totalTokenCount };
   });
 }
 

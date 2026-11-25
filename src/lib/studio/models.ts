@@ -4,6 +4,8 @@ export interface ModelLimit {
   label: string;
   rpm: number;
   rpd: number;
+  /** Tokens per minute, counting input (prompt) tokens only — Google's own definition of TPM. */
+  tpm: number;
   group: "agent" | "writer" | "light" | "backup" | "decision";
 }
 
@@ -40,15 +42,15 @@ export function nextCooldownMs(consecutiveFailures: number) {
 
 /** Free-tier limits from Google AI Studio's rate-limit page (2026-11-21). */
 export const MODEL_LIMITS: Record<string, ModelLimit> = {
-  [AGENT_MODEL]: { label: "Antigravity", rpm: 60, rpd: 100, group: "agent" },
-  "gemini-3.8-flash": { label: "3.8 Flash", rpm: 5, rpd: 20, group: "writer" },
-  "gemini-3.6-flash": { label: "3.6 Flash", rpm: 5, rpd: 20, group: "writer" },
-  "gemini-3-flash-preview": { label: "3 Flash", rpm: 5, rpd: 20, group: "writer" },
-  "gemini-3.5-flash-lite": { label: "3.5 Flash Lite", rpm: 15, rpd: 500, group: "light" },
-  "gemini-3.1-flash-lite": { label: "3.1 Flash Lite", rpm: 15, rpd: 500, group: "light" },
-  "gemma-4-31b-it": { label: "Gemma 4 31B", rpm: 30, rpd: 14400, group: "backup" },
-  "gemma-4-26b-a4b-it": { label: "Gemma 4 26B", rpm: 30, rpd: 14400, group: "backup" },
-  "gemini-decision-1": { label: "Decision 1", rpm: 200, rpd: 10000, group: "decision" },
+  [AGENT_MODEL]: { label: "Antigravity", rpm: 60, rpd: 100, tpm: 100_000, group: "agent" },
+  "gemini-3.8-flash": { label: "3.8 Flash", rpm: 5, rpd: 20, tpm: 250_000, group: "writer" },
+  "gemini-3.6-flash": { label: "3.6 Flash", rpm: 5, rpd: 20, tpm: 250_000, group: "writer" },
+  "gemini-3-flash-preview": { label: "3 Flash", rpm: 5, rpd: 20, tpm: 250_000, group: "writer" },
+  "gemini-3.5-flash-lite": { label: "3.5 Flash Lite", rpm: 15, rpd: 500, tpm: 250_000, group: "light" },
+  "gemini-3.1-flash-lite": { label: "3.1 Flash Lite", rpm: 15, rpd: 500, tpm: 250_000, group: "light" },
+  "gemma-4-31b-it": { label: "Gemma 4 31B", rpm: 30, rpd: 14400, tpm: 15_000, group: "backup" },
+  "gemma-4-26b-a4b-it": { label: "Gemma 4 26B", rpm: 30, rpd: 14400, tpm: 15_000, group: "backup" },
+  "gemini-decision-1": { label: "Decision 1", rpm: 200, rpd: 10000, tpm: 50_000, group: "decision" },
 };
 
 export const MODEL_CHAINS: Record<ModelTier, string[]> = {

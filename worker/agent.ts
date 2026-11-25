@@ -14,7 +14,7 @@ interface Interaction {
   interaction?: { id?: string };
   status?: string;
   error?: unknown;
-  usage?: { total_tokens?: number };
+  usage?: { total_tokens?: number; total_input_tokens?: number };
   steps?: { type?: string; content?: { text?: string }[] }[];
 }
 
@@ -88,7 +88,7 @@ export async function runAgent(input: string, opts: { label: string; maxTokens: 
       .trim();
     if (!text) throw new Error("Antigravity returned no text");
 
-    record(AGENT_MODEL, "json");
+    record(AGENT_MODEL, "json", undefined, final.usage?.total_input_tokens, final.usage?.total_tokens);
     // A clean run resets the failure streak immediately: a success means the service is healthy right now.
     await updateState((s) => ({
       tasks: [{ id: id!, label: opts.label, status: "completed" as const, startedAt, tokens: final.usage?.total_tokens }, ...(s.tasks ?? []).filter((t) => t.id !== id)].slice(0, 20),
