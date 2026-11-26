@@ -25,7 +25,7 @@ export async function SystemHealth() {
         <h2 id="health-title" className="card-title">
           System health <span className="s-faint font-normal">· free limits</span>
         </h2>
-        <Link href="/admin/settings?tab=usage" className="s-faint text-[12px] hover:text-[var(--s-text)]">
+        <Link href="/settings?tab=usage" className="s-faint text-[12px] hover:text-[var(--s-text)]">
           AI details →
         </Link>
       </div>

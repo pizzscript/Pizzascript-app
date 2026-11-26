@@ -10,7 +10,6 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
-import { CASE_STUDIES } from "../src/data/portfolio";
 import { readLegacyBlog } from "./lib/legacy-blog";
 
 const AUTOMATION = path.resolve("../blogs/automation");
@@ -222,15 +221,8 @@ async function main() {
     }
   }
 
-  // ── Facts the agent may cite. Mirrors the case-study pages; confirm before relying on them.
-  const facts = CASE_STUDIES.flatMap((study) =>
-    study.results.map((statement) => ({
-      id: id("fact", study.slug, statement),
-      subject: study.name,
-      statement,
-      source: `/portfolio/${study.slug} (unverified — confirm with client data)`,
-    })),
-  );
+  // ── Facts the agent may cite. The portfolio case studies now live in ../website; add facts there if needed.
+  const facts: Record<string, unknown>[] = [];
 
   // ── Signals from the last GSC logs: page-one pages that get impressions but no clicks.
   const signals: Record<string, unknown>[] = [];

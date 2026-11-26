@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
-import { enqueue } from "@/app/admin/actions";
+import { enqueue } from "@/app/actions";
 import { STATUS_LABEL, type Cluster, type StudioPost } from "@/lib/studio/types";
 import { useStudio } from "./StudioProvider";
 import { CategoryLabel, EmptyState, PageHead, SeoBadge, StatusBadge, formatDate } from "./ui";
@@ -56,7 +56,7 @@ export function PostsTable({ posts, clusters, initialTab }: { posts: StudioPost[
   return (
     <div>
       <PageHead title="Posts" sub={`${posts.length} articles · ${posts.filter((p) => p.stage === "live").length} live`}>
-        <Link href="/admin/ideas?new=1" className="s-btn s-btn--primary">
+        <Link href="/ideas?new=1" className="s-btn s-btn--primary">
           New post from idea
         </Link>
       </PageHead>
@@ -134,7 +134,7 @@ export function PostsTable({ posts, clusters, initialTab }: { posts: StudioPost[
             </thead>
             <tbody>
               {visible.map((post) => (
-                <tr key={post.id} className="cursor-pointer" onClick={() => router.push(`/admin/posts/${post.id}`)}>
+                <tr key={post.id} className="cursor-pointer" onClick={() => router.push(`/posts/${post.id}`)}>
                   <td onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
@@ -145,7 +145,7 @@ export function PostsTable({ posts, clusters, initialTab }: { posts: StudioPost[
                     />
                   </td>
                   <td className="max-w-[420px]">
-                    <Link href={`/admin/posts/${post.id}`} className="font-medium hover:text-[var(--s-accent)] line-clamp-1" onClick={(e) => e.stopPropagation()}>
+                    <Link href={`/posts/${post.id}`} className="font-medium hover:text-[var(--s-accent)] line-clamp-1" onClick={(e) => e.stopPropagation()}>
                       {post.title}
                     </Link>
                     <span className="block s-faint text-[12px] truncate">/blog/{post.slug}</span>

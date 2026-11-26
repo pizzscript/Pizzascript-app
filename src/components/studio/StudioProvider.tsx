@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { activeJobs, jobStatuses } from "@/app/admin/actions";
+import { activeJobs, jobStatuses } from "@/app/actions";
 import { friendlyJobError, jobLabel } from "@/lib/studio/jobs";
 import type { JobType } from "@/lib/studio/types";
 

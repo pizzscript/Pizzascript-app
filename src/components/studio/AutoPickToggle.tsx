@@ -1,7 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { setAutoPick } from "@/app/admin/actions";
+import { setAutoPick } from "@/app/actions";
 import { useStudio } from "./StudioProvider";
 
 const CONFIRM_ON =

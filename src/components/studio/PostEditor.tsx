@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Code2, ExternalLink, ImagePlus, Loader2, RefreshCw, Sparkles, WandSparkles } from "lucide-react";
-import { approvePost, enqueue, restoreVersion, saveBody, slotPost, unpublishPost, updatePost, updateTaxonomy } from "@/app/admin/actions";
+import { approvePost, enqueue, restoreVersion, saveBody, slotPost, unpublishPost, updatePost, updateTaxonomy } from "@/app/actions";
 import { istDate } from "@/lib/studio/briefing";
 import { wordCount } from "@/lib/studio/content";
 import type { AgentMessage, Audit, Cluster, Fact, PostVersion, RewritePayload, StudioPost, Topic } from "@/lib/studio/types";
@@ -104,7 +104,7 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
   return (
     <div>
       <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 s-faint text-[13px] mb-3">
-        <Link href="/admin/posts" className="hover:text-[var(--s-text)]">
+        <Link href="/posts" className="hover:text-[var(--s-text)]">
           Posts
         </Link>
         <ChevronRight size={14} aria-hidden="true" />
@@ -475,7 +475,7 @@ export function PostEditor({ post, sections, topic, clusters, audit, links, vers
               {facts.length === 0 ? (
                 <p className="s-faint text-[13px]">
                   None verified yet, so the AI won&apos;t quote any numbers.{" "}
-                  <Link href="/admin/settings?tab=facts" className="underline">
+                  <Link href="/settings?tab=facts" className="underline">
                     Verify facts
                   </Link>
                 </p>

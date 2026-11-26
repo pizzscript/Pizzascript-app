@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { createTopic, enqueue, setTopicStatus } from "@/app/admin/actions";
+import { createTopic, enqueue, setTopicStatus } from "@/app/actions";
 import { computeScore } from "@/lib/studio/scoring";
 import { FILTERS, verdictFor, type Cluster, type ScoringSettings, type Topic, type Verdict } from "@/lib/studio/types";
 import { useStudio } from "./StudioProvider";

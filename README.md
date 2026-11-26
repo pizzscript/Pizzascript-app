@@ -1,10 +1,8 @@
 # PizzaScript — Next.js app
 
-The unified PizzaScript website (marketing site, `/freelance-pune`, blog) plus **Studio**, the admin control room
-for the content agent, and the **agent worker** that runs on a GitHub Actions schedule.
-
-Replaces the legacy `../website` (Vite SPA) and `../blogs/blog` (static HTML on `blog.pizzascript.com`); both stay
-read-only for reference. The agent's rules come from `../blogs/automation/AGENT.md`.
+**Studio**, the control room for the content agent, plus the **agent worker** and job queue it runs on. This app
+is purely internal now — the public site (marketing pages, blog, services, portfolio) lives in `../website`
+(deployed separately on Vercel) and reads the same Supabase data.
 
 ## Stack
 
@@ -18,11 +16,10 @@ read-only for reference. The agent's rules come from `../blogs/automation/AGENT.
 ```bash
 cp .env.example .env.local
 npm install
-npm run dev            # site on :3000, studio on /admin
+npm run dev            # studio on :3000
 ```
 
-Without Supabase keys everything still runs: the blog renders an empty state and `/admin` opens in **preview
-mode** (read-only, data from `supabase/seed/studio.json`).
+Without Supabase keys the Studio still opens, in **preview mode** (read-only, data from `supabase/seed/studio.json`).
 
 ## One-time setup
 
@@ -38,7 +35,7 @@ mode** (read-only, data from `supabase/seed/studio.json`).
    The schedule lives in `.github/workflows/agent.yml` (every 15 min; `workflow_dispatch` for manual runs).
 7. **Search Console.** Add the service account's email as a user on the `pizzascript.com` property.
 
-## Studio (`/admin`)
+## Studio (`/`)
 
 A plain CMS dashboard: Dashboard, Posts, Ideas, Calendar, Categories, Settings (see `src/components/studio/`).
 `Ctrl K` jumps anywhere.

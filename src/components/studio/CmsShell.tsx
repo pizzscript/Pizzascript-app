@@ -4,24 +4,24 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Activity, BarChart3, Building2, CalendarDays, Link2, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Plus, Search, Settings, Tags, X } from "lucide-react";
-import { enqueue, signOut } from "@/app/admin/actions";
-import { switchClient } from "@/app/admin/clients";
+import { enqueue, signOut } from "@/app/actions";
+import { switchClient } from "@/app/clients";
 import { BrandMark } from "@/components/BrandMark";
 import { STATUS_LABEL, type Stage } from "@/lib/studio/types";
 import { AgentActivity } from "./AgentActivity";
 import { useStudio } from "./StudioProvider";
 
 const NAV = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, count: "alerts" as const },
-  { href: "/admin/posts", label: "Posts", icon: FileText },
-  { href: "/admin/ideas", label: "Ideas", icon: Lightbulb, count: "ideas" as const },
-  { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/admin/categories", label: "Categories", icon: Tags },
-  { href: "/admin/health", label: "Site health", icon: Activity },
-  { href: "/admin/links", label: "Links & local", icon: Link2 },
-  { href: "/admin/report", label: "Report", icon: BarChart3 },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
-  { href: "/admin/clients", label: "Clients", icon: Building2 },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, count: "alerts" as const },
+  { href: "/posts", label: "Posts", icon: FileText },
+  { href: "/ideas", label: "Ideas", icon: Lightbulb, count: "ideas" as const },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/categories", label: "Categories", icon: Tags },
+  { href: "/health", label: "Site health", icon: Activity },
+  { href: "/links", label: "Links & local", icon: Link2 },
+  { href: "/report", label: "Report", icon: BarChart3 },
+  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/clients", label: "Clients", icon: Building2 },
 ];
 
 export interface ShellClient {
@@ -38,7 +38,7 @@ export interface PaletteTicket {
 }
 
 function isActive(pathname: string, href: string) {
-  return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+  return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
 export function CmsShell({
@@ -47,6 +47,7 @@ export function CmsShell({
   email,
   client,
   clients,
+  siteUrl,
   children,
 }: {
   tickets: PaletteTicket[];
@@ -54,6 +55,7 @@ export function CmsShell({
   email: string | null;
   client: ShellClient;
   clients: ShellClient[];
+  siteUrl: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -86,7 +88,7 @@ export function CmsShell({
       {menuOpen && <div className="cms-scrim" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
       <aside className="cms-side" data-open={menuOpen} aria-label="Studio navigation">
         <div className="flex items-center justify-between">
-          <Link href="/admin" className="cms-brand">
+          <Link href="/" className="cms-brand">
             <BrandMark size={28} />
             <span>
               PizzaScript <span className="s-faint italic text-[14px]">studio</span>
@@ -122,7 +124,7 @@ export function CmsShell({
         {client.status !== "active" && (
           <p className="s-chip s-chip--warn mb-3 w-full justify-center">This client is {client.status}: its jobs wait</p>
         )}
-        <Link href="/admin/ideas?new=1" className="s-btn s-btn--primary w-full mb-4">
+        <Link href="/ideas?new=1" className="s-btn s-btn--primary w-full mb-4">
           <Plus size={16} aria-hidden="true" /> New idea
         </Link>
         <nav aria-label="Studio">
@@ -147,7 +149,7 @@ export function CmsShell({
         </nav>
         <AgentActivity titles={titles} />
         <div className="mt-auto pt-4 border-t s-line space-y-2">
-          <a href="/" target="_blank" rel="noopener noreferrer" className="cms-nav-link">
+          <a href={siteUrl} target="_blank" rel="noopener noreferrer" className="cms-nav-link">
             View site ↗
           </a>
           {email && <p className="px-2.5 s-faint text-[12px] truncate">{email}</p>}
@@ -220,9 +222,9 @@ function Palette({ tickets, onClose, onBriefing }: { tickets: PaletteTicket[]; o
   const options = useMemo<Option[]>(() => {
     const all: Option[] = [
       ...NAV.map((n) => ({ id: n.href, label: n.label, hint: "Go to", perform: () => router.push(n.href) })),
-      { id: "new-idea", label: "New idea", hint: "Action", perform: () => router.push("/admin/ideas?new=1") },
+      { id: "new-idea", label: "New idea", hint: "Action", perform: () => router.push("/ideas?new=1") },
       { id: "briefing", label: "Refresh today's suggestion", hint: "Action", perform: onBriefing },
-      ...tickets.map((t) => ({ id: t.id, label: t.title, hint: STATUS_LABEL[t.stage], perform: () => router.push(`/admin/posts/${t.id}`) })),
+      ...tickets.map((t) => ({ id: t.id, label: t.title, hint: STATUS_LABEL[t.stage], perform: () => router.push(`/posts/${t.id}`) })),
     ];
     const q = query.trim().toLowerCase();
     return q ? all.filter((o) => o.label.toLowerCase().includes(q) || o.hint.toLowerCase().includes(q)) : all;

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { enqueue, saveCategory } from "@/app/admin/actions";
+import { enqueue, saveCategory } from "@/app/actions";
 import type { Cluster } from "@/lib/studio/types";
 import { useStudio } from "./StudioProvider";
 import { CategoryLabel, PageHead } from "./ui";
@@ -102,7 +102,7 @@ export function CategoriesView({ rows, problems }: { rows: CategoryRow[]; proble
             {rows.map((row) => (
               <tr key={row.cluster.id}>
                 <td className="font-medium whitespace-nowrap">
-                  <Link href={`/admin/posts?category=${row.cluster.id}`} className="hover:text-[var(--s-accent)]">
+                  <Link href={`/posts?category=${row.cluster.id}`} className="hover:text-[var(--s-accent)]">
                     <CategoryLabel cluster={row.cluster} />
                   </Link>
                 </td>
@@ -111,7 +111,7 @@ export function CategoriesView({ rows, problems }: { rows: CategoryRow[]; proble
                 <td className="s-dim">{row.inProgress}</td>
                 <td className="max-w-[260px]">
                   {row.mainArticle ? (
-                    <Link href={`/admin/posts/${row.mainArticle.id}`} className="line-clamp-1 hover:text-[var(--s-accent)]">
+                    <Link href={`/posts/${row.mainArticle.id}`} className="line-clamp-1 hover:text-[var(--s-accent)]">
                       {row.mainArticle.title}
                     </Link>
                   ) : (
@@ -149,7 +149,7 @@ export function CategoriesView({ rows, problems }: { rows: CategoryRow[]; proble
             {problems.map((p) => (
               <li key={`${p.postId}-${p.issue}-${p.toPath ?? ""}`} className="flex flex-wrap items-center gap-3 px-5 py-3 border-b s-line last:border-0">
                 <div className="flex-1 min-w-[240px]">
-                  <Link href={`/admin/posts/${p.postId}`} className="font-medium hover:text-[var(--s-accent)]">
+                  <Link href={`/posts/${p.postId}`} className="font-medium hover:text-[var(--s-accent)]">
                     {p.postTitle}
                   </Link>
                   <p className="s-dim text-[13px]">{p.issue}</p>
@@ -159,7 +159,7 @@ export function CategoriesView({ rows, problems }: { rows: CategoryRow[]; proble
                     Add link
                   </button>
                 ) : (
-                  <Link href={`/admin/posts/${p.postId}`} className="s-btn s-btn--sm">
+                  <Link href={`/posts/${p.postId}`} className="s-btn s-btn--sm">
                     Open post
                   </Link>
                 )}

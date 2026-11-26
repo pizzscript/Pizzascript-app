@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { sendMessage } from "@/app/admin/actions";
+import { sendMessage } from "@/app/actions";
 import type { AgentMessage } from "@/lib/studio/types";
 import { useStudio } from "./StudioProvider";
 

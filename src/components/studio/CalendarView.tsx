@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { slotPost } from "@/app/admin/actions";
+import { slotPost } from "@/app/actions";
 import { istDate } from "@/lib/studio/briefing";
 import type { StudioPost } from "@/lib/studio/types";
 import { AutopilotToggle } from "./AutopilotToggle";
@@ -112,7 +112,7 @@ export function CalendarView({ posts, autopilot, today }: { posts: StudioPost[];
                     {items.map((p) => (
                       <Link
                         key={p.id}
-                        href={`/admin/posts/${p.id}`}
+                        href={`/posts/${p.id}`}
                         draggable={p.stage !== "live"}
                         onDragStart={() => setDragging(p.id)}
                         onDragEnd={() => setDragging(null)}
@@ -157,7 +157,7 @@ export function CalendarView({ posts, autopilot, today }: { posts: StudioPost[];
             <ul className="p-3 space-y-2">
               {unscheduled.map((p) => (
                 <li key={p.id}>
-                  <Link href={`/admin/posts/${p.id}`} draggable onDragStart={() => setDragging(p.id)} onDragEnd={() => setDragging(null)} className={`cal-post !mt-0 c-${p.cluster_id}`}>
+                  <Link href={`/posts/${p.id}`} draggable onDragStart={() => setDragging(p.id)} onDragEnd={() => setDragging(null)} className={`cal-post !mt-0 c-${p.cluster_id}`}>
                     {p.title}
                   </Link>
                 </li>

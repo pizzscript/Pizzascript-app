@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowDown, ArrowUp, Link2, MousePointerClick, RefreshCw, Search, ShieldAlert, Sparkles, Zap } from "lucide-react";
-import { approvePost, createTopic, enqueue, setSignal, slotPost } from "@/app/admin/actions";
+import { approvePost, createTopic, enqueue, setSignal, slotPost } from "@/app/actions";
 import type { AgentMessage, Briefing, Signal, SignalKind, StudioPost } from "@/lib/studio/types";
 import { AgentThread } from "./AgentThread";
 import { AutopilotToggle } from "./AutopilotToggle";
@@ -67,7 +67,7 @@ export function DashboardView({
       case "backlink_needed":
         return [{ label: "Add link", go: () => run("Link", async () => { const id = await enqueue("insert_link", s.detail); await done(); return id; }) }];
       default:
-        return postId ? [{ label: "Open", href: `/admin/posts/${postId}` }] : [];
+        return postId ? [{ label: "Open", href: `/posts/${postId}` }] : [];
     }
   };
 
@@ -87,10 +87,10 @@ export function DashboardView({
 
       <section aria-label="Overview" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { value: stats.live, label: "Live posts", href: "/admin/posts?status=live" },
-          { value: stats.drafts, label: "In progress", href: "/admin/posts?status=draft" },
-          { value: stats.scheduled, label: "Scheduled", href: "/admin/calendar" },
-          { value: stats.ideas, label: "Ideas to review", href: "/admin/ideas" },
+          { value: stats.live, label: "Live posts", href: "/posts?status=live" },
+          { value: stats.drafts, label: "In progress", href: "/posts?status=draft" },
+          { value: stats.scheduled, label: "Scheduled", href: "/calendar" },
+          { value: stats.ideas, label: "Ideas to review", href: "/ideas" },
         ].map((s) => (
           <Link key={s.label} href={s.href} className="card stat hover:border-[var(--s-line-strong)] transition-colors">
             <p className="stat-value">{s.value}</p>
@@ -112,7 +112,7 @@ export function DashboardView({
               <div className="flex flex-wrap gap-2 mt-4">
                 {briefing.content.recommendation.actions.map((action) =>
                   action.type === "navigate" ? (
-                    <Link key={action.label} href={action.href ?? "/admin"} className="s-btn s-btn--primary">
+                    <Link key={action.label} href={action.href ?? "/"} className="s-btn s-btn--primary">
                       {action.label}
                     </Link>
                   ) : (
@@ -189,7 +189,7 @@ export function DashboardView({
             <div className="card-body">
               {today ? (
                 <>
-                  <Link href={`/admin/posts/${today.id}`} className="font-medium text-[15px] hover:text-[var(--s-accent)]">
+                  <Link href={`/posts/${today.id}`} className="font-medium text-[15px] hover:text-[var(--s-accent)]">
                     {today.title}
                   </Link>
                   <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -198,7 +198,7 @@ export function DashboardView({
                     {today.approved_at && <span className="s-chip s-chip--ok">Approved</span>}
                   </div>
                   <div className="flex flex-wrap gap-2 mt-4">
-                    <Link href={`/admin/posts/${today.id}`} className="s-btn s-btn--primary s-btn--sm">
+                    <Link href={`/posts/${today.id}`} className="s-btn s-btn--primary s-btn--sm">
                       Review
                     </Link>
                     {!today.approved_at && today.audit?.ok && (
@@ -222,7 +222,7 @@ export function DashboardView({
               <h2 id="upcoming-title" className="card-title">
                 Coming up
               </h2>
-              <Link href="/admin/calendar" className="s-faint text-[12px] hover:text-[var(--s-text)]">
+              <Link href="/calendar" className="s-faint text-[12px] hover:text-[var(--s-text)]">
                 Calendar →
               </Link>
             </div>
@@ -232,7 +232,7 @@ export function DashboardView({
               <ol>
                 {upcoming.map((p) => (
                   <li key={p.id} className="border-b s-line last:border-0">
-                    <Link href={`/admin/posts/${p.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--s-hover)]">
+                    <Link href={`/posts/${p.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--s-hover)]">
                       <span className="s-faint text-[12px] w-14 flex-none">{formatDate(p.scheduled_for).replace(/ \d{4}$/, "")}</span>
                       <span className={`cat-dot c-${p.cluster_id}`} aria-hidden="true" />
                       <span className="truncate flex-1">{p.title}</span>

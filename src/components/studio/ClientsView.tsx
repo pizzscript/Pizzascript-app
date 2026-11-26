@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { createClientWorkspace, deleteClient, inviteClientUser, removeClientUser, saveClientProfile, setClientStatus, switchClient, updateClient, type NewClient } from "@/app/admin/clients";
+import { createClientWorkspace, deleteClient, inviteClientUser, removeClientUser, saveClientProfile, setClientStatus, switchClient, updateClient, type NewClient } from "@/app/clients";
 import { MODULES, PLAN_PRESETS, planOf, type ModuleId, type ResearchLevel } from "@/lib/studio/plans";
 import type { ClientOverview } from "@/lib/studio/server";
 import { DEFAULT_WORKSPACE } from "@/lib/studio/workspace-scope";
@@ -359,7 +359,7 @@ function Lifecycle({ client }: { client: ClientOverview }) {
     return (
       <section className="space-y-2">
         <h3 className="font-medium">Data</h3>
-        <a className="s-btn s-btn--sm" href={`/admin/export/${w.id}`}>
+        <a className="s-btn s-btn--sm" href={`/export/${w.id}`}>
           Export all data (JSON)
         </a>
       </section>
@@ -384,7 +384,7 @@ function Lifecycle({ client }: { client: ClientOverview }) {
             Archive
           </button>
         )}
-        <a className="s-btn s-btn--sm" href={`/admin/export/${w.id}`}>
+        <a className="s-btn s-btn--sm" href={`/export/${w.id}`}>
           Export all data (JSON)
         </a>
       </div>
@@ -457,7 +457,7 @@ export function ClientsView({ clients, currentId }: { clients: ClientOverview[];
                     onClick={() =>
                       run(`Working on ${c.workspace.name}`, async () => {
                         await switchClient(c.workspace.id);
-                        router.push("/admin");
+                        router.push("/");
                       })
                     }
                   >

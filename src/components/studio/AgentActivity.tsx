@@ -69,7 +69,7 @@ export function AgentActivity({ titles }: { titles: Map<string, string> }) {
             return (
               <li key={r.key}>
                 {r.postId ? (
-                  <Link href={`/admin/posts/${r.postId}`} className="agent-row">
+                  <Link href={`/posts/${r.postId}`} className="agent-row">
                     {body}
                   </Link>
                 ) : (
@@ -82,7 +82,7 @@ export function AgentActivity({ titles }: { titles: Map<string, string> }) {
         </ul>
       )}
       {warnings.length > 0 && (
-        <Link href="/admin/settings?tab=usage" className="agent-health" title="See Gemini usage and errors">
+        <Link href="/settings?tab=usage" className="agent-health" title="See Gemini usage and errors">
           <AlertTriangle size={13} aria-hidden="true" className="flex-none mt-0.5" />
           <span>{warnings.join(" · ")}</span>
         </Link>

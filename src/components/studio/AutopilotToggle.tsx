@@ -1,7 +1,7 @@
 "use client";
 
 import { Bot } from "lucide-react";
-import { setAutopilot } from "@/app/admin/actions";
+import { setAutopilot } from "@/app/actions";
 import { useStudio } from "./StudioProvider";
 
 const CONFIRM_ON =

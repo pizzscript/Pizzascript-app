@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { enqueue, saveSetting, setOpportunityStatus } from "@/app/admin/actions";
+import { enqueue, saveSetting, setOpportunityStatus } from "@/app/actions";
 import { useStudio } from "./StudioProvider";
 import { PageHead, formatDate } from "./ui";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { enqueue } from "@/app/admin/actions";
+import { enqueue } from "@/app/actions";
 import { ISSUE_TYPES, type IssueType } from "@/lib/studio/crawl";
 import { useStudio } from "./StudioProvider";
 import { EmptyState, PageHead, formatDate } from "./ui";

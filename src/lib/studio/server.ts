@@ -85,12 +85,12 @@ export async function requireAdmin(): Promise<Studio> {
   if (isPreview()) {
     return { mode: "preview", workspace: PREVIEW_WORKSPACE, workspaces: [PREVIEW_WORKSPACE] };
   }
-  if (!process.env.SUPABASE_URL) redirect("/admin/login?error=not-configured");
+  if (!process.env.SUPABASE_URL) redirect("/login?error=not-configured");
   const db = await supabaseServer();
   const { data } = await db.auth.getUser();
-  if (!data.user?.email) redirect("/admin/login");
+  if (!data.user?.email) redirect("/login");
   const { data: isAdmin } = await db.rpc("is_admin");
-  if (!isAdmin) redirect("/admin/login?error=forbidden");
+  if (!isAdmin) redirect("/login?error=forbidden");
   const { data: list } = await db.from("workspaces").select("id,slug,name,site_url,status,approval_mode,cms,location,language,plan,created_at").order("created_at");
   const workspaces = ((list ?? []) as WorkspaceInfo[]).filter((w) => w.status !== "archived" || w.id === DEFAULT_WORKSPACE);
   const archived = ((list ?? []) as WorkspaceInfo[]).filter((w) => w.status === "archived");

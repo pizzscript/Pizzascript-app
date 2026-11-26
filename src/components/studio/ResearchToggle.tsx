@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { saveSetting } from "@/app/admin/actions";
+import { saveSetting } from "@/app/actions";
 import { useStudio } from "./StudioProvider";
 
 /** Daily idea research: finds and checks new ideas each morning, and cleans the idea list weekly. */

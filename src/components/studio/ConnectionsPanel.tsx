@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { checkConnection, clearConnection, saveConnection } from "@/app/admin/connections";
+import { checkConnection, clearConnection, saveConnection } from "@/app/connections";
 import type { ConnectionView } from "@/lib/studio/connections-server";
 import { useStudio } from "./StudioProvider";
 

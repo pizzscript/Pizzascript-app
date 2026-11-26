@@ -44,7 +44,7 @@ export function composeBriefing(
 
   if (urgent?.priority === "P0") {
     text = `${urgent.title}. This has a short window — act on it before today's slot.`;
-    actions.push({ type: "navigate", label: "See alerts", href: "/admin#alerts-title" });
+    actions.push({ type: "navigate", label: "See alerts", href: "/#alerts-title" });
   } else if (today && STAGES.indexOf(today.stage) < STAGES.indexOf("audit")) {
     text = `"${today.title}" is scheduled for 09:00 today but is still a ${today.stage === "brief" ? "brief" : "draft in progress"}. Write it now or move it to tomorrow.`;
     actions.push({ type: today.stage === "brief" ? "write_brief" : "write_draft", label: "Write it now", payload: { postId: today.id } });
@@ -53,12 +53,12 @@ export function composeBriefing(
     actions.push({ type: "write_brief", label: "Write it", payload: { topicId: gap.topCandidate!.id } });
   } else if (pendingBatch) {
     text = `${pendingBatch.name} isn't approved yet, so nothing will publish automatically. Check the calendar and approve it.`;
-    actions.push({ type: "navigate", label: "Review calendar", href: "/admin/calendar" });
+    actions.push({ type: "navigate", label: "Review calendar", href: "/calendar" });
   } else if (urgent) {
     text = urgent.title;
   } else {
     text = "Pipeline is clean. Use the time to research new ideas.";
-    actions.push({ type: "navigate", label: "Open ideas", href: "/admin/ideas" });
+    actions.push({ type: "navigate", label: "Open ideas", href: "/ideas" });
   }
 
   const upcoming = data.posts.filter((p) => p.stage !== "live" && p.scheduled_for).length;
