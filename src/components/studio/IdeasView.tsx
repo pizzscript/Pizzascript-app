@@ -270,7 +270,7 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
                       )}
                       {tab === "todo" && (
                         <div className="flex flex-wrap gap-2">
-                          {topic.research?.action === "new_article" && topic.research.review?.state !== "approved" && (
+                          {(topic.research?.action ?? "new_article") === "new_article" && verdict !== "unresearched" && topic.research?.review?.state !== "approved" && (
                             <button
                               type="button"
                               className="s-btn s-btn--sm"
