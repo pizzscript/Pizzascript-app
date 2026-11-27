@@ -2,21 +2,17 @@
 
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { addFact, approveBatch, deleteFact, runAgent, saveScoring, saveSetting, setFactVerified, signOut } from "@/app/actions";
+import { addFact, deleteFact, saveScoring, saveSetting, setFactVerified, signOut } from "@/app/actions";
 import type { AiCall } from "@/lib/studio/server";
-import { SCORE_FACTORS, type Batch, type Fact, type ScheduleSettings, type ScoreFactor, type ScoringSettings } from "@/lib/studio/types";
+import { SCORE_FACTORS, type Fact, type ScheduleSettings, type ScoreFactor, type ScoringSettings } from "@/lib/studio/types";
 import type { ConnectionView } from "@/lib/studio/connections-server";
-import { AutoPickToggle } from "./AutoPickToggle";
-import { ResearchToggle } from "./ResearchToggle";
 import { ConnectionsPanel } from "./ConnectionsPanel";
-import { AutopilotToggle } from "./AutopilotToggle";
 import { useStudio } from "./StudioProvider";
 import { UsagePanel } from "./UsagePanel";
 import { PageHead } from "./ui";
 
 const TABS = [
   { id: "schedule", label: "Schedule" },
-  { id: "autopilot", label: "Autopilot" },
   { id: "connections", label: "Connections" },
   { id: "usage", label: "AI usage" },
   { id: "writing", label: "Writing rules" },
@@ -52,16 +48,12 @@ interface Props {
   bannedPhrases: string[];
   wordRanges: Record<string, [number, number]>;
   facts: Fact[];
-  batches: Batch[];
   email: string | null;
-  autopilot: boolean;
-  autoPick: { enabled: boolean; pausedReason: string | null };
   connections: ConnectionView[];
-  research: Record<string, unknown> & { enabled: boolean };
   aiUsage: AiCall[];
 }
 
-export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, batches, email, autopilot, autoPick, connections, research, aiUsage }: Props) {
+export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wordRanges, facts, email, connections, aiUsage }: Props) {
   const { run, busy, preview } = useStudio();
   const [tab, setTab] = useState<TabId>((TABS.find((t) => t.id === initialTab)?.id ?? "schedule") as TabId);
   const [sched, setSched] = useState(schedule);
@@ -101,68 +93,6 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
                 <TextField label="Posts per day" type="number" value={String(sched.perDay)} onChange={(v) => setSched({ ...sched, perDay: Math.max(1, Number(v) || 1) })} />
               </div>
               <SaveButton disabled={busy || JSON.stringify(sched) === JSON.stringify(schedule)} onClick={() => run("Schedule saved", () => saveSetting("schedule", sched))} />
-            </>
-          )}
-
-          {tab === "autopilot" && (
-            <>
-              <Intro
-                title="Autopilot"
-                text="When it's on, every scheduled post is written, gets a banner, is quality-checked and published on its date — no approvals. Posts are prepared one at a time, soonest first. A post that fails the quality check doesn't publish; it shows up as an alert."
-              />
-              <div className="flex flex-wrap items-center gap-3">
-                <AutopilotToggle enabled={autopilot} />
-                <button type="button" className="s-btn" disabled={busy} onClick={() => run("Agent started", () => runAgent())}>
-                  Run agent now
-                </button>
-              </div>
-
-              <div className="pt-4 border-t s-line space-y-3">
-                <Intro
-                  title="Auto-pick ideas"
-                  text="When it's on, the agent chooses at most one qualified idea a day and schedules it at least 3 days ahead, so you can remove it first. It skips overlapping topics, checks quota first, and pauses after 2 failed articles in a row."
-                />
-                <AutoPickToggle enabled={autoPick.enabled} autopilot={autopilot} pausedReason={autoPick.pausedReason} />
-              </div>
-
-              <div className="pt-4 border-t s-line space-y-3">
-                <Intro
-                  title="Idea research"
-                  text="Each morning after the briefing, the agent looks up phrases built from your approved research profile in Google's suggestions, Search Console, 'People also ask' and Reddit/Quora questions, reads your latest reviews, and keeps the ideas that fit your services. Weak ideas stay in the list and can come back stronger; duplicates and expired ones are archived weekly. One light AI request a day. With 'Review ideas first' on, Auto-pick writes only ideas you marked OK."
-                />
-                <ResearchToggle settings={research} />
-              </div>
-
-              <div className="pt-4 border-t s-line">
-                <Intro
-                  title="Batches"
-                  text="With autopilot off, approving a batch does the same for just that batch: its posts are prepared one by one and publish on their dates if they pass."
-                />
-                {batches.length === 0 ? (
-                  <p className="s-dim mt-3">No batches yet.</p>
-                ) : (
-                  <ul className="divide-y divide-[var(--s-line)] mt-2">
-                    {batches.map((b) => (
-                      <li key={b.id} className="flex items-center justify-between gap-4 py-3">
-                        <span>
-                          <span className="font-medium">{b.name}</span>
-                          <span className="block s-faint text-[13px]">{b.approved_at ? "Approved — running automatically" : "Not approved"}</span>
-                        </span>
-                        <button
-                          type="button"
-                          className={`s-btn s-btn--sm ${b.approved_at ? "" : "s-btn--primary"}`}
-                          onClick={() => {
-                            if (!b.approved_at && !window.confirm(`Approve ${b.name}?\n\nAll its posts will be written, bannered, quality-checked and published on their dates — one at a time. This uses your Gemini quota.`)) return;
-                            run(b.approved_at ? "Batch stopped" : "Batch approved", () => approveBatch(b.id, !b.approved_at));
-                          }}
-                        >
-                          {b.approved_at ? "Stop batch" : "Approve batch"}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
             </>
           )}
 
@@ -308,7 +238,7 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
 function Intro({ title, text }: { title: string; text: string }) {
   return (
     <div>
-      <h2 className="font-semibold text-[16px]">{title}</h2>
+      <h2 className="section-title">{title}</h2>
       <p className="s-dim mt-1 max-w-[60ch]">{text}</p>
     </div>
   );

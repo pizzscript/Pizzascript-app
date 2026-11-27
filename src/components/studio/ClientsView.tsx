@@ -51,7 +51,7 @@ function NewClientForm({ onDone }: { onDone: () => void }) {
         });
       }}
     >
-      <h2 className="font-medium">New client</h2>
+      <h2 className="section-title">New client</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1">
           <span className="s-dim text-[13px]">Business name</span>
@@ -123,7 +123,7 @@ function PlanEditor({ client }: { client: ClientOverview }) {
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-medium">Plan and limits</h3>
+        <h3 className="section-title">Plan and limits</h3>
         {!isDefault && (
           <div className="flex gap-1">
             {(["starter", "growth", "pro"] as const).map((p) => (
@@ -188,7 +188,7 @@ function ProfileEditor({ client }: { client: ClientOverview }) {
   const [values, setValues] = useState<Record<string, string>>(Object.fromEntries(PROFILE_FIELDS.map((f) => [f.key, String(client.profile[f.key] ?? "")])));
   return (
     <section className="space-y-3">
-      <h3 className="font-medium">How the agent describes this client</h3>
+      <h3 className="section-title">How the agent describes this client</h3>
       {PROFILE_FIELDS.map((f) => (
         <label key={f.key} className="block space-y-1">
           <span className="s-dim text-[13px]">{f.label}</span>
@@ -214,7 +214,7 @@ function DetailsEditor({ client }: { client: ClientOverview }) {
   const [d, setD] = useState({ name: w.name, siteUrl: w.site_url, location: w.location ?? "", language: w.language, approvalMode: w.approval_mode });
   return (
     <section className="space-y-3">
-      <h3 className="font-medium">Details</h3>
+      <h3 className="section-title">Details</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1">
           <span className="s-dim text-[13px]">Name</span>
@@ -262,17 +262,17 @@ function SetupChecklist({ client }: { client: ClientOverview }) {
     setCopied(key);
   };
   const steps: [boolean, string, string][] = [
-    [client.setup.profile, "Describe the business", "Fill in “How the agent describes this client” below."],
+    [client.setup.profile, "Describe the business", "Profile tab: research profile and how the agent describes the client."],
     [client.setup.searchConsole, "Connect Search Console", "Switch to this client, then Settings → Connections → Search Console property."],
     [client.setup.live > 0, "Put the articles on their site", "Paste the embed code on their blog page (below)."],
     [client.setup.competitors, "Add competitors", "Links & local → Competitors."],
     [client.setup.local, "Add business details", "Links & local → Business details (for local SEO)."],
     [client.setup.crawled, "First site check", "Site health → Check now."],
-    [client.setup.autopilot, "Switch on Autopilot", "Settings → Autopilot, when you're happy with the setup."],
+    [client.setup.autopilot, "Switch on Autopilot", "Automation, when you're happy with the setup."],
   ];
   return (
     <section className="space-y-3">
-      <h3 className="font-medium">
+      <h3 className="section-title">
         Setup · {steps.filter((s) => s[0]).length} of {steps.length} done
       </h3>
       <ol className="space-y-1 text-[14px]">
@@ -312,7 +312,7 @@ function Access({ client }: { client: ClientOverview }) {
   if (w.id === DEFAULT_WORKSPACE) return null;
   return (
     <section className="space-y-2">
-      <h3 className="font-medium">Client access</h3>
+      <h3 className="section-title">Client access</h3>
       <p className="s-dim text-[13px]">People you add can sign in at /portal with an emailed link to see reports{w.approval_mode === "client" ? " and approve their articles" : ""}.</p>
       <ul className="text-[14px] space-y-1">
         {client.members.map((m) => (
@@ -356,7 +356,7 @@ function Lifecycle({ client }: { client: ClientOverview }) {
   if (w.id === DEFAULT_WORKSPACE) {
     return (
       <section className="space-y-2">
-        <h3 className="font-medium">Data</h3>
+        <h3 className="section-title">Data</h3>
         <a className="s-btn s-btn--sm" href={`/export/${w.id}`}>
           Export all data (JSON)
         </a>
@@ -365,7 +365,7 @@ function Lifecycle({ client }: { client: ClientOverview }) {
   }
   return (
     <section className="space-y-3">
-      <h3 className="font-medium">Status and data</h3>
+      <h3 className="section-title">Status and data</h3>
       <div className="flex flex-wrap gap-2">
         {w.status !== "active" && (
           <button type="button" className="s-btn s-btn--sm" disabled={busy || preview} onClick={() => run("Client resumed", () => setClientStatus(w.id, "active"))}>
@@ -411,11 +411,20 @@ function Lifecycle({ client }: { client: ClientOverview }) {
   );
 }
 
-export function ClientsView({ clients, currentId }: { clients: ClientOverview[]; currentId: string }) {
+const CLIENT_TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "profile", label: "Profile" },
+  { id: "plan", label: "Plan and limits" },
+  { id: "access", label: "Access and data" },
+] as const;
+type ClientTab = (typeof CLIENT_TABS)[number]["id"];
+
+export function ClientsView({ clients, currentId, initialTab }: { clients: ClientOverview[]; currentId: string; initialTab?: string }) {
   const { run, busy, preview } = useStudio();
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState(currentId);
+  const [tab, setTab] = useState<ClientTab>(CLIENT_TABS.find((t) => t.id === initialTab)?.id ?? "overview");
   const open = clients.find((c) => c.workspace.id === openId);
   return (
     <div className="space-y-6">
@@ -463,7 +472,7 @@ export function ClientsView({ clients, currentId }: { clients: ClientOverview[];
                   </button>
                 )}
                 <button type="button" className="s-btn s-btn--sm" aria-expanded={openId === c.workspace.id} onClick={() => setOpenId(c.workspace.id)}>
-                  Settings
+                  Open
                 </button>
               </div>
             </li>
@@ -471,16 +480,43 @@ export function ClientsView({ clients, currentId }: { clients: ClientOverview[];
         })}
       </ul>
       {open && (
-        <div className="card card-body space-y-6" key={open.workspace.id}>
-          <h2 className="text-[18px] font-medium">{open.workspace.name}</h2>
-          <SetupChecklist client={open} />
-          <DetailsEditor client={open} />
-          <PlanEditor client={open} />
-          <ResearchProfileView key={`research-${open.research.draft?.analysedAt ?? ""}-${open.research.approved?.version ?? ""}`} client={open} />
-          <ProfileEditor client={open} />
-          <Access client={open} />
-          <Lifecycle client={open} />
-        </div>
+        <section className="card" key={open.workspace.id} aria-labelledby="client-detail-title">
+          <div className="px-5 pt-5">
+            <h2 id="client-detail-title" className="section-title">
+              {open.workspace.name}
+            </h2>
+            <div role="tablist" aria-label={`${open.workspace.name} settings`} className="s-tabs mt-3 overflow-x-auto">
+              {CLIENT_TABS.map((t) => (
+                <button key={t.id} type="button" role="tab" id={`client-tab-${t.id}`} aria-selected={tab === t.id} aria-controls="client-panel" className="s-tab whitespace-nowrap" onClick={() => setTab(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div id="client-panel" role="tabpanel" aria-labelledby={`client-tab-${tab}`} className="card-body space-y-8">
+            {tab === "overview" && (
+              <>
+                <SetupChecklist client={open} />
+                <DetailsEditor client={open} />
+              </>
+            )}
+            {tab === "profile" && (
+              <>
+                <ResearchProfileView key={`research-${open.research.draft?.analysedAt ?? ""}-${open.research.approved?.version ?? ""}`} client={open} />
+                <div className="border-t s-line pt-8">
+                  <ProfileEditor client={open} />
+                </div>
+              </>
+            )}
+            {tab === "plan" && <PlanEditor client={open} />}
+            {tab === "access" && (
+              <>
+                <Access client={open} />
+                <Lifecycle client={open} />
+              </>
+            )}
+          </div>
+        </section>
       )}
     </div>
   );

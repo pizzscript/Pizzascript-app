@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { analyzeClientSite, approveResearchProfile, saveResearchDraft } from "@/app/research";
-import { EMPTY_BRIEF, isGroupMode, profileChanges, type ResearchProfile, type ResearchService, type Source } from "@/lib/studio/research-profile";
+import { EMPTY_BRIEF, isGroupMode, profileChanges, type GroupMode, type ResearchProfile, type ResearchService, type Source } from "@/lib/studio/research-profile";
 import type { ClientOverview } from "@/lib/studio/server";
 import { useStudio } from "./StudioProvider";
 
@@ -73,6 +73,73 @@ function fromForm(base: ResearchProfile, f: ReturnType<typeof toForm>): Research
   };
 }
 
+type GroupRow = { label: string; share: number; mode: GroupMode; description: string };
+
+const MODE_HINT: Record<GroupMode, string> = {
+  auto: "Written by its share",
+  boost: "Favoured by Auto-pick",
+  mandatory: "Written first whenever it's behind",
+};
+
+/** Topic groups as editable rows. It reads and writes the same "label | share | mode | description" lines the profile saves. */
+function GroupsEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const rows: GroupRow[] = lines(value).map((l) => {
+    const [label, share = "0", ...rest] = cells(l);
+    const first = rest[0]?.toLowerCase();
+    const mode = isGroupMode(first) ? (rest.shift(), first) : "auto";
+    return { label, share: Number(share) || 0, mode, description: rest.join(" | ") };
+  });
+  const clean = (s: string) => s.replace(/\|/g, "/").replace(/\n/g, " ");
+  const save = (next: GroupRow[]) => onChange(next.map((r) => `${clean(r.label)} | ${r.share} | ${r.mode} | ${clean(r.description)}`).join("\n"));
+  const update = (i: number, patch: Partial<GroupRow>) => save(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const total = rows.reduce((s, r) => s + r.share, 0);
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="s-dim text-[13px]">Topic groups</legend>
+      <p className="s-faint text-[12px]">
+        What research looks for and how Auto-pick spreads articles. Shares add up to {total}%
+        {total !== 100 ? " and are rescaled to 100 when saved" : ""}.
+      </p>
+      {rows.length === 0 && <p className="s-faint text-[13px]">No topic groups yet.</p>}
+      <ul className="space-y-2">
+        {rows.map((r, i) => (
+          <li key={i} className="grid gap-2 rounded-lg border s-line p-3 sm:grid-cols-[minmax(0,1.2fr)_96px_minmax(0,1fr)_auto] sm:items-end">
+            <label className="block space-y-1 min-w-0">
+              <span className="s-faint text-[12px]">Name</span>
+              <input className="s-input w-full" value={r.label} onChange={(e) => update(i, { label: e.target.value })} />
+            </label>
+            <label className="block space-y-1">
+              <span className="s-faint text-[12px]">Share %</span>
+              <input className="s-input w-full" type="number" min={0} max={100} value={r.share} onChange={(e) => update(i, { share: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} />
+            </label>
+            <label className="block space-y-1 min-w-0">
+              <span className="s-faint text-[12px]">Auto-pick</span>
+              <select className="s-input w-full" value={r.mode} onChange={(e) => update(i, { mode: e.target.value as GroupMode })}>
+                {(Object.keys(MODE_HINT) as GroupMode[]).map((m) => (
+                  <option key={m} value={m}>
+                    {m === "auto" ? "Auto" : m === "boost" ? "Boost" : "Mandatory"} — {MODE_HINT[m]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="s-btn s-btn--sm s-btn--ghost" onClick={() => save(rows.filter((_, j) => j !== i))} aria-label={`Remove topic group ${r.label || i + 1}`}>
+              Remove
+            </button>
+            <label className="block space-y-1 sm:col-span-4">
+              <span className="s-faint text-[12px]">What belongs in it</span>
+              <input className="s-input w-full" value={r.description} onChange={(e) => update(i, { description: e.target.value })} />
+            </label>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="s-btn s-btn--sm" onClick={() => save([...rows, { label: "New group", share: 0, mode: "auto", description: "" }])}>
+        Add topic group
+      </button>
+    </fieldset>
+  );
+}
+
 function Area({ label, hint, value, onChange, rows = 3 }: { label: string; hint?: string; value: string; onChange: (v: string) => void; rows?: number }) {
   return (
     <label className="block space-y-1">
@@ -98,7 +165,7 @@ export function ResearchProfileView({ client }: { client: ClientOverview }) {
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-medium">Research profile</h3>
+          <h3 className="section-title">Research profile</h3>
           <p className="s-dim text-[13px]">
             {approved?.approvedAt
               ? `Approved ${new Date(approved.approvedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}. Idea research uses this.`
@@ -160,7 +227,6 @@ export function ResearchProfileView({ client }: { client: ClientOverview }) {
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             <Area label="Locations (name | country code), most important first" value={form.locations} onChange={set("locations")} />
-            <Area label="Topic groups (label | share % | auto, boost or mandatory | what belongs in it)" hint="Shares are rescaled to add up to 100. Auto-pick writes a mandatory group first whenever it's behind its share, and favours boost groups." value={form.groups} onChange={set("groups")} />
             <Area label="Never cover (one per line)" value={form.avoid} onChange={set("avoid")} />
             <Area label="Questions customers ask (one per line)" hint="Research weighs these with search data when suggesting ideas." value={form.questions} onChange={set("questions")} />
             <Area label="Competitors (domains, optional)" value={form.competitors} onChange={set("competitors")} />
@@ -169,6 +235,7 @@ export function ResearchProfileView({ client }: { client: ClientOverview }) {
               <input className="s-input w-full" value={form.tone} onChange={(e) => set("tone")(e.target.value)} />
             </label>
           </div>
+          <GroupsEditor value={form.groups} onChange={set("groups")} />
           {base.topicGroups.some((g) => g.service) && (
             <ul className="text-[12px] s-faint space-y-1">
               {base.topicGroups.map((g) => (

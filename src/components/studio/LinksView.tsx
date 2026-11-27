@@ -104,7 +104,7 @@ export function LinksView({ data }: { data: LinksData }) {
       </PageHead>
 
       <section className="card card-body">
-        <h2 className="font-medium">Link ideas</h2>
+        <h2 className="section-title">Link ideas</h2>
         {data.opportunities.length ? (
           <ul className="divide-y divide-[var(--s-line)]">{data.opportunities.map((o) => <Opportunity key={o.id} o={o} />)}</ul>
         ) : (
@@ -113,7 +113,7 @@ export function LinksView({ data }: { data: LinksData }) {
       </section>
 
       <section className="card card-body space-y-2">
-        <h2 className="font-medium">
+        <h2 className="section-title">
           Backlinks: {live.length} links from {domains.size} sites{lost.length ? ` · ${lost.length} lost` : ""}
         </h2>
         {live.length === 0 && <p className="s-dim text-[14px]">Connect Bing Webmaster in Settings → Connections to see who links here.</p>}
@@ -132,7 +132,7 @@ export function LinksView({ data }: { data: LinksData }) {
       </section>
 
       <section className="card card-body space-y-2">
-        <h2 className="font-medium">Competitors</h2>
+        <h2 className="section-title">Competitors</h2>
         <p className="s-dim text-[13px]">One site address per line. Every Thursday their new articles are read; topics you haven&apos;t covered become ideas.</p>
         <textarea className="s-input w-full font-mono text-[13px]" rows={4} value={competitors} onChange={(e) => setCompetitors(e.target.value)} placeholder="https://competitor.example" />
         <button
@@ -166,7 +166,7 @@ export function LinksView({ data }: { data: LinksData }) {
       </section>
 
       <section className="card card-body space-y-2">
-        <h2 className="font-medium">Business details (local SEO)</h2>
+        <h2 className="section-title">Business details (local SEO)</h2>
         <p className="s-dim text-[13px]">Exactly as on the Google Business Profile. Each month the site is checked to show the same name, address and phone.</p>
         <div className="grid gap-2 sm:grid-cols-3">
           <input className="s-input" placeholder="Business name" value={local.name} onChange={(e) => setLocal({ ...local, name: e.target.value })} />

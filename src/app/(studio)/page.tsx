@@ -3,13 +3,15 @@ import { DashboardView } from "@/components/studio/DashboardView";
 import { RoomSkeleton } from "@/components/studio/RoomSkeleton";
 import { SystemHealth, SystemHealthSkeleton } from "@/components/studio/SystemHealth";
 import { composeBriefing, istDate } from "@/lib/studio/briefing";
+import { searchTotals } from "@/lib/studio/report";
 import { todayIst } from "@/lib/studio/server";
 import { getStudio } from "@/lib/studio/session";
 
 export const metadata = { title: "Dashboard" };
 
 async function Dashboard() {
-  const { data } = await getStudio();
+  const { studio, data } = await getStudio();
+  const search = await searchTotals(studio).catch(() => null);
   const date = todayIst();
   const briefing = data.briefing ?? composeBriefing(date, data);
   const slotted = data.posts
@@ -31,11 +33,16 @@ async function Dashboard() {
         </Suspense>
       }
       messages={data.messages.filter((m) => m.thread === `briefing:${date}`)}
+      search={search}
       stats={{
         live: data.posts.filter((p) => p.stage === "live").length,
         drafts: data.posts.filter((p) => p.stage !== "live" && p.stage !== "slotted").length,
         scheduled: slotted.length,
         ideas: data.topics.filter((t) => t.status === "candidate").length,
+        toReview: data.topics.filter((t) => {
+          const r = t.research as { action?: string; review?: { state?: string } } | null | undefined;
+          return t.status === "candidate" && r?.action === "new_article" && r.review?.state !== "approved";
+        }).length,
       }}
     />
   );

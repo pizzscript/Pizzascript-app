@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, Building2, CalendarDays, Link2, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Plus, Search, Settings, Tags, X } from "lucide-react";
+import { Activity, BarChart3, Bot, Building2, CalendarDays, Link2, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Plus, Search, Settings, X } from "lucide-react";
 import { enqueue, signOut } from "@/app/actions";
 import { switchClient } from "@/app/clients";
 import { BrandMark } from "@/components/BrandMark";
@@ -11,18 +11,37 @@ import { STATUS_LABEL, type Stage } from "@/lib/studio/types";
 import { AgentActivity } from "./AgentActivity";
 import { useStudio } from "./StudioProvider";
 
-const NAV = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, count: "alerts" as const },
-  { href: "/posts", label: "Posts", icon: FileText },
-  { href: "/ideas", label: "Ideas", icon: Lightbulb, count: "ideas" as const },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/categories", label: "Categories", icon: Tags },
-  { href: "/health", label: "Site health", icon: Activity },
-  { href: "/links", label: "Links & local", icon: Link2 },
-  { href: "/report", label: "Report", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/clients", label: "Clients", icon: Building2 },
+type NavItem = { href: string; label: string; icon: typeof LayoutDashboard; count?: "alerts" | "ideas"; also?: string[] };
+
+/** Grouped by what you're doing: today's work, the content pipeline, results, and setup. */
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  { label: "Today", items: [{ href: "/", label: "Dashboard", icon: LayoutDashboard, count: "alerts" }] },
+  {
+    label: "Content",
+    items: [
+      { href: "/ideas", label: "Ideas", icon: Lightbulb, count: "ideas" },
+      { href: "/posts", label: "Posts", icon: FileText, also: ["/categories"] },
+      { href: "/calendar", label: "Calendar", icon: CalendarDays },
+    ],
+  },
+  {
+    label: "Growth",
+    items: [
+      { href: "/health", label: "Site health", icon: Activity },
+      { href: "/links", label: "Links & local", icon: Link2 },
+      { href: "/report", label: "Report", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Setup",
+    items: [
+      { href: "/clients", label: "Clients", icon: Building2 },
+      { href: "/automation", label: "Automation", icon: Bot },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
+const NAV = NAV_GROUPS.flatMap((g) => g.items);
 
 export interface ShellClient {
   id: string;
@@ -37,8 +56,9 @@ export interface PaletteTicket {
   stage: Stage;
 }
 
-function isActive(pathname: string, href: string) {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+function isActive(pathname: string, item: NavItem) {
+  if (item.href === "/") return pathname === "/";
+  return [item.href, ...(item.also ?? [])].some((h) => pathname.startsWith(h));
 }
 
 export function CmsShell({
@@ -128,24 +148,30 @@ export function CmsShell({
           <Plus size={16} aria-hidden="true" /> New idea
         </Link>
         <nav aria-label="Studio">
-          <ul className="space-y-0.5">
-            {NAV.map(({ href, label, icon: Icon, count }) => {
-              const n = count ? counts[count] : 0;
-              return (
-                <li key={href}>
-                  <Link href={href} className="cms-nav-link" aria-current={isActive(pathname, href) ? "page" : undefined}>
-                    <Icon size={18} aria-hidden="true" />
-                    {label}
-                    {n > 0 && (
-                      <span className="cms-nav-count" aria-label={`${n} ${count === "alerts" ? "open alerts" : "ideas to research"}`}>
-                        {n}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="cms-nav-section">
+              <p className="cms-nav-group">{group.label}</p>
+              <ul className="space-y-0.5">
+                {group.items.map((item) => {
+                  const { href, label, icon: Icon, count } = item;
+                  const n = count ? counts[count] : 0;
+                  return (
+                    <li key={href}>
+                      <Link href={href} className="cms-nav-link" aria-current={isActive(pathname, item) ? "page" : undefined}>
+                        <Icon size={18} aria-hidden="true" />
+                        {label}
+                        {n > 0 && (
+                          <span className="cms-nav-count" aria-label={`${n} ${count === "alerts" ? "open alerts" : "ideas waiting"}`}>
+                            {n}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
         <AgentActivity titles={titles} />
         <div className="mt-auto pt-4 border-t s-line space-y-2">
@@ -175,12 +201,13 @@ export function CmsShell({
           </button>
           <button
             type="button"
-            className="s-input !w-auto flex-1 max-w-[420px] flex items-center gap-2 text-left s-faint"
+            className="s-input !w-auto sm:flex-1 max-w-[420px] flex items-center gap-2 text-left s-faint"
             onClick={() => setPaletteOpen(true)}
+            aria-label="Search posts or jump to a page"
           >
             <Search size={16} aria-hidden="true" />
-            <span className="flex-1">Search posts or jump to…</span>
-            <kbd className="s-mono text-[11px] hidden sm:inline">Ctrl K</kbd>
+            <span className="flex-1 hidden sm:inline whitespace-nowrap">Search posts or jump to…</span>
+            <kbd className="s-mono text-[12px] hidden sm:inline">Ctrl K</kbd>
           </button>
           <div className="ml-auto flex items-center gap-3">
             {preview && (
@@ -221,7 +248,7 @@ function Palette({ tickets, onClose, onBriefing }: { tickets: PaletteTicket[]; o
 
   const options = useMemo<Option[]>(() => {
     const all: Option[] = [
-      ...NAV.map((n) => ({ id: n.href, label: n.label, hint: "Go to", perform: () => router.push(n.href) })),
+      ...[...NAV, { href: "/categories", label: "Categories" }].map((n) => ({ id: n.href, label: n.label, hint: "Go to", perform: () => router.push(n.href) })),
       { id: "new-idea", label: "New idea", hint: "Action", perform: () => router.push("/ideas?new=1") },
       { id: "briefing", label: "Refresh today's suggestion", hint: "Action", perform: onBriefing },
       ...tickets.map((t) => ({ id: t.id, label: t.title, hint: STATUS_LABEL[t.stage], perform: () => router.push(`/posts/${t.id}`) })),
@@ -247,7 +274,7 @@ function Palette({ tickets, onClose, onBriefing }: { tickets: PaletteTicket[]; o
           <Search size={16} className="s-faint" aria-hidden="true" />
           <input
             autoFocus
-            className="w-full bg-transparent h-12 outline-none text-[15px]"
+            className="w-full bg-transparent h-12 outline-none text-[16px]"
             placeholder="Search posts, pages and actions"
             value={query}
             role="combobox"

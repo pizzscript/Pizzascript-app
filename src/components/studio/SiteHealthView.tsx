@@ -64,7 +64,7 @@ function SpeedCard({ data }: { data: HealthData }) {
   if (!latest.rows.length) return null;
   return (
     <section className="card card-body space-y-2">
-      <h2 className="font-medium">Speed (mobile) · {latest.date}</h2>
+      <h2 className="section-title">Speed (mobile) · {latest.date}</h2>
       <table className="w-full text-[14px]">
         <thead>
           <tr className="s-dim text-left">
@@ -99,7 +99,7 @@ function IndexingCard({ data }: { data: HealthData }) {
   const notIndexed = rows.filter((r) => !r.indexed);
   return (
     <section className="card card-body space-y-2">
-      <h2 className="font-medium">
+      <h2 className="section-title">
         Indexing: {rows.length - notIndexed.length} of {rows.length} checked pages are in Google
       </h2>
       {notIndexed.length > 0 && (
@@ -166,7 +166,7 @@ export function SiteHealthView({ data }: { data: HealthData }) {
       )}
       {data.fixed.length > 0 && (
         <section className="card card-body">
-          <h2 className="font-medium mb-2">Fixed in the last 30 days ({data.fixed.length})</h2>
+          <h2 className="section-title mb-2">Fixed in the last 30 days ({data.fixed.length})</h2>
           <ul className="text-[14px] space-y-1">
             {data.fixed.slice(0, 20).map((f) => (
               <li key={`${f.url}${f.type}`}>

@@ -25,6 +25,12 @@ const FILTER_LABEL: Record<(typeof FILTERS)[number], string> = {
 
 const ORDER: Record<Verdict, number> = { good: 0, maybe: 1, unresearched: 2, skip: 3 };
 
+/** A researched new-article idea still waiting for the owner's OK before Auto-pick may write it. */
+const needsOk = (t: Topic) => t.status === "candidate" && t.research?.action === "new_article" && t.research.review?.state !== "approved";
+
+const isDone = (t: Topic) => ["approved", "in_production", "published", "rejected", "archived"].includes(t.status);
+const inTab = (t: Topic, which: "todo" | "review" | "done") => (which === "done" ? isDone(t) : which === "review" ? needsOk(t) : !isDone(t));
+
 const ACTION_LABEL = { new_article: "New article", update_page: "Update an existing page", service_page: "New service page" } as const;
 const LEVEL_LABEL = { measured: "measured", weak: "some signs", unknown: "unknown" } as const;
 
@@ -68,18 +74,17 @@ function IdeaEvidence({ topic }: { topic: Topic }) {
 
 export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topic[]; clusters: Cluster[]; scoring: ScoringSettings; openNew: boolean }) {
   const { run, busy } = useStudio();
-  const [tab, setTab] = useState<"todo" | "done">("todo");
+  const [tab, setTab] = useState<"todo" | "review" | "done">("todo");
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState(openNew);
   const [draft, setDraft] = useState({ query: "", clusterId: clusters[0]?.id ?? "", track: 1 as 1 | 2 });
   const [query, setQuery] = useState("");
 
   const clusterById = useMemo(() => new Map(clusters.map((c) => [c.id, c])), [clusters]);
-  const isDone = (t: Topic) => ["approved", "in_production", "published", "rejected", "archived"].includes(t.status);
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return topics
-      .filter((t) => (tab === "done" ? isDone(t) : !isDone(t)))
+      .filter((t) => inTab(t, tab))
       .filter((t) => !q || t.query.toLowerCase().includes(q))
       .sort((a, b) => ORDER[verdictFor(a)] - ORDER[verdictFor(b)] || (b.score ?? 0) - (a.score ?? 0));
   }, [topics, tab, query]);
@@ -90,12 +95,19 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
     return t.research?.angle ?? t.reason ?? (verdictFor(t) === "unresearched" ? "Click Research to let the AI check it." : "");
   };
 
+  const skip = (topic: Topic) => {
+    const reason = window.prompt("Why skip this idea? Research avoids similar ideas next time. (e.g. not our service, wrong customer, too technical)");
+    if (reason === null) return;
+    if (topic.research?.action) run("Skipped", () => reviewIdea(topic.id, "rejected", reason || "Skipped"));
+    else run("Skipped", () => setTopicStatus(topic.id, "rejected", reason || "Skipped"));
+  };
+
   const statusText = (t: Topic) =>
     t.status === "published" ? "Published" : t.status === "in_production" ? "Being written" : t.status === "approved" ? "Approved" : t.status === "rejected" ? "Rejected" : "Archived";
 
   return (
     <div>
-      <PageHead title="Ideas" sub="Research topics before writing. The AI checks search demand, competition and whether you have something unique to say.">
+      <PageHead title="Ideas" sub="Found by research from real searches, questions and reviews. Give a quick OK to the ones worth writing; skip the rest and say why.">
         <button type="button" className="s-btn s-btn--primary" onClick={() => setAdding(true)}>
           <Plus size={16} aria-hidden="true" /> New idea
         </button>
@@ -162,9 +174,9 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
 
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div role="tablist" aria-label="Ideas" className="s-tabs">
-          {(["todo", "done"] as const).map((t) => (
+          {(["todo", "review", "done"] as const).map((t) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} className="s-tab" onClick={() => setTab(t)}>
-              {t === "todo" ? "To do" : "Done"} <span className="s-faint">{topics.filter((x) => (t === "done" ? isDone(x) : !isDone(x))).length}</span>
+              {t === "todo" ? "All waiting" : t === "review" ? "Needs your OK" : "Done"} <span className="s-faint">{topics.filter((x) => inTab(x, t)).length}</span>
             </button>
           ))}
         </div>
@@ -176,7 +188,7 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState title={tab === "todo" ? "No ideas waiting" : "Nothing here yet"}>{tab === "todo" ? "Add a topic and the AI will research it." : "Approved and rejected ideas appear here."}</EmptyState>
+        <EmptyState title={tab === "done" ? "Nothing here yet" : tab === "review" ? "Nothing needs your OK" : "No ideas waiting"}>{tab === "done" ? "Approved and rejected ideas appear here." : tab === "review" ? "New researched ideas appear here for a quick OK or skip." : "Add a topic and the AI will research it."}</EmptyState>
       ) : (
         <ul className="card">
           {rows.map((topic) => {
@@ -189,12 +201,29 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
                   <button type="button" className="flex-1 min-w-[240px] text-left" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : topic.id)}>
                     <span className="block font-medium">{topic.research?.title ?? topic.query}</span>
                     <span className="block s-dim text-[13px] mt-0.5 line-clamp-1">{reasonFor(topic)}</span>
+                    {topic.research?.action && (
+                      <span className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {topic.score !== null && topic.score !== undefined && <span className="s-chip s-chip--accent">Score {Math.round(topic.score)}</span>}
+                        {topic.research.group && <span className="s-chip">{topic.research.group.replace(/-/g, " ")}</span>}
+                        {topic.research.evidenceSource && <span className="s-chip s-chip--info">{topic.research.evidenceSource}</span>}
+                        {topic.research.review?.state === "approved" && <span className="s-chip s-chip--ok">OK for Auto-pick</span>}
+                      </span>
+                    )}
                   </button>
                   <span className="text-[13px] whitespace-nowrap hidden md:inline">
                     <CategoryLabel cluster={clusterById.get(topic.cluster_id ?? "")} />
                   </span>
                   {tab === "todo" ? <span className={`s-chip ${VERDICT[verdict].tone}`}>{VERDICT[verdict].label}</span> : <span className="s-chip">{statusText(topic)}</span>}
-                  {tab === "todo" &&
+                  {tab !== "done" && needsOk(topic) ? (
+                    <span className="flex gap-2">
+                      <button type="button" className="s-btn s-btn--sm s-btn--primary" disabled={busy} title="Lets Auto-pick schedule and write this idea when a slot is free." onClick={() => run("OK for Auto-pick", () => reviewIdea(topic.id, "approved"))}>
+                        OK
+                      </button>
+                      <button type="button" className="s-btn s-btn--sm s-btn--ghost" disabled={busy} onClick={() => skip(topic)}>
+                        Skip
+                      </button>
+                    </span>
+                  ) : tab !== "done" &&
                     (verdict === "unresearched" ? (
                       <button type="button" className="s-btn s-btn--sm" disabled={busy} onClick={() => run("Scoring", () => enqueue("score_topic", { topicId: topic.id }))}>
                         Research
@@ -268,7 +297,7 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
                           </ul>
                         </details>
                       )}
-                      {tab === "todo" && (
+                      {tab !== "done" && (
                         <div className="flex flex-wrap gap-2">
                           {(topic.research?.action ?? "new_article") === "new_article" && verdict !== "unresearched" && topic.research?.review?.state !== "approved" && (
                             <button
@@ -291,16 +320,12 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
                               Research again
                             </button>
                           )}
-                          <button
-                            type="button"
-                            className="s-btn s-btn--sm s-btn--ghost"
-                            onClick={() => {
-                              const reason = window.prompt("Why skip this idea? Research avoids similar ideas next time. (e.g. not our service, wrong customer, too technical)");
-                              if (reason === null) return;
-                              if (topic.research?.action) run("Skipped", () => reviewIdea(topic.id, "rejected", reason || "Skipped"));
-                              else run("Skipped", () => setTopicStatus(topic.id, "rejected", reason || "Skipped"));
-                            }}
-                          >
+                          {verdict !== "unresearched" && (
+                            <button type="button" className="s-btn s-btn--sm" disabled={busy} onClick={() => run("Approved — the agent will write the brief, draft, banner and quality check", () => setTopicStatus(topic.id, "approved"))}>
+                              Write it now
+                            </button>
+                          )}
+                          <button type="button" className="s-btn s-btn--sm s-btn--ghost" onClick={() => skip(topic)}>
                             Skip idea
                           </button>
                         </div>

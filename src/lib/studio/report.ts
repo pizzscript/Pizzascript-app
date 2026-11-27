@@ -57,6 +57,24 @@ function top<K extends "query" | "page">(rows: Gsc[], key: K, n: number) {
     .slice(0, n) as ({ [P in K]: string } & { clicks: number; impressions: number; position: number })[];
 }
 
+export interface SearchTotals {
+  now: { clicks: number; impressions: number; position: number | null };
+  before: { clicks: number; impressions: number; position: number | null };
+}
+
+/** Google results for the dashboard: the last 28 settled days against the 28 before. Null when there's no data. */
+export async function searchTotals(studio: Studio): Promise<SearchTotals | null> {
+  if (studio.mode !== "live") return null;
+  const day = (n: number) => new Date(Date.now() + 5.5 * 3_600_000 - n * 86_400_000).toISOString().slice(0, 10);
+  const [now, before] = await Promise.all([
+    studio.db.from("gsc_daily").select("query,page,clicks,impressions,position").gte("date", day(30)).lte("date", day(3)).limit(100_000),
+    studio.db.from("gsc_daily").select("query,page,clicks,impressions,position").gte("date", day(58)).lte("date", day(31)).limit(100_000),
+  ]);
+  const a = sum((now.data ?? []) as Gsc[]);
+  const b = sum((before.data ?? []) as Gsc[]);
+  return a.impressions || b.impressions ? { now: a, before: b } : null;
+}
+
 export async function buildReport(studio: Pick<Extract<Studio, { mode: "live" }>, "db" | "workspace">, month: string): Promise<MonthlyReport> {
   const { db, workspace } = studio;
   const { start, next, prev } = monthRange(month);

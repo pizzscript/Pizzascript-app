@@ -18,32 +18,25 @@
   --s-warn: #e8b85a;
   --s-bad: #eb7362;
   --s-info: #86bde0;
+  --s-body: #c9bcb3;
   --s-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
   --s-serif: var(--font-playfair), Georgia, serif;
   --s-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* The whole type scale: everything uses one of these. */
+  --s-fs-xs: 12px;
+  --s-fs-sm: 13px;
+  --s-fs-base: 14px;
+  --s-fs-lg: 16px;
+  --s-fs-xl: 24px;
+  --s-fs-stat: 28px;
 
   min-height: 100vh;
   background: var(--s-bg);
   color: var(--s-text);
   font-family: var(--s-sans);
-  font-size: 14px;
+  font-size: var(--s-fs-base);
   line-height: 1.55;
-}
-
-/* Neutralise the public site's base typography inside the studio (same layer, higher specificity). */
-@layer base {
-  .studio :is(p, h1, h2, h3, h4, h5, h6) {
-    color: inherit;
-    font-family: inherit;
-    font-size: inherit;
-    font-weight: inherit;
-    letter-spacing: normal;
-    line-height: inherit;
-  }
-
-  .studio a:hover {
-    color: inherit;
-  }
 }
 
 .studio ::selection {
@@ -99,6 +92,11 @@
   overflow-y: auto;
 }
 
+/* On short screens the sidebar scrolls; nothing in it gets squashed. */
+.cms-side > * {
+  flex-shrink: 0;
+}
+
 .cms-brand {
   display: flex;
   align-items: center;
@@ -129,6 +127,20 @@
   background: var(--s-raised);
   color: var(--s-text);
   box-shadow: inset 2px 0 0 var(--s-accent);
+}
+
+.cms-nav-group {
+  margin: 0 0 4px;
+  padding: 0 10px;
+  color: var(--s-faint);
+  font-size: var(--s-fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cms-nav-section + .cms-nav-section {
+  margin-top: 18px;
 }
 
 .cms-nav-count {
@@ -225,14 +237,23 @@
 }
 
 .page-title {
-  font-size: 22px;
+  font-size: var(--s-fs-xl);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
 }
 
 .page-sub {
-  margin-top: 2px;
+  max-width: 72ch;
+  margin-top: 4px;
   color: var(--s-dim);
+}
+
+/* One heading style for every section inside a page or card. */
+.section-title {
+  font-size: var(--s-fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.005em;
 }
 
 /* ───────────── Cards ───────────── */
@@ -257,7 +278,7 @@
 }
 
 .card-title {
-  font-size: 14px;
+  font-size: var(--s-fs-base);
   font-weight: 600;
 }
 
@@ -266,15 +287,51 @@
 }
 
 .stat-value {
-  font-size: 26px;
+  font-size: var(--s-fs-stat);
   font-weight: 600;
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
   margin-top: 4px;
   color: var(--s-dim);
-  font-size: 13px;
+  font-size: var(--s-fs-sm);
+}
+
+.stat-delta {
+  margin-top: 6px;
+  font-size: var(--s-fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-delta[data-tone="up"] { color: var(--s-ok); }
+.stat-delta[data-tone="down"] { color: var(--s-bad); }
+.stat-delta[data-tone="flat"] { color: var(--s-faint); }
+
+/* Folding card (system health): the summary is the header; rows bring their own top border. */
+.s-health > summary { border-bottom: 0; }
+.s-health > summary::-webkit-details-marker { display: none; }
+
+/* The content pipeline as one row of steps. */
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pipeline a {
+  padding: 14px 20px;
+  border-left: 1px solid var(--s-line);
+  transition: background 120ms;
+}
+
+.pipeline a:first-child { border-left: 0; }
+.pipeline a:hover { background: var(--s-hover); }
+
+@media (max-width: 639px) {
+  .pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pipeline a:nth-child(3) { border-left: 0; }
+  .pipeline a:nth-child(n + 3) { border-top: 1px solid var(--s-line); }
 }
 
 /* ───────────── Buttons ───────────── */
@@ -302,8 +359,16 @@
 }
 
 .s-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* A disabled main button reads as "not yet", not as a dim orange block. */
+.s-btn--primary:disabled {
+  border-color: var(--s-line-strong);
+  background: var(--s-raised);
+  color: var(--s-faint);
+  opacity: 1;
 }
 
 .s-btn--primary {
@@ -611,10 +676,6 @@ details.s-panel > div {
 }
 
 .cal-day[data-today="true"] .cal-num {
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
   border-radius: 50%;
   background: var(--s-accent);
   color: #160c06;
@@ -626,8 +687,13 @@ details.s-panel > div {
   box-shadow: inset 0 0 0 1px var(--s-accent);
 }
 
+/* Same box on every day, so today's circle doesn't push its posts lower than the rest of the row. */
 .cal-num {
-  font-size: 12px;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  font-size: var(--s-fs-xs);
 }
 
 .cal-post {
@@ -637,8 +703,9 @@ details.s-panel > div {
   border-radius: 6px;
   border-left: 3px solid var(--c, var(--s-faint));
   background: var(--s-raised);
-  font-size: 12px;
+  font-size: var(--s-fs-xs);
   line-height: 1.35;
+  overflow-wrap: anywhere;
   cursor: grab;
 }
 
@@ -804,6 +871,9 @@ a.agent-row:hover {
 .report ol { padding-left: 20px; display: grid; gap: 6px; }
 .report a { text-decoration: underline; }
 @media print {
+  .cms { display: block; }
+  .cms-side, .cms-top, .cms-scrim, .no-print { display: none !important; }
+  .cms-main { max-width: none; padding: 0; }
   .report-actions { display: none; }
   .report { color: #000; padding: 0; }
   .studio { background: #fff !important; }

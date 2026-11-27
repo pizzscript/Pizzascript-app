@@ -6,16 +6,16 @@ import { getStudio } from "@/lib/studio/session";
 
 export const metadata = { title: "Clients" };
 
-async function Clients() {
-  const { studio } = await getStudio();
+async function Clients({ searchParams }: { searchParams: PageProps<"/clients">["searchParams"] }) {
+  const [{ studio }, params] = await Promise.all([getStudio(), searchParams]);
   const clients = await loadClientsOverview(studio);
-  return <ClientsView clients={clients} currentId={studio.workspace.id} />;
+  return <ClientsView clients={clients} currentId={studio.workspace.id} initialTab={typeof params.tab === "string" ? params.tab : undefined} />;
 }
 
-export default function ClientsPage() {
+export default function ClientsPage(props: PageProps<"/clients">) {
   return (
     <Suspense fallback={<RoomSkeleton />}>
-      <Clients />
+      <Clients searchParams={props.searchParams} />
     </Suspense>
   );
 }

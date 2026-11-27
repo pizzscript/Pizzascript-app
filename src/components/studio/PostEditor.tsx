@@ -566,7 +566,7 @@ function BriefCard({ post, topic }: { post: StudioPost; topic: Topic | null }) {
       {b.angle ? (
         <>
           <p className="s-faint text-[12px] font-medium uppercase tracking-wide">Brief</p>
-          <p className="text-[17px] leading-relaxed">{b.angle}</p>
+          <p className="text-[16px] leading-relaxed">{b.angle}</p>
           {b.outline && (
             <ol className="list-decimal pl-5 space-y-1 s-dim">
               {b.outline.map((o) => (

@@ -2,7 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowDown, ArrowUp, Link2, MousePointerClick, RefreshCw, Search, ShieldAlert, Sparkles, Zap } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Lightbulb, Link2, MousePointerClick, RefreshCw, Search, ShieldAlert, Sparkles, Zap } from "lucide-react";
+import type { SearchTotals } from "@/lib/studio/report";
 import { approvePost, createTopic, enqueue, setSignal, slotPost } from "@/app/actions";
 import type { AgentMessage, Briefing, Signal, SignalKind, StudioPost } from "@/lib/studio/types";
 import { AgentThread } from "./AgentThread";
@@ -23,6 +24,32 @@ const SIGNAL_ICON: Record<SignalKind, { icon: typeof Zap; tone: string; label: s
   refresh: { icon: RefreshCw, tone: "var(--s-warn)", label: "Needs refresh" },
 };
 
+const number = (n: number) => new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 }).format(n);
+
+/** One headline number with its change against the 28 days before. */
+function ResultTile({ label, now, before, lowerIsBetter = false }: { label: string; now?: number; before?: number; lowerIsBetter?: boolean }) {
+  let delta: { text: string; tone: "up" | "down" | "flat" } | null = null;
+  if (now !== undefined && before !== undefined && before > 0) {
+    const change = lowerIsBetter ? before - now : ((now - before) / before) * 100;
+    const better = change > 0.5 ? "up" : change < -0.5 ? "down" : "flat";
+    const text = lowerIsBetter
+      ? `${change >= 0 ? "▲" : "▼"} ${Math.abs(change).toFixed(1)} places`
+      : `${change >= 0 ? "▲" : "▼"} ${Math.abs(Math.round(change))}%`;
+    delta = { text: better === "flat" ? "No change" : `${text} vs previous 28 days`, tone: better };
+  }
+  return (
+    <div className="card stat">
+      <p className="stat-value">{now === undefined ? "—" : number(now)}</p>
+      <p className="stat-label">{label}</p>
+      {delta && (
+        <p className="stat-delta" data-tone={delta.tone}>
+          {delta.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function nextDay(iso: string) {
   return new Date(new Date(iso).getTime() + 5.5 * 3600_000 + 86_400_000).toISOString().slice(0, 10);
 }
@@ -37,6 +64,7 @@ export function DashboardView({
   health,
   messages,
   stats,
+  search,
 }: {
   date: string;
   briefing: Briefing;
@@ -46,7 +74,8 @@ export function DashboardView({
   autopilot: boolean;
   health: ReactNode;
   messages: AgentMessage[];
-  stats: { live: number; drafts: number; scheduled: number; ideas: number };
+  stats: { live: number; drafts: number; scheduled: number; ideas: number; toReview: number };
+  search: SearchTotals | null;
 }) {
   const { run, busy } = useStudio();
   const [discussing, setDiscussing] = useState(messages.length > 0);
@@ -85,19 +114,46 @@ export function DashboardView({
         <AutopilotToggle enabled={autopilot} />
       </div>
 
-      <section aria-label="Overview" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <section aria-labelledby="results-title" className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 id="results-title" className="section-title">
+            Google results <span className="s-faint font-normal text-[13px]">· last 28 days</span>
+          </h2>
+          <Link href="/report" className="s-faint text-[12px] hover:text-[var(--s-text)]">
+            Monthly report →
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <ResultTile label="Clicks" now={search?.now.clicks} before={search?.before.clicks} />
+          <ResultTile label="Impressions" now={search?.now.impressions} before={search?.before.impressions} />
+          <ResultTile label="Average position" now={search?.now.position ?? undefined} before={search?.before.position ?? undefined} lowerIsBetter />
+          <ResultTile label="Live articles" now={stats.live} />
+        </div>
+        {!search && (
+          <p className="s-faint text-[13px]">
+            No Search Console data yet. Connect it in{" "}
+            <Link href="/settings?tab=connections" className="underline hover:text-[var(--s-text)]">
+              Settings → Connections
+            </Link>{" "}
+            to see clicks and rankings here.
+          </p>
+        )}
+      </section>
+
+      <nav aria-label="Content pipeline" className="card pipeline">
         {[
-          { value: stats.live, label: "Live posts", href: "/posts?status=live" },
-          { value: stats.drafts, label: "In progress", href: "/posts?status=draft" },
-          { value: stats.scheduled, label: "Scheduled", href: "/calendar" },
-          { value: stats.ideas, label: "Ideas to review", href: "/ideas" },
+          { value: stats.ideas, label: "Ideas waiting", note: stats.toReview ? `${stats.toReview} need your OK` : "", href: "/ideas" },
+          { value: stats.drafts, label: "Being written", note: "", href: "/posts" },
+          { value: stats.scheduled, label: "Scheduled", note: "", href: "/calendar" },
+          { value: stats.live, label: "Live", note: "", href: "/posts" },
         ].map((s) => (
-          <Link key={s.label} href={s.href} className="card stat hover:border-[var(--s-line-strong)] transition-colors">
-            <p className="stat-value">{s.value}</p>
-            <p className="stat-label">{s.label}</p>
+          <Link key={s.label} href={s.href}>
+            <span className="block text-[24px] font-semibold leading-tight tabular-nums">{s.value}</span>
+            <span className="block s-dim text-[13px]">{s.label}</span>
+            {s.note && <span className="block text-[12px] mt-0.5 text-[var(--s-accent)]">{s.note}</span>}
           </Link>
         ))}
-      </section>
+      </nav>
 
       <div className="grid gap-6 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-6 min-w-0">
@@ -108,7 +164,7 @@ export function DashboardView({
               </h2>
             </div>
             <div className="card-body">
-              <p className="text-[17px] leading-relaxed">{briefing.content.recommendation.text}</p>
+              <p className="text-[16px] leading-relaxed">{briefing.content.recommendation.text}</p>
               <div className="flex flex-wrap gap-2 mt-4">
                 {briefing.content.recommendation.actions.map((action) =>
                   action.type === "navigate" ? (
@@ -132,10 +188,26 @@ export function DashboardView({
           <section className="card" aria-labelledby="alerts-title">
             <div className="card-head">
               <h2 id="alerts-title" className="card-title">
-                Alerts {signals.length > 0 && <span className="s-faint font-normal">· {signals.length}</span>}
+                Needs you {signals.length + (stats.toReview ? 1 : 0) > 0 && <span className="s-faint font-normal">· {signals.length + (stats.toReview ? 1 : 0)}</span>}
               </h2>
             </div>
-            {signals.length === 0 ? (
+            {stats.toReview > 0 && (
+              <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b s-line">
+                <span className="mt-0.5 grid place-items-center w-8 h-8 rounded-lg flex-none" style={{ background: "var(--s-raised)", color: "var(--s-accent)" }}>
+                  <Lightbulb size={16} aria-hidden="true" />
+                </span>
+                <div className="min-w-[180px] flex-1">
+                  <p>
+                    {stats.toReview} researched idea{stats.toReview > 1 ? "s" : ""} waiting for your OK
+                  </p>
+                  <p className="s-faint text-[12px] mt-0.5">Auto-pick only writes ideas you approve</p>
+                </div>
+                <Link href="/ideas" className="s-btn s-btn--sm s-btn--primary">
+                  Review ideas
+                </Link>
+              </div>
+            )}
+            {signals.length === 0 && !stats.toReview ? (
               <p className="card-body s-dim">Nothing needs your attention.</p>
             ) : (
               <ul>
@@ -189,7 +261,7 @@ export function DashboardView({
             <div className="card-body">
               {today ? (
                 <>
-                  <Link href={`/posts/${today.id}`} className="font-medium text-[15px] hover:text-[var(--s-accent)]">
+                  <Link href={`/posts/${today.id}`} className="font-medium text-[16px] hover:text-[var(--s-accent)]">
                     {today.title}
                   </Link>
                   <div className="flex flex-wrap items-center gap-2 mt-3">

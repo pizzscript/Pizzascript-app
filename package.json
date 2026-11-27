@@ -11,7 +11,6 @@
     "typecheck": "tsc --noEmit",
     "migrate:blog": "tsx --env-file-if-exists=.env.local scripts/migrate-blog.ts",
     "assets:import": "node scripts/optimize-assets.mjs ../website",
-    "css:import": "node scripts/port-legacy-css.mjs ../website",
     "seed:studio": "tsx --env-file-if-exists=.env.local scripts/seed-studio.ts",
     "worker": "tsx --env-file-if-exists=.env.local worker/index.ts",
     "publish:due": "tsx --env-file-if-exists=.env.local worker/publish-cli.ts",

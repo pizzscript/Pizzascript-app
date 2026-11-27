@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { RoomSkeleton } from "@/components/studio/RoomSkeleton";
 import { SettingsView } from "@/components/studio/SettingsView";
 import { loadConnections } from "@/lib/studio/connections-server";
@@ -8,6 +9,7 @@ export const metadata = { title: "Settings" };
 
 async function Settings({ searchParams }: { searchParams: PageProps<"/settings">["searchParams"] }) {
   const [{ studio, data }, params] = await Promise.all([getStudio(), searchParams]);
+  if (params.tab === "autopilot") redirect("/automation");
   const connections = await loadConnections(studio);
   return (
     <SettingsView
@@ -17,11 +19,7 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/settings">
       bannedPhrases={data.bannedPhrases}
       wordRanges={data.wordRanges}
       facts={data.facts}
-      batches={data.batches}
       email={studio.mode === "live" ? studio.email : null}
-      autopilot={data.autopilot}
-      autoPick={data.autoPick}
-      research={data.research}
       connections={connections}
       aiUsage={data.aiUsage}
     />

@@ -56,6 +56,9 @@ export function PostsTable({ posts, clusters, initialTab }: { posts: StudioPost[
   return (
     <div>
       <PageHead title="Posts" sub={`${posts.length} articles · ${posts.filter((p) => p.stage === "live").length} live`}>
+        <Link href="/categories" className="s-btn">
+          Categories
+        </Link>
         <Link href="/ideas?new=1" className="s-btn s-btn--primary">
           New post from idea
         </Link>

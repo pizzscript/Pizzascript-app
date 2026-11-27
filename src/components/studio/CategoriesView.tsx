@@ -33,6 +33,9 @@ export function CategoriesView({ rows, problems }: { rows: CategoryRow[]; proble
   return (
     <div className="space-y-8">
       <PageHead title="Categories" sub="How your posts are grouped on the blog, and how each group is doing.">
+        <Link href="/posts" className="s-btn s-btn--ghost">
+          ← All posts
+        </Link>
         <button type="button" className="s-btn s-btn--primary" onClick={() => setEditing({ name: "", audience: "both", targetT1: 60 })}>
           <Plus size={16} aria-hidden="true" /> New category
         </button>

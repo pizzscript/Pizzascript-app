@@ -119,7 +119,7 @@ export function CalendarView({ posts, autopilot, today }: { posts: StudioPost[];
                         className={`cal-post c-${p.cluster_id} ${p.stage === "live" ? "opacity-70 !cursor-pointer" : ""}`}
                         title={`${p.title} — ${p.stage === "live" ? "published" : "scheduled"}`}
                       >
-                        <span className="line-clamp-2">{p.title}</span>
+                        <span className="line-clamp-3" title={p.title}>{p.title}</span>
                         {p.stage !== "live" && (
                           <span className="block mt-1">
                             <StatusBadge stage={p.stage} />

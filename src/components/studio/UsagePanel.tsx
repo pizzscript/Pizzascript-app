@@ -25,7 +25,7 @@ export function UsagePanel({ calls }: { calls: AiCall[] }) {
   return (
     <>
       <div>
-        <h2 className="font-semibold text-[16px]">AI usage</h2>
+        <h2 className="section-title">AI usage</h2>
         <p className="s-dim mt-1 max-w-[60ch]">
           Gemini requests the agent made, counted by this app (retries included). Google doesn&apos;t report how much quota is left, so for exact limits
           check{" "}
