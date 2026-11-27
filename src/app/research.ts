@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { jobPriority } from "@/lib/studio/jobs";
-import { PROFILE_KEYS, approve, normaliseShares, type ResearchProfile } from "@/lib/studio/research-profile";
+import { BRIEF_KEY, PROFILE_KEYS, approve, normaliseShares, type OwnerBrief, type ResearchProfile } from "@/lib/studio/research-profile";
 import { requireAdmin, supabaseServer } from "@/lib/studio/server";
 
 const PREVIEW = "Preview mode — connect Supabase to make changes.";
@@ -49,9 +49,12 @@ function tidy(profile: ResearchProfile): ResearchProfile {
 }
 
 /** Reads the client's website and drafts its research profile. The draft waits for approval. */
-export async function analyzeClientSite(id: string) {
+export async function analyzeClientSite(id: string, brief: OwnerBrief) {
   await admin(id);
   const raw = await supabaseServer();
+  const trim = (v: string) => v.trim().slice(0, 500);
+  const saved = await raw.from("settings").upsert({ workspace_id: id, key: BRIEF_KEY, value: { hire: trim(brief.hire), grow: trim(brief.grow), never: trim(brief.never) } }, { onConflict: "workspace_id,key" });
+  if (saved.error) throw new Error(saved.error.message);
   const { error } = await raw.from("jobs").insert({ type: "analyze_site", payload: {}, workspace_id: id, priority: jobPriority("analyze_site", "admin") });
   if (error) throw new Error(error.message);
   startJobs();

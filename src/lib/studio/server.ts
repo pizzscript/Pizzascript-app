@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SCORING } from "./scoring";
-import { PROFILE_KEYS, type ResearchProfile } from "./research-profile";
+import { BRIEF_KEY, PROFILE_KEYS, type OwnerBrief, type ResearchProfile } from "./research-profile";
 import { DEFAULT_WORKSPACE, scopeClient } from "./workspace-scope";
 import type {
   AgentMessage,
@@ -295,7 +295,7 @@ export interface ClientOverview {
   usage: { articles: number; aiMonth: number; aiToday: number };
   profile: Record<string, unknown>;
   /** The client's research profile: the draft being edited and the approved copy research uses. */
-  research: { draft: ResearchProfile | null; approved: ResearchProfile | null; analysing: boolean };
+  research: { draft: ResearchProfile | null; approved: ResearchProfile | null; analysing: boolean; brief: OwnerBrief | null };
   members: { email: string; role: string }[];
   /** Setup checklist for a new client. */
   setup: { profile: boolean; searchConsole: boolean; competitors: boolean; local: boolean; autopilot: boolean; crawled: boolean; live: number };
@@ -305,7 +305,7 @@ export interface ClientOverview {
 export async function loadClientsOverview(studio: Studio): Promise<ClientOverview[]> {
   if (studio.mode === "preview") {
     const setup = { profile: true, searchConsole: false, competitors: false, local: false, autopilot: false, crawled: false, live: 0 };
-    return studio.workspaces.map((workspace) => ({ workspace, usage: { articles: 0, aiMonth: 0, aiToday: 0 }, profile: {}, research: { draft: null, approved: null, analysing: false }, members: [], setup }));
+    return studio.workspaces.map((workspace) => ({ workspace, usage: { articles: 0, aiMonth: 0, aiToday: 0 }, profile: {}, research: { draft: null, approved: null, analysing: false, brief: null }, members: [], setup }));
   }
   const raw = await supabaseServer();
   const month = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 8) + "01";
@@ -317,7 +317,7 @@ export async function loadClientsOverview(studio: Studio): Promise<ClientOvervie
     raw.from("crawl_runs").select("workspace_id").limit(1000),
     raw.from("posts").select("workspace_id").eq("stage", "live").limit(10_000),
     Promise.all(studio.workspaces.map(async (w) => [w.id, ((await raw.rpc("connection_status", { ws: w.id })).data ?? []) as { name: string; in_vault: boolean }[]] as const)),
-    raw.from("settings").select("workspace_id,key,value").in("key", [PROFILE_KEYS.draft, PROFILE_KEYS.approved]),
+    raw.from("settings").select("workspace_id,key,value").in("key", [PROFILE_KEYS.draft, PROFILE_KEYS.approved, BRIEF_KEY]),
     raw.from("jobs").select("workspace_id").eq("type", "analyze_site").in("status", ["queued", "running"]),
   ]);
   const researchFor = (ws: string, key: string) => (((research ?? []) as { workspace_id: string; key: string; value: ResearchProfile }[]).find((r) => r.workspace_id === ws && r.key === key)?.value ?? null);
@@ -336,6 +336,7 @@ export async function loadClientsOverview(studio: Studio): Promise<ClientOvervie
       research: {
         draft: researchFor(workspace.id, PROFILE_KEYS.draft),
         approved: researchFor(workspace.id, PROFILE_KEYS.approved),
+        brief: researchFor(workspace.id, BRIEF_KEY) as unknown as OwnerBrief | null,
         analysing: ((analysing ?? []) as { workspace_id: string }[]).some((j) => j.workspace_id === workspace.id),
       },
       members: ((members ?? []) as { workspace_id: string; email: string; role: string }[]).filter((m) => m.workspace_id === workspace.id).map(({ email, role }) => ({ email, role })),

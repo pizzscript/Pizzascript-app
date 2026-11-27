@@ -36,6 +36,10 @@ export interface TopicGroup {
   label: string;
   /** What belongs in this group, in plain words, for the AI. */
   description: string;
+  /** The service this group sells, the buyer it serves and why it was suggested. */
+  service?: string;
+  customer?: string;
+  why?: string;
   /** Target share of the idea pool, 0–100. Shares add up to 100. */
   share: number;
 }
@@ -60,6 +64,72 @@ export interface ResearchProfile {
   trustedSources: string[];
   /** What the analysis couldn't find out. */
   gaps: string[];
+  /** The owner's answers the analysis was given. */
+  brief?: OwnerBrief;
+  pagesRead?: PageRead[];
+  searchData?: { queries: number; impressions: number; used: boolean };
+}
+
+/** What only the owner knows. It outranks anything the website or search data suggests. */
+export interface OwnerBrief {
+  hire: string;
+  grow: string;
+  never: string;
+}
+export const EMPTY_BRIEF: OwnerBrief = { hire: "", grow: "", never: "" };
+export const BRIEF_KEY = "research_brief";
+
+export interface PageRead {
+  path: string;
+  /** html: read from the page; reader: needed the rendering reader; title-only: no readable text. */
+  how: "html" | "reader" | "title-only";
+  words: number;
+}
+
+/** Below this, search data is too small a sample to say what a business should write about. */
+export const SEARCH_EVIDENCE_MIN = { queries: 25, impressions: 500 };
+export const enoughSearchData = (queries: number, impressions: number) => queries >= SEARCH_EVIDENCE_MIN.queries && impressions >= SEARCH_EVIDENCE_MIN.impressions;
+
+const DEVELOPER_TOPIC = /\b(developer (guides?|tutorials?|tools?)|frameworks?|react|next\.?js|vite|gsap|tailwind|typescript|javascript|sdk|devops|deployment|edge|cloud (infrastructure|hosting)|cloudflare|vercel|coding|tutorials?)\b/i;
+const stems = (s: string) => new Set((s.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []).map((w) => w.replace(/s$/, "")));
+
+/** The listed service a topic group names, allowing small wording differences. */
+export function matchService(name: string, services: ResearchService[]) {
+  const wanted = stems(name);
+  if (!wanted.size) return null;
+  return (
+    services
+      .filter((s) => s.priority !== "ignore")
+      .map((s) => ({ s, hit: [...stems(s.name)].filter((w) => wanted.has(w)).length / Math.max(stems(s.name).size, 1) }))
+      .filter((m) => m.hit >= 0.6)
+      .sort((a, b) => b.hit - a.hit)[0]?.s ?? null
+  );
+}
+
+/**
+ * Keeps only topic groups tied to a service the business sells and a buyer it serves. Developer-focused groups are
+ * dropped unless the owner said developers are the customers. With nothing usable left, groups come from the services.
+ */
+export function checkGroups(groups: TopicGroup[], services: ResearchService[], brief: OwnerBrief) {
+  const wantsDevelopers = /\b(developers?|engineers?|dev teams?)\b/i.test(brief.hire);
+  const rejected: string[] = [];
+  const kept = groups.flatMap((g) => {
+    const service = matchService(g.service ?? "", services);
+    const reason = !service
+      ? "it isn't tied to a service you sell"
+      : !g.customer?.trim()
+        ? "it names no customer"
+        : !wantsDevelopers && DEVELOPER_TOPIC.test(`${g.label} ${g.description} ${g.customer}`)
+          ? "it's aimed at developers"
+          : null;
+    if (reason) rejected.push(`Topic group "${g.label}" was removed: ${reason}.`);
+    return reason ? [] : [{ ...g, service: service!.name }];
+  });
+  if (kept.length) return { groups: kept, rejected };
+  const sold = services.filter((s) => s.priority !== "ignore");
+  const base = [...sold.filter((s) => s.priority === "grow"), ...sold.filter((s) => s.priority !== "grow")].slice(0, 3);
+  const fallback: TopicGroup[] = base.map((s) => ({ id: slug(s.name), label: s.name.slice(0, 40), description: `questions buyers ask before paying for ${s.name.toLowerCase()}`, share: 1, service: s.name, why: "Built from your services because no suggested group passed the checks." }));
+  return { groups: fallback, rejected };
 }
 
 export const PROFILE_KEYS = { draft: "research_profile_draft", approved: "research_profile" } as const;
@@ -107,7 +177,7 @@ export function normaliseShares(groups: TopicGroup[]): TopicGroup[] {
  * Checks the AI's draft: keeps only service paths and sources that point at pages actually read, fixes country codes
  * and topic shares, and trims everything. Anything it can't support is labelled inferred.
  */
-export function validateDraft(raw: unknown, pageUrls: string[], fallback: { language: string; location: string }): ResearchProfile {
+export function validateDraft(raw: unknown, pageUrls: string[], fallback: { language: string; location: string }, brief: OwnerBrief = EMPTY_BRIEF): ResearchProfile {
   const r = (raw ?? {}) as Record<string, unknown>;
   const pages = new Set(pageUrls);
   const paths = new Set(pageUrls.map((u) => new URL(u).pathname.replace(/\/$/, "") || "/"));
@@ -132,8 +202,9 @@ export function validateDraft(raw: unknown, pageUrls: string[], fallback: { lang
   const groups = (Array.isArray(r.topicGroups) ? r.topicGroups : []).slice(0, 5).map((g) => {
     const x = (g ?? {}) as Record<string, unknown>;
     const label = text(x.label, 40);
-    return { id: slug(label), label, description: text(x.description, 160), share: Number(x.share) || 0 };
+    return { id: slug(label), label, description: text(x.description, 160), share: Number(x.share) || 0, service: text(x.service, 80), customer: text(x.customer, 160), why: text(x.why, 240) };
   }).filter((g) => g.label);
+  const checked = checkGroups(groups, services, brief);
   return {
     version: 1,
     status: "draft",
@@ -146,11 +217,12 @@ export function validateDraft(raw: unknown, pageUrls: string[], fallback: { lang
     language: text(r.language, 10) || fallback.language,
     avoid: list(r.avoid, 15),
     tone: field(r.tone, pages, 200),
-    topicGroups: normaliseShares(groups.length ? groups : [{ id: "general", label: "General", description: "the business's services and its customers' problems", share: 100 }]),
+    topicGroups: normaliseShares(checked.groups.length ? checked.groups : [{ id: "general", label: "General", description: "the business's services and its customers' problems", share: 100 }]),
     competitors: list(r.competitors, 5, 120).filter((d) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(d.replace(/^https?:\/\//, "").replace(/\/.*$/, ""))),
     customerQuestions: list(r.customerQuestions, 20),
     trustedSources: list(r.trustedSources, 10, 120),
-    gaps: list(r.gaps, 10),
+    gaps: [...checked.rejected, ...list(r.gaps, 10)],
+    brief,
   };
 }
 

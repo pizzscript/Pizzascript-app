@@ -476,7 +476,7 @@ export function ClientsView({ clients, currentId }: { clients: ClientOverview[];
           <SetupChecklist client={open} />
           <DetailsEditor client={open} />
           <PlanEditor client={open} />
-          <ResearchProfileView client={open} />
+          <ResearchProfileView key={`research-${open.research.draft?.analysedAt ?? ""}-${open.research.approved?.version ?? ""}`} client={open} />
           <ProfileEditor client={open} />
           <Access client={open} />
           <Lifecycle client={open} />

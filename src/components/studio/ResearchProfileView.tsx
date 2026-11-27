@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { analyzeClientSite, approveResearchProfile, saveResearchDraft } from "@/app/research";
-import { profileChanges, type ResearchProfile, type ResearchService, type Source } from "@/lib/studio/research-profile";
+import { EMPTY_BRIEF, profileChanges, type ResearchProfile, type ResearchService, type Source } from "@/lib/studio/research-profile";
 import type { ClientOverview } from "@/lib/studio/server";
 import { useStudio } from "./StudioProvider";
 
@@ -62,7 +62,7 @@ function fromForm(base: ResearchProfile, f: ReturnType<typeof toForm>): Research
     }),
     topicGroups: lines(f.groups).map((l) => {
       const [label, share = "0", ...rest] = cells(l);
-      return { id: label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), label, share: Number(share) || 0, description: rest.join(" | ") || label };
+      return { ...base.topicGroups.find((g) => g.label === label), id: label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), label, share: Number(share) || 0, description: rest.join(" | ") || label };
     }),
     avoid: lines(f.avoid),
     customerQuestions: lines(f.questions),
@@ -85,6 +85,7 @@ export function ResearchProfileView({ client }: { client: ClientOverview }) {
   const { draft, approved, analysing } = client.research;
   const base = draft ?? approved;
   const [form, setForm] = useState(base ? toForm(base) : null);
+  const [brief, setBrief] = useState({ ...EMPTY_BRIEF, ...client.research.brief });
   const set = (key: keyof NonNullable<typeof form>) => (v: string) => setForm((f) => (f ? { ...f, [key]: v } : f));
   const id = client.workspace.id;
   const changes = draft && approved && draft.status === "draft" ? profileChanges(approved, draft) : [];
@@ -102,9 +103,25 @@ export function ResearchProfileView({ client }: { client: ClientOverview }) {
             {isDraft && approved ? " A newer draft is waiting for review." : ""}
           </p>
         </div>
-        <button type="button" className="s-btn s-btn--sm" disabled={busy || preview || analysing} onClick={() => run("Analysing the website — the draft appears here when it's done", () => analyzeClientSite(id))}>
+        <button type="button" className="s-btn s-btn--sm" disabled={busy || preview || analysing} onClick={() => run("Analysing the website — the draft appears here when it's done", () => analyzeClientSite(id, brief))}>
           {analysing ? "Analysing…" : base ? "Re-analyse website" : "Analyse website"}
         </button>
+      </div>
+
+      <div className="grid gap-3">
+        {(
+          [
+            ["hire", "Who do you want to hire you?", "Example: small business owners in Pune who need more enquiries"],
+            ["grow", "Which services do you most want to sell?", "Example: business websites, redesigns"],
+            ["never", "What should we never cover or target? (separate with commas)", "Example: developer tutorials, hosting comparisons"],
+          ] as const
+        ).map(([key, label, hint]) => (
+          <label key={key} className="block space-y-1">
+            <span className="s-dim text-[13px]">{label}</span>
+            <input className="s-input w-full" value={brief[key]} placeholder={hint} onChange={(e) => setBrief((b) => ({ ...b, [key]: e.target.value }))} />
+          </label>
+        ))}
+        <p className="s-faint text-[12px]">Your answers outrank the website and search data. They are used the next time you analyse.</p>
       </div>
 
       {!form || !base ? (
@@ -149,6 +166,31 @@ export function ResearchProfileView({ client }: { client: ClientOverview }) {
               <input className="s-input w-full" value={form.tone} onChange={(e) => set("tone")(e.target.value)} />
             </label>
           </div>
+          {base.topicGroups.some((g) => g.service) && (
+            <ul className="text-[12px] s-faint space-y-1">
+              {base.topicGroups.map((g) => (
+                <li key={g.id}>
+                  <span className="s-dim">{g.label}:</span> sells {g.service || "—"}
+                  {g.customer ? ` to ${g.customer}` : ""}. {g.why}
+                </li>
+              ))}
+            </ul>
+          )}
+          {base.pagesRead && (
+            <details className="text-[13px]">
+              <summary className="cursor-pointer s-dim">
+                What the analysis read: {base.pagesRead.length} pages
+                {base.searchData ? `; search data ${base.searchData.used ? "used" : "too little to use"} (${base.searchData.impressions} impressions)` : ""}
+              </summary>
+              <ul className="mt-2 s-faint space-y-0.5">
+                {base.pagesRead.map((p) => (
+                  <li key={p.path}>
+                    {p.path}: {p.how === "title-only" ? "only title and description" : `${p.words} words${p.how === "reader" ? " (needed the rendering reader)" : ""}`}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
           {base.gaps.length > 0 && (
             <div className="text-[13px]">
               <p className="s-dim mb-1">The analysis couldn&apos;t find out</p>
