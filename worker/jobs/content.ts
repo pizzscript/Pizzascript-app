@@ -74,6 +74,9 @@ export async function scoreTopic({ topicId }: { topicId: string }) {
     return name ? [{ name, similarity: m.similarity }] : [];
   });
   const duplicate = closest.find((c) => c.similarity >= DUPLICATE_SIMILARITY);
+  // Real demand where it exists: this site's own Google impressions for the exact search, last 30 days.
+  const { data: gscRows } = await db.from("gsc_daily").select("impressions,clicks").eq("query", topic.query.toLowerCase()).gte("date", new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10)).limit(5000);
+  const measured = ((gscRows ?? []) as { impressions: number; clicks: number }[]).reduce((s, r) => ({ impressions: s.impressions + (r.impressions ?? 0), clicks: s.clicks + (r.clicks ?? 0) }), { impressions: 0, clicks: 0 });
 
   const result = await json<{
     scores: Record<"authority" | "intent" | "volume" | "backlink" | "difficulty" | "internalLink", { value: number; reason: string }>;
@@ -98,10 +101,12 @@ ${serpBlock(serp)}
 
 ${pagesBlock(pages)}
 
+${measured.impressions ? `MEASURED DEMAND: this site already got ${measured.impressions} Google impressions and ${measured.clicks} clicks for this exact search in the last 30 days (Search Console). Base volume on this.` : "MEASURED DEMAND: none (this site doesn't show for this exact search yet)."}
+
 Score each factor 0–100 with a one-line reason:
 - authority: how much this builds topical authority for the studio's clusters
 - intent: match between searcher intent and what the studio sells
-- volume: estimated demand (no exact volume is available; infer from the results, questions and related searches)
+- volume: demand — use the measured impressions above when given; otherwise infer from the results, questions and related searches and say it's an estimate
 - backlink: likelihood of earning links
 - difficulty: ranking difficulty from who actually ranks (higher = harder)
 - internalLink: how naturally it links into existing articles and service pages

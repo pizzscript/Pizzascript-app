@@ -2,11 +2,14 @@ import { composeBriefing } from "../../src/lib/studio/briefing";
 import { currentProfile } from "../profile";
 import { plainText } from "../../src/lib/studio/content";
 import { SCORE_FACTORS, type AgentMessage, type StudioPost } from "../../src/lib/studio/types";
-import { allBatches, allClusters, allPosts, allTopics, check, db, getPost, openSignals, raiseSignal, setting, todayIst } from "../db";
+import { allBatches, allClusters, allPosts, allTopics, check, db, getPost, openSignals, raiseSignal, rawDb, setting, todayIst } from "../db";
 import { decide, json, text } from "../gemini";
 import { fetchGsc, gscConfigured, type GscRow } from "../gsc";
 import { syncEmbeddings } from "../research/embeddings";
 import { markFeedsSeen, newFeedItems } from "../research/feeds";
+import { approvedResearchProfile } from "../research/profile-store";
+import { outsideProfile } from "../../src/lib/studio/research-profile";
+import { currentWorkspace } from "../workspace";
 import { AGENT, STRATEGY, WRITING } from "../rules";
 
 // Deliberately low: Decision 1 only screens out clear noise, and the text model makes the final call.
@@ -139,11 +142,14 @@ Return a JSON array (max 3, empty if nothing passes): [{"name":"","type":1,"pass
     `${AGENT()}\n\n${STRATEGY}`,
   );
   await markFeedsSeen(latest);
-  for (const trend of trends.filter((t) => t.passes)) {
+  // Trend ideas follow the same approved profile as normal research: nothing off-profile, nothing before approval.
+  const approved = await approvedResearchProfile();
+  for (const trend of trends.filter((t) => t.passes && t.query && approved && !outsideProfile(t.query, approved))) {
     const slug = trend.query.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+    const research = { action: "new_article", why: trend.why, evidence: [{ source: "feed", detail: `News feed: ${trend.name}` }], unknowns: ["search demand"], review: { state: "pending" } };
     const { data: topic } = await db
       .from("topics")
-      .upsert({ slug, query: trend.query, track: 1, role: "trend", source: "trend", priority: "P0", status: "candidate", reason: trend.why }, { onConflict: "slug", ignoreDuplicates: true })
+      .upsert({ slug, query: trend.query, track: 1, role: "trend", source: "trend", priority: "P0", status: "candidate", reason: trend.why, research }, { onConflict: "slug", ignoreDuplicates: true })
       .select("id")
       .maybeSingle();
     await raiseSignal({
@@ -158,6 +164,26 @@ Return a JSON array (max 3, empty if nothing passes): [{"name":"","type":1,"pass
     });
   }
   return trends.length;
+}
+
+// ───────────────────────── connection expiry ─────────────────────────
+
+/** An alert a week before a saved key expires, so it's replaced before the jobs that use it start failing. */
+async function connectionExpiry() {
+  const soon = new Date(Date.now() + 7 * 86_400_000).toISOString();
+  const { data } = await rawDb.from("connections").select("name,expires_at").eq("workspace_id", currentWorkspace()).not("expires_at", "is", null).lte("expires_at", soon);
+  for (const c of (data ?? []) as { name: string; expires_at: string }[]) {
+    const expired = Date.parse(c.expires_at) <= Date.now();
+    await raiseSignal({
+      kind: "quality_gate",
+      title: `The ${c.name.replace(/_/g, " ")} ${expired ? "has expired" : `expires on ${c.expires_at.slice(0, 10)}`}. Replace it in Settings → Connections.`,
+      detail: { connection: c.name, expiresAt: c.expires_at },
+      priority: expired ? "P0" : "P1",
+      post_id: null,
+      topic_id: null,
+      dedupe_key: `key-expiry:${c.name}:${c.expires_at.slice(0, 10)}:${expired ? "expired" : "soon"}`,
+    });
+  }
 }
 
 // ───────────────────────── daily_briefing ─────────────────────────
@@ -182,6 +208,11 @@ export async function dailyBriefing() {
     await syncEmbeddings();
   } catch (error) {
     notes.push(`Embedding sync failed: ${error instanceof Error ? error.message : error}`);
+  }
+  try {
+    await connectionExpiry();
+  } catch (error) {
+    notes.push(`Key expiry check failed: ${error instanceof Error ? error.message : error}`);
   }
 
   const [signals, clusters, topics, batches] = await Promise.all([openSignals(), allClusters(), allTopics(), allBatches()]);

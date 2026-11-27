@@ -1,5 +1,6 @@
 import type { SerpData } from "../../src/lib/studio/types";
 import { env } from "../env";
+import { currentProfile } from "../profile";
 
 interface RawSerp {
   organic?: { title?: string; link?: string; description?: string }[];
@@ -34,11 +35,16 @@ export function parseSerp(raw: unknown): SerpData | null {
   };
 }
 
-/** One Bright Data credit per call. Returns null when unconfigured or failing, so research degrades instead of blocking. */
-export async function fetchSerp(query: string): Promise<SerpData | null> {
-  if (!env.brightDataKey || !env.brightDataZone) return null;
+export const serpConfigured = () => Boolean(env.brightDataKey && env.brightDataZone);
+
+/**
+ * One Bright Data credit per call, from Google in the client's own country and language (not always India).
+ * Returns null when unconfigured or failing, so research degrades instead of blocking.
+ */
+export async function fetchSerp(query: string, country = currentProfile().countryCode || "in", language = currentProfile().language || "en"): Promise<SerpData | null> {
+  if (!serpConfigured()) return null;
   try {
-    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&gl=in&hl=en&num=10&brd_json=1`;
+    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&gl=${encodeURIComponent(country)}&hl=${encodeURIComponent(language)}&num=10&brd_json=1`;
     const res = await fetch("https://api.brightdata.com/request", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${env.brightDataKey}` },

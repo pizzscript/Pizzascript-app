@@ -106,7 +106,10 @@ export async function updateClient(id: string, changes: ClientChanges) {
     if (p.researchLevel !== undefined) next.researchLevel = p.researchLevel;
     if (p.crawlPages !== undefined) next.crawlPages = whole(p.crawlPages, 0, 20_000, "Pages per crawl");
     if (p.competitors !== undefined) next.competitors = whole(p.competitors, 0, 10, "Competitors");
-    if (p.modules !== undefined) next.modules = p.modules.filter((m) => MODULES.some((x) => x.id === m));
+    if (p.modules !== undefined) {
+      next.modules = p.modules.filter((m) => MODULES.some((x) => x.id === m));
+      next.linkBuildingSplit = true;
+    }
     patch.plan = next;
   }
   const { error } = await raw.from("workspaces").update(patch).eq("id", id);

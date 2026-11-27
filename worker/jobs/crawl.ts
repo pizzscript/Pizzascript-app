@@ -140,7 +140,8 @@ async function finish(runId: string, frontier: Frontier, pages: number, host: st
     facts: p.facts,
   }));
   const outbound = new Map<string, number>();
-  const external = [...new Set(crawled.flatMap((p) => p.facts?.links ?? []).filter((l) => new URL(l).host !== host))].slice(0, MAX_OUTBOUND);
+  const allExternal = [...new Set(crawled.flatMap((p) => p.facts?.links ?? []).filter((l) => new URL(l).host !== host))];
+  const external = allExternal.slice(0, MAX_OUTBOUND);
   for (const link of external) {
     try {
       let res = await fetch(link, { method: "HEAD", headers: { "user-agent": AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -171,7 +172,7 @@ async function finish(runId: string, frontier: Frontier, pages: number, host: st
     await db.from("crawl_issues").update({ fixed_at: now }).eq("url", url).eq("type", type);
   }
   const counts = issues.reduce<Record<string, number>>((c, i) => ((c[i.type] = (c[i.type] ?? 0) + 1), c), {});
-  await db.from("crawl_runs").update({ status: "done", finished_at: now, pages, score, frontier: [], summary: { counts, new: fresh.length, fixed: fixed.length, outboundChecked: external.length } }).eq("id", runId);
+  await db.from("crawl_runs").update({ status: "done", finished_at: now, pages, score, frontier: [], summary: { counts, new: fresh.length, fixed: fixed.length, outboundChecked: external.length, outboundFound: allExternal.length } }).eq("id", runId);
   // Only the latest run's pages are kept.
   await db.from("crawl_pages").delete().neq("run_id", runId);
 

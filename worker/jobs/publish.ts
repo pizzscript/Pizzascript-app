@@ -8,6 +8,9 @@ import { publishToSite, refreshSite, unpublishFromSite } from "../publishers";
 import { RELATED_SIMILARITY, storedMatches } from "../research/embeddings";
 import { regenerateSitemap } from "./sitemap";
 
+/** A post still unpublishable this many days after its slot loses its date (one alert) instead of alerting daily. */
+const MISSED_DAYS_LIMIT = 3;
+
 /** After a live article changes: refresh the cached feed (and PizzaScript's blog pages) so the change shows. */
 export async function revalidate(slug?: string) {
   await refreshSite(slug);
@@ -69,9 +72,25 @@ export async function publishDue() {
         .like("dedupe_key", `missed:${post.id}:%`)
         .neq("dedupe_key", `missed:${post.id}:${todayIst()}`);
       const reason = !post.body_html ? `still at ${post.stage}` : !audit?.ok ? "audit failing" : mode === "client" ? "waiting for the client's approval" : "not approved";
+      const daysLate = Math.floor((Date.now() - Date.parse(post.scheduled_for!)) / 86_400_000);
+      if (daysLate >= MISSED_DAYS_LIMIT) {
+        // Stuck for days: take the date off once and say so, instead of a fresh alert every day forever.
+        await db.from("posts").update({ scheduled_for: null }).eq("id", post.id).neq("stage", "live");
+        await db.from("signals").update({ status: "acted" }).eq("post_id", post.id).eq("status", "open").like("dedupe_key", `missed:${post.id}:%`);
+        await raiseSignal({
+          kind: "audit_failed",
+          title: `"${post.title}" was taken off the calendar after ${daysLate} missed days (${reason}). Fix it, then give it a new date.`,
+          detail: { scheduledFor: post.scheduled_for, reason, daysLate },
+          priority: "P1",
+          post_id: post.id,
+          topic_id: post.topic_id,
+          dedupe_key: `unscheduled:${post.id}:${post.scheduled_for}`,
+        });
+        continue;
+      }
       await raiseSignal({
         kind: "audit_failed",
-        title: `Missed slot: "${post.title}" is ${reason}`,
+        title: `Missed slot${daysLate ? ` (day ${daysLate + 1})` : ""}: "${post.title}" is ${reason}`,
         detail: { scheduledFor: post.scheduled_for, reason },
         priority: "P0",
         post_id: post.id,

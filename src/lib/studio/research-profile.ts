@@ -42,7 +42,12 @@ export interface TopicGroup {
   why?: string;
   /** Target share of the idea pool, 0–100. Shares add up to 100. */
   share: number;
+  /** How Auto-pick treats the group: by share (auto), favoured (boost), or written first when behind (mandatory). */
+  mode?: GroupMode;
 }
+
+export type GroupMode = "auto" | "boost" | "mandatory";
+export const isGroupMode = (v: unknown): v is GroupMode => v === "auto" || v === "boost" || v === "mandatory";
 
 export interface ResearchProfile {
   version: number;
@@ -286,4 +291,15 @@ export function placeAllowed(query: string, locations: ResearchLocation[]) {
 }
 
 /** True when a search touches a topic the client never wants covered. */
+/**
+ * Why a topic found outside normal research (a news feed, a competitor's page) doesn't fit the approved profile, or
+ * null when it does. The same rules normal research and topic groups follow.
+ */
+export function outsideProfile(query: string, profile: Pick<ResearchProfile, "avoid" | "locations" | "brief">) {
+  if (isAvoided(query, profile.avoid)) return "on the avoid list";
+  if (!placeAllowed(query, profile.locations)) return "outside the client's area";
+  if (!/\b(developers?|engineers?|dev teams?)\b/i.test(profile.brief?.hire ?? "") && DEVELOPER_TOPIC.test(query)) return "aimed at developers";
+  return null;
+}
+
 export const isAvoided = (query: string, avoid: string[]) => avoid.some((a) => a.trim() && query.toLowerCase().includes(a.trim().toLowerCase()));

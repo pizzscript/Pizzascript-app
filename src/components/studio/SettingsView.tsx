@@ -128,7 +128,7 @@ export function SettingsView({ initialTab, schedule, scoring, bannedPhrases, wor
               <div className="pt-4 border-t s-line space-y-3">
                 <Intro
                   title="Idea research"
-                  text="Each morning after the briefing, the agent finds new ideas from real Google searches (Pune and India first), checks them against your service pages and existing articles, and keeps the best. Weekly it re-reads your service pages and archives weak, old or duplicate ideas. It uses only the light AI models, about 2 requests a day."
+                  text="Each morning after the briefing, the agent looks up phrases built from your approved research profile in Google's suggestions, Search Console, 'People also ask' and Reddit/Quora questions, reads your latest reviews, and keeps the ideas that fit your services. Weak ideas stay in the list and can come back stronger; duplicates and expired ones are archived weekly. One light AI request a day. With 'Review ideas first' on, Auto-pick writes only ideas you marked OK."
                 />
                 <ResearchToggle settings={research} />
               </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { analyzeClientSite, approveResearchProfile, saveResearchDraft } from "@/app/research";
-import { EMPTY_BRIEF, profileChanges, type ResearchProfile, type ResearchService, type Source } from "@/lib/studio/research-profile";
+import { EMPTY_BRIEF, isGroupMode, profileChanges, type ResearchProfile, type ResearchService, type Source } from "@/lib/studio/research-profile";
 import type { ClientOverview } from "@/lib/studio/server";
 import { useStudio } from "./StudioProvider";
 
@@ -28,7 +28,7 @@ function toForm(p: ResearchProfile) {
     customers: p.customers.map((c) => c.value).join("\n"),
     services: p.services.map((s) => `${s.name} | ${s.path ?? ""} | ${s.priority}`).join("\n"),
     locations: p.locations.map((l) => `${l.name} | ${l.countryCode}`).join("\n"),
-    groups: p.topicGroups.map((g) => `${g.label} | ${g.share} | ${g.description}`).join("\n"),
+    groups: p.topicGroups.map((g) => `${g.label} | ${g.share} | ${g.mode ?? "auto"} | ${g.description}`).join("\n"),
     avoid: p.avoid.join("\n"),
     questions: p.customerQuestions.join("\n"),
     competitors: p.competitors.join("\n"),
@@ -62,7 +62,10 @@ function fromForm(base: ResearchProfile, f: ReturnType<typeof toForm>): Research
     }),
     topicGroups: lines(f.groups).map((l) => {
       const [label, share = "0", ...rest] = cells(l);
-      return { ...base.topicGroups.find((g) => g.label === label), id: label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), label, share: Number(share) || 0, description: rest.join(" | ") || label };
+      // Older lines have no mode cell: "label | share | description".
+      const first = rest[0]?.toLowerCase();
+      const mode = isGroupMode(first) ? (rest.shift(), first) : "auto";
+      return { ...base.topicGroups.find((g) => g.label === label), id: label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), label, share: Number(share) || 0, mode, description: rest.join(" | ") || label };
     }),
     avoid: lines(f.avoid),
     customerQuestions: lines(f.questions),
@@ -111,8 +114,8 @@ export function ResearchProfileView({ client }: { client: ClientOverview }) {
       <div className="grid gap-3">
         {(
           [
-            ["hire", "Who do you want to hire you?", "Example: small business owners in Pune who need more enquiries"],
-            ["grow", "Which services do you most want to sell?", "Example: business websites, redesigns"],
+            ["hire", "Who is your target audience?", "Example: small business owners in Pune who need more enquiries"],
+            ["grow", "What do you most want to sell?", "Example: business websites, redesigns"],
             ["never", "What should we never cover or target? (separate with commas)", "Example: developer tutorials, hosting comparisons"],
           ] as const
         ).map(([key, label, hint]) => (
@@ -157,7 +160,7 @@ export function ResearchProfileView({ client }: { client: ClientOverview }) {
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             <Area label="Locations (name | country code), most important first" value={form.locations} onChange={set("locations")} />
-            <Area label="Topic groups (label | share % | what belongs in it)" hint="Shares are rescaled to add up to 100." value={form.groups} onChange={set("groups")} />
+            <Area label="Topic groups (label | share % | auto, boost or mandatory | what belongs in it)" hint="Shares are rescaled to add up to 100. Auto-pick writes a mandatory group first whenever it's behind its share, and favours boost groups." value={form.groups} onChange={set("groups")} />
             <Area label="Never cover (one per line)" value={form.avoid} onChange={set("avoid")} />
             <Area label="Questions customers ask (one per line)" hint="Research weighs these with search data when suggesting ideas." value={form.questions} onChange={set("questions")} />
             <Area label="Competitors (domains, optional)" value={form.competitors} onChange={set("competitors")} />

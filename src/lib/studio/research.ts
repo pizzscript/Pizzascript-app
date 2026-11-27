@@ -13,8 +13,12 @@ export const RESEARCH_DEFAULTS = {
   minScore: 60,
   /** Unused trend ideas expire after this many days. */
   trendDays: 14,
-  /** Unscored ideas older than this are archived. */
+  /** Kept for saved settings; unscored ideas now wait until floorDays. */
   staleDays: 45,
+  /** Weak or unscored ideas stay in the pool this long before they're archived. */
+  floorDays: 180,
+  /** Google lookups per research run for "People also ask" and Reddit/Quora questions (one Bright Data credit each). */
+  serpLookups: 3,
   /** Auto-pick writes only ideas the owner marked as OK. On unless a client's research settings switch it off. */
   requireApproval: undefined as boolean | undefined,
   /** Search Console searches below this many impressions in 30 days are ignored. */
@@ -114,7 +118,7 @@ export function neededGroup(pool: Pick<Topic, "research">[], broadShare: number)
 
 // ───────────────────────── client research: opportunities → ranked ideas ─────────────────────────
 
-export type OpportunitySource = "gsc" | "autocomplete" | "question" | "site_gap" | "feed" | "competitor";
+export type OpportunitySource = "gsc" | "autocomplete" | "question" | "site_gap" | "feed" | "competitor" | "paa" | "discussion";
 export type IdeaAction = "new_article" | "update_page" | "service_page";
 
 /** One piece of raw evidence: a search, question or gap, with where it came from. */
@@ -159,20 +163,77 @@ export interface RankedIdea extends JudgedIdea {
   research: IdeaResearch;
 }
 
-const SOURCE_LABEL: Record<OpportunitySource, string> = {
+export const SOURCE_LABEL: Record<OpportunitySource, string> = {
   gsc: "Search Console",
   autocomplete: "Google suggestion",
   question: "Customer question",
   site_gap: "Website gap",
   feed: "News feed",
   competitor: "Competitor",
+  paa: "People also ask",
+  discussion: "Reddit/Quora question",
 };
+
+const cityOf = (name: string) => name.split(",")[0].trim().toLowerCase();
+
+/**
+ * The phrases research looks up, built only from the approved profile and real Search Console searches: no AI guess.
+ * The group that needs ideas most goes first, then services the owner wants to grow.
+ */
+export function buildSeeds(
+  profile: { services: { name: string; priority: string }[]; locations: { name: string; primary: boolean }[]; customerQuestions: string[]; topicGroups: TopicGroup[] },
+  gscQueries: string[],
+  fillGroup: string,
+  max = 15,
+) {
+  const city = cityOf((profile.locations.find((l) => l.primary) ?? profile.locations[0])?.name ?? "");
+  const groupService = profile.topicGroups.find((g) => g.id === fillGroup)?.service?.toLowerCase();
+  const services = profile.services
+    .filter((s) => s.priority !== "ignore")
+    .map((s) => ({ name: s.name.trim().toLowerCase(), rank: s.name.toLowerCase() === groupService ? 0 : s.priority === "grow" ? 1 : 2 }))
+    .filter((s) => s.name)
+    .sort((a, b) => a.rank - b.rank)
+    .map((s) => s.name);
+  const seeds = [
+    ...services.flatMap((s) => (city && !s.includes(city) ? [s, `${s} ${city}`] : [s])),
+    ...gscQueries.map((q) => q.trim().toLowerCase()),
+    ...profile.customerQuestions.map((q) => q.trim().toLowerCase().replace(/\?$/, "")).filter((q) => q.split(/\s+/).length <= 8),
+  ];
+  return [...new Set(seeds.filter(Boolean))].slice(0, max);
+}
+
+/**
+ * What earlier research produced, judged by real clicks: clicks per article for each topic group and each kind of
+ * evidence. Only groups or sources with at least `min` published articles are reported, so one lucky post doesn't steer.
+ */
+export function researchResults(articles: { group?: string; sources: string[]; clicks: number }[], groups: TopicGroup[], min = 2) {
+  const rate = (list: typeof articles) => Math.round((list.reduce((s, a) => s + a.clicks, 0) / list.length) * 10) / 10;
+  const byGroup = groups
+    .map((g) => ({ label: g.label, list: articles.filter((a) => a.group === g.id) }))
+    .filter((g) => g.list.length >= min)
+    .map((g) => ({ name: g.label, articles: g.list.length, clicksPerArticle: rate(g.list) }))
+    .sort((a, b) => b.clicksPerArticle - a.clicksPerArticle);
+  const bySource = (Object.keys(SOURCE_LABEL) as OpportunitySource[])
+    .map((s) => ({ name: SOURCE_LABEL[s], list: articles.filter((a) => a.sources.includes(s)) }))
+    .filter((s) => s.list.length >= min)
+    .map((s) => ({ name: s.name, articles: s.list.length, clicksPerArticle: rate(s.list) }))
+    .sort((a, b) => b.clicksPerArticle - a.clicksPerArticle);
+  return { byGroup, bySource };
+}
+
+/** A Reddit or Quora result title as a plain question: without the site and community suffixes. */
+export const discussionTitle = (title: string) =>
+  title
+    .replace(/\s*[:|-]\s*r\/\w+.*$/i, "")
+    .replace(/\s*[-|]\s*(reddit|quora).*$/i, "")
+    .trim()
+    .toLowerCase();
 
 /** Search demand from Search Console impressions (log scale, 0–10). Suggestions prove wording, not volume. */
 export function demandOf(evidence: Opportunity[]): { level: IdeaResearch["demand"]; value: number | null } {
   const impressions = Math.max(0, ...evidence.map((o) => o.evidence.impressions ?? 0));
   if (impressions > 0) return { level: "measured", value: Math.round(Math.min(10, Math.log10(impressions) * 3.3) * 10) / 10 };
-  if (evidence.some((o) => o.source === "autocomplete" || o.source === "question")) return { level: "weak", value: null };
+  if (evidence.some((o) => ["autocomplete", "question", "paa", "discussion"].includes(o.source))) return { level: "weak", value: null };
   return { level: "unknown", value: null };
 }
 
@@ -310,18 +371,25 @@ export function autoPickAllowed(topic: Pick<Topic, "research">, requireApproval:
   return !requireApproval || r?.review?.state === "approved";
 }
 
-/** Waiting ideas to archive, each with a reason. Ideas already approved, written or published are never touched. */
-export function ideasToArchive(topics: Topic[], existingQueries: string[], settings: Pick<ResearchSettings, "poolTarget" | "minScore" | "trendDays" | "staleDays">, now = Date.now()) {
+/**
+ * Waiting ideas to archive, each with a reason. Only ideas that can never be written are archived at once (a service
+ * page search, an expired trend, an overlap with an existing article, a repeat of a stronger idea). Weak or unscored
+ * ideas stay in the pool, ranked low, so newer evidence can lift them; they're archived only after floorDays.
+ * Ideas already approved, written or published are never touched.
+ */
+export function ideasToArchive(topics: Topic[], existingQueries: string[], settings: Pick<ResearchSettings, "minScore" | "trendDays"> & { floorDays?: number }, now = Date.now()) {
   const day = 86_400_000;
+  const floor = settings.floorDays ?? RESEARCH_DEFAULTS.floorDays;
   const waiting = topics.filter((t) => t.status === "candidate");
   const out = new Map<string, string>();
   for (const t of waiting) {
     const age = (now - Date.parse(t.created_at)) / day;
+    const scored = t.score !== null && t.score !== undefined;
     if (isServiceIntent(t.query)) out.set(t.id, "Better as a service page");
     else if (t.source === "trend" && age > settings.trendDays) out.set(t.id, `Trend older than ${settings.trendDays} days`);
-    else if (t.score !== null && t.score !== undefined && t.score < settings.minScore) out.set(t.id, `Score ${t.score} below ${settings.minScore}`);
-    else if ((t.score === null || t.score === undefined) && age > settings.staleDays) out.set(t.id, `Not scored in ${settings.staleDays} days`);
     else if (existingQueries.some((q) => sameIntent(t.query, q))) out.set(t.id, "Overlaps an existing article");
+    else if (scored && t.score! < settings.minScore && age > floor) out.set(t.id, `Score ${t.score} below ${settings.minScore} for ${floor} days`);
+    else if (!scored && age > floor) out.set(t.id, `Not scored in ${floor} days`);
   }
   const left = waiting.filter((t) => !out.has(t.id)).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   for (let i = 0; i < left.length; i++) {
@@ -329,8 +397,5 @@ export function ideasToArchive(topics: Topic[], existingQueries: string[], setti
       if (!out.has(left[j].id) && sameIntent(left[i].query, left[j].query)) out.set(left[j].id, `Same search as "${left[i].query}"`);
     }
   }
-  const remaining = left.filter((t) => !out.has(t.id));
-  const limit = Math.ceil(settings.poolTarget * 1.25);
-  for (const t of remaining.slice(limit)) out.set(t.id, "Pool is full: lowest score");
   return [...out.entries()].map(([id, reason]) => ({ id, reason }));
 }

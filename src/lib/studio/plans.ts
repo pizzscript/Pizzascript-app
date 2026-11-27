@@ -9,7 +9,8 @@ export const MODULES = [
   { id: "indexing", label: "Indexing", help: "Checks that new pages are indexed by Google." },
   { id: "rankings", label: "Rankings", help: "Daily Search Console positions, clicks and changes." },
   { id: "content_growth", label: "Content growth", help: "Refresh suggestions, orphan pages and internal links." },
-  { id: "backlinks", label: "Backlinks", help: "Monitors links and drafts outreach for a person to send." },
+  { id: "backlinks", label: "Backlink monitoring", help: "Weekly: who links to the site, what's new and what was lost." },
+  { id: "link_building", label: "Link building", help: "Monthly outreach ideas checked against real search results, drafted for a person to send." },
   { id: "competitors", label: "Competitors", help: "Watches competitor sites for new pages and topic gaps." },
   { id: "local", label: "Local SEO", help: "Business profile posts, reviews and listing consistency." },
   { id: "reports", label: "Reports and alerts", help: "Email alerts and the monthly report." },
@@ -62,7 +63,9 @@ const num = (value: unknown, fallback: number, max: number) => {
 export function planOf(saved: Record<string, unknown> | null | undefined, isDefault: boolean): ClientPlan {
   const base = isDefault ? PLAN_PRESETS.internal : DEFAULT_CLIENT_PLAN;
   const raw = saved ?? {};
-  const savedModules = Array.isArray(raw.modules) ? (raw.modules as unknown[]).filter((m): m is ModuleId => typeof m === "string" && MODULE_IDS.has(m)) : null;
+  let savedModules = Array.isArray(raw.modules) ? (raw.modules as unknown[]).filter((m): m is ModuleId => typeof m === "string" && MODULE_IDS.has(m)) : null;
+  // "backlinks" used to include outreach ideas. Plans saved before the split keep both until the modules are saved again.
+  if (savedModules?.includes("backlinks") && !raw.linkBuildingSplit && !savedModules.includes("link_building")) savedModules = [...savedModules, "link_building"];
   // PizzaScript's live plan predates most modules, so its list only ever adds to the full set.
   const modules = isDefault ? base.modules : (savedModules ?? base.modules);
   const level = raw.researchLevel;
@@ -87,7 +90,8 @@ export function moduleForJob(type: string): ModuleId | "content" | "platform" {
   if (["inspect_urls"].includes(type)) return "indexing";
   if (["sync_rankings"].includes(type)) return "rankings";
   if (["content_growth"].includes(type)) return "content_growth";
-  if (["backlink_scan", "find_opportunities"].includes(type)) return "backlinks";
+  if (["backlink_scan"].includes(type)) return "backlinks";
+  if (["find_opportunities"].includes(type)) return "link_building";
   if (["competitor_scan"].includes(type)) return "competitors";
   if (["local_post", "local_check"].includes(type)) return "local";
   if (["send_alerts", "monthly_report"].includes(type)) return "reports";

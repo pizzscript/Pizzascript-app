@@ -8,6 +8,7 @@ import { currentPlan } from "../profile";
 import { aiBudgetLeft, articlesThisMonth } from "../usage";
 import { isBillingError } from "../gemini";
 import { approvalRequired } from "./research";
+import { approvedResearchProfile } from "../research/profile-store";
 
 const BUSY_JOBS = ["daily_briefing", "score_topic", "write_brief", "write_draft", "generate_image", "run_audit", "discover_ideas", "prune_ideas", "scan_services", "analyze_site"];
 const PIPELINE_JOBS = ["write_brief", "write_draft", "generate_image", "run_audit"];
@@ -103,8 +104,8 @@ export async function autoPick(): Promise<boolean> {
     return false;
   }
 
-  const requireApproval = await approvalRequired();
-  const topic = chooseTopic(topics, posts, config.minScore, facts.map((fact) => fact.subject), requireApproval);
+  const [requireApproval, profile] = await Promise.all([approvalRequired(), approvedResearchProfile()]);
+  const topic = chooseTopic(topics, posts, config.minScore, facts.map((fact) => fact.subject), requireApproval, profile?.topicGroups ?? []);
   if (!topic) {
     const next = (state.scored?.length ?? 0) < config.maxScoringPerDay ? nextToScore(topics, state.scored ?? []) : null;
     if (next) {

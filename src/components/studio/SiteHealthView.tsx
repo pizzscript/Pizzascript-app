@@ -8,7 +8,7 @@ import { EmptyState, PageHead, formatDate } from "./ui";
 
 export interface HealthData {
   site: string;
-  runs: { id: string; started_at: string; finished_at: string | null; status: string; pages: number; score: number | null; summary: { new?: number; fixed?: number } }[];
+  runs: { id: string; started_at: string; finished_at: string | null; status: string; pages: number; score: number | null; summary: { new?: number; fixed?: number; outboundChecked?: number; outboundFound?: number } }[];
   issues: { url: string; type: IssueType; detail: string | null; first_seen: string; last_seen: string }[];
   fixed: { url: string; type: IssueType; fixed_at: string }[];
   metrics: { date: string; url: string; metric: string; value: number }[];
@@ -44,6 +44,7 @@ function ScoreCard({ data }: { data: HealthData }) {
         {last && (
           <div className="s-dim">
             {last.summary.new ?? 0} new problems · {last.summary.fixed ?? 0} fixed
+            {(last.summary.outboundFound ?? 0) > (last.summary.outboundChecked ?? 0) ? ` · ${last.summary.outboundChecked} of ${last.summary.outboundFound} outside links checked` : ""}
           </div>
         )}
         {running && <div className="s-chip s-chip--info">Checking now: {running.pages} pages so far</div>}

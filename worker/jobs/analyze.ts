@@ -88,8 +88,8 @@ Rules:
 - Write plainly. No marketing language.
 
 ${brief.hire || brief.grow || brief.never ? `THE OWNER'S ANSWERS (these outrank the website and search data):
-Who should hire this business: ${brief.hire || "not answered"}
-Services to grow: ${brief.grow || "not answered"}
+Target audience (who should buy from this business): ${brief.hire || "not answered"}
+What to sell more of: ${brief.grow || "not answered"}
 Never cover or target: ${brief.never || "nothing listed"}
 
 ` : ""}BUSINESS: ${profile.name}, website ${site}${location?.location ? `, based in ${location.location}` : ""}.
@@ -115,7 +115,7 @@ Return only JSON:
   }
   if (!gsc.total) draft.gaps.push("No Search Console data, so search demand is unknown.");
   else if (!gsc.used) draft.gaps.push(`Search Console has only ${gsc.impressions} impressions from ${gsc.total} searches: too little to use, so topic groups don't rely on it.`);
-  if (!brief.hire.trim()) draft.gaps.push("You haven't said who you want to hire you. Answer that and re-analyse for better topic groups.");
+  if (!brief.hire.trim()) draft.gaps.push("You haven't said who your target audience is. Answer that and re-analyse for better topic groups.");
   draft.gaps = [...new Set([...gaps, ...draft.gaps])].slice(0, 12);
   await db.from("settings").upsert({ key: PROFILE_KEYS.draft, value: draft });
 

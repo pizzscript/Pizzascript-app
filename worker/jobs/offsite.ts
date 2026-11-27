@@ -7,6 +7,9 @@ import { conn } from "../connections";
 import { json } from "../gemini";
 import { currentPlan, currentProfile } from "../profile";
 import { savedServices } from "../research/services";
+import { fetchSerp } from "../research/serp";
+import { approvedResearchProfile } from "../research/profile-store";
+import { outsideProfile } from "../../src/lib/studio/research-profile";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const TIMEOUT = 30_000;
@@ -57,25 +60,79 @@ export async function backlinkScan() {
   return { targets: counts.length, new: fresh, lost: lost.length };
 }
 
+/** Google lookups per month for link ideas (one Bright Data credit each). */
+const MAX_LOOKUPS = 5;
+
+/** Outside links on a page that are gone (404 or 410). Timeouts and refusals don't count: only a clear "not found". */
+async function deadLinks(page: string) {
+  const html = await fetch(page, { headers: { "user-agent": AGENT }, signal: AbortSignal.timeout(TIMEOUT) })
+    .then((r) => (r.ok ? r.text() : ""))
+    .catch(() => "");
+  const host = new URL(page).host;
+  const links = [...new Set([...html.matchAll(/href="(https?:\/\/[^"#]+)"/gi)].map((m) => m[1]))].filter((u) => {
+    try {
+      return new URL(u).host !== host;
+    } catch {
+      return false;
+    }
+  });
+  const dead: string[] = [];
+  for (const link of links.slice(0, 15)) {
+    const status = await fetch(link, { method: "HEAD", headers: { "user-agent": AGENT }, redirect: "follow", signal: AbortSignal.timeout(10_000) })
+      .then(async (r) => (r.status === 404 || r.status === 410 ? (await fetch(link, { headers: { "user-agent": AGENT }, signal: AbortSignal.timeout(10_000) })).status : r.status))
+      .catch(() => 0);
+    if (status === 404 || status === 410) dead.push(link);
+    await sleep(300);
+  }
+  return dead;
+}
+
 /** Ten ideas a month for earning links, each with an outreach draft a person reviews and sends. One light AI request. */
 export async function findOpportunities() {
-  if (!hasModule(currentPlan(), "backlinks")) return { skipped: "backlinks are off for this client" };
+  if (!hasModule(currentPlan(), "link_building")) return { skipped: "link building is off for this client" };
   const p = currentProfile();
-  const [services, posts] = await Promise.all([savedServices(), allPosts()]);
+  const [services, posts, { data: past }] = await Promise.all([savedServices(), allPosts(), db.from("link_opportunities").select("kind,status")]);
   const live = posts.filter((x) => x.stage === "live").slice(0, 15);
+  // What happened to earlier ideas, so the next batch leans towards the kinds that actually earned links.
+  const record = new Map<string, { sent: number; won: number; dismissed: number }>();
+  for (const r of (past ?? []) as { kind: string; status: string }[]) {
+    const k = record.get(r.kind) ?? { sent: 0, won: 0, dismissed: 0 };
+    if (r.status === "sent" || r.status === "won") k.sent++;
+    if (r.status === "won") k.won++;
+    if (r.status === "dismissed") k.dismissed++;
+    record.set(r.kind, k);
+  }
+  const history = [...record].map(([kind, k]) => `${kind}: ${k.sent} sent, ${k.won} earned a link, ${k.dismissed} dismissed`).join("; ");
   const reply = await json<{ ideas: { kind: string; target: string; search: string; why: string; subject: string; draft: string }[] }>(
     `Suggest 10 realistic ways for ${p.name} (${p.researchDescription}; ${p.siteUrl}) to earn links. Readers: ${p.market}.
 Kinds: "directory" (local or industry listings), "resource" (pages that list useful resources), "partner" (suppliers, clients, associations), "mention" (sites likely to mention the business), "guest" (sites accepting expert articles).
 For each give: "target" (a type of site or a specific well-known site), "search" (the exact Google search a person can run to find the pages), "why" (one sentence), and a short, polite, personal outreach email ("subject", "draft", under 120 words, signed "[Your name]") that offers something useful, ideally one of these articles:
 ${live.map((x) => `- ${x.title}: ${x.published_url ?? `${p.origin}/blog/${x.slug}`}`).join("\n") || "(no articles yet)"}
 Services: ${services.map((s) => s.title).join("; ") || "(not scanned yet)"}
-Never invent statistics or claim a relationship that doesn't exist. Return {"ideas":[{"kind":"","target":"","search":"","why":"","subject":"","draft":""}]}`,
+${history ? `RESULTS SO FAR (favour kinds that earned links, avoid kinds the owner keeps dismissing): ${history}\n` : ""}Never invent statistics or claim a relationship that doesn't exist. Return {"ideas":[{"kind":"","target":"","search":"","why":"","subject":"","draft":""}]}`,
     "You are an ethical SEO link-building strategist. Return only JSON.",
     { tier: "light", temperature: 0.6 },
   );
   const ideas = (reply.ideas ?? []).filter((i) => i && i.target && i.draft).slice(0, 10);
+  // Real pages, not imagined ones: run each idea's own search and keep the top results that aren't the client's site.
+  const ownHost = new URL(p.siteUrl).host.replace(/^www\./, "");
+  let checked = 0;
+  for (const idea of ideas.slice(0, MAX_LOOKUPS)) {
+    if (!idea.search) continue;
+    const serp = await fetchSerp(idea.search);
+    if (!serp) break; // Bright Data isn't connected or is failing: keep the searches for a person to run.
+    const pages = serp.organic.map((r) => r.url).filter((u) => !new URL(u).host.replace(/^www\./, "").endsWith(ownHost)).slice(0, 3);
+    if (!pages.length) continue;
+    idea.target = `${idea.target} — ${pages.join(" ")}`;
+    // A broken link on a resource page is the easiest outreach: offer a working article in its place.
+    if (idea.kind === "resource" && checked < 2) {
+      checked++;
+      const dead = await deadLinks(pages[0]);
+      if (dead.length) idea.why = `${idea.why} Broken link on ${pages[0]}: ${dead[0]} — offer one of your articles as the replacement.`;
+    }
+  }
   if (ideas.length) {
-    await db.from("link_opportunities").insert(ideas.map((i) => ({ kind: String(i.kind).slice(0, 20), target: i.target.slice(0, 300), search: i.search?.slice(0, 300), why: i.why?.slice(0, 400), subject: i.subject?.slice(0, 200), draft: i.draft.slice(0, 2000) })));
+    await db.from("link_opportunities").insert(ideas.map((i) => ({ kind: String(i.kind).slice(0, 20), target: i.target.slice(0, 700), search: i.search?.slice(0, 300), why: i.why?.slice(0, 700), subject: i.subject?.slice(0, 200), draft: i.draft.slice(0, 2000) })));
     await raiseSignal({ kind: "quality_gate", title: `${ideas.length} new link ideas with outreach drafts are ready to review (Links page).`, detail: {}, priority: "P3", post_id: null, topic_id: null, dedupe_key: `opportunities:${todayIst().slice(0, 7)}` });
   }
   return { ideas: ideas.length };
@@ -119,10 +176,24 @@ export async function competitorScan() {
     }
     await sleep(1000);
   }
-  // Gaps become unscored ideas; the normal research scoring decides whether they're worth writing.
-  for (const gap of gaps.slice(0, 5)) {
+  // Gaps become unscored ideas, but only when they fit the approved profile; the normal scoring decides the rest.
+  const profile = await approvedResearchProfile();
+  for (const gap of profile ? gaps.filter((g) => !outsideProfile(g.title, profile)).slice(0, 5) : []) {
+    const detail = `Competitor ${new URL(gap.competitor).host} published ${gap.url}`;
     await db.from("topics").upsert(
-      { slug: slugFor(gap.title), query: gap.title, track: 1, role: "spoke", audience: "client", status: "candidate", source: "agent", scores: {}, filters: {}, reason: `Competitor ${new URL(gap.competitor).host} published ${gap.url}`, research: { evidence: "competitor", url: gap.url } },
+      {
+        slug: slugFor(gap.title),
+        query: gap.title,
+        track: 1,
+        role: "spoke",
+        audience: "client",
+        status: "candidate",
+        source: "agent",
+        scores: {},
+        filters: {},
+        reason: detail,
+        research: { action: "new_article", evidence: [{ source: "competitor", detail }], unknowns: ["search demand"], review: { state: "pending" }, url: gap.url },
+      },
       { onConflict: "slug", ignoreDuplicates: true },
     );
   }
@@ -184,6 +255,9 @@ export async function localPost() {
     });
   }
   await db.from("settings").upsert({ key: "gbp_reviews_checked", value: new Date().toISOString() });
+  // The latest review texts, for idea research: real customer wording and real problems (no names kept).
+  const texts = reviews.filter((r) => r.comment?.trim()).map((r) => ({ stars: r.starRating.toLowerCase(), comment: r.comment!.trim().slice(0, 500), at: r.updateTime }));
+  if (texts.length) await db.from("settings").upsert({ key: "gbp_reviews", value: { items: texts.slice(0, 20) } });
   return { posted: count, reviews: fresh.length };
 }
 
@@ -222,7 +296,7 @@ export async function scheduleOffsite() {
   const due = (key: string, ok: boolean) => ok && state[key] !== today;
   const plans: [string, boolean, "backlink_scan" | "find_opportunities" | "competitor_scan" | "local_post" | "local_check"][] = [
     ["backlinks", hasModule(plan, "backlinks") && ist.getUTCDay() === 4, "backlink_scan"],
-    ["opportunities", hasModule(plan, "backlinks") && ist.getUTCDate() === 1, "find_opportunities"],
+    ["opportunities", hasModule(plan, "link_building") && ist.getUTCDate() === 1, "find_opportunities"],
     ["competitors", hasModule(plan, "competitors") && ist.getUTCDay() === 4, "competitor_scan"],
     ["local", hasModule(plan, "local"), "local_post"],
     ["nap", hasModule(plan, "local") && ist.getUTCDate() === 2, "local_check"],

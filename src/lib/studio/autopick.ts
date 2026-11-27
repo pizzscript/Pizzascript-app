@@ -1,6 +1,7 @@
 import { keywordCoverage } from "./content";
 import { QUALITY } from "./quality";
 import { autoPickAllowed } from "./research";
+import type { TopicGroup } from "./research-profile";
 import type { StudioPost, Topic } from "./types";
 
 /** Every Auto-pick limit, in one place. It ships switched off. */
@@ -57,20 +58,37 @@ const namesClient = (topic: Topic, clients: string[]) => {
  * The best idea that is scored, passes every filter, doesn't compete with anything already written or planned, is a
  * new article (not a page update or service page) and, when approval is required, was marked OK by the owner.
  */
-export function chooseTopic(topics: Topic[], posts: StudioPost[], minScore: number, clients: string[], requireApproval = false) {
+export function chooseTopic(topics: Topic[], posts: StudioPost[], minScore: number, clients: string[], requireApproval = false, groups: TopicGroup[] = []) {
   const used = new Set(posts.map((post) => post.topic_id).filter(Boolean));
   const existing = [
     ...posts.map((post) => post.seo_plan?.targetQuery ?? post.title),
     ...topics.filter((topic) => ["approved", "in_production", "published"].includes(topic.status)).map((topic) => topic.query),
   ].filter(Boolean);
-  return (
-    topics
-      .filter((topic) => topic.status === "candidate" && !used.has(topic.id))
-      .filter((topic) => topic.score !== null && topic.score !== undefined && topic.score >= minScore && topic.priority !== "P4")
-      .filter((topic) => !failedFilter(topic) && !namesClient(topic, clients) && autoPickAllowed(topic, requireApproval))
-      .filter((topic) => !existing.some((query) => sameIntent(topic.query, query)))
-      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.created_at.localeCompare(b.created_at))[0] ?? null
-  );
+  const eligible = topics
+    .filter((topic) => topic.status === "candidate" && !used.has(topic.id))
+    .filter((topic) => topic.score !== null && topic.score !== undefined && topic.score >= minScore && topic.priority !== "P4")
+    .filter((topic) => !failedFilter(topic) && !namesClient(topic, clients) && autoPickAllowed(topic, requireApproval))
+    .filter((topic) => !existing.some((query) => sameIntent(topic.query, query)))
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.created_at.localeCompare(b.created_at));
+  if (!groups.length || eligible.length < 2) return eligible[0] ?? null;
+
+  // Only qualified ideas get here, so balance never trades quality away: it picks which good idea goes first.
+  const groupOf = (topic: Pick<Topic, "research"> | undefined) => (topic?.research as { group?: string } | undefined)?.group ?? "";
+  const byId = new Map(topics.map((t) => [t.id, t]));
+  const written = posts.map((p) => groupOf(p.topic_id ? byId.get(p.topic_id) : undefined)).filter(Boolean);
+  const total = written.length || 1;
+  const deficit = (g: TopicGroup) => g.share / 100 - written.filter((id) => id === g.id).length / total;
+  const best = (list: TopicGroup[]) => {
+    const ranked = list
+      .map((g) => ({ g, need: deficit(g) + (g.mode === "boost" ? 0.15 : 0), idea: eligible.find((t) => groupOf(t) === g.id) }))
+      .filter((x) => x.idea)
+      .sort((a, b) => b.need - a.need);
+    return ranked[0];
+  };
+  const mandatory = best(groups.filter((g) => g.mode === "mandatory" && deficit(g) > 0));
+  if (mandatory) return mandatory.idea!;
+  const pick = best(groups);
+  return pick && pick.need > 0 ? pick.idea! : eligible[0];
 }
 
 /** The oldest idea that hasn't been scored or tried today. */
