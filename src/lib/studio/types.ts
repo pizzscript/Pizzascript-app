@@ -262,6 +262,7 @@ export const JOB_TYPES = [
   "competitor_scan",
   "local_post",
   "local_check",
+  "gbp_draft_reply",
 ] as const;
 export type JobType = (typeof JOB_TYPES)[number];
 

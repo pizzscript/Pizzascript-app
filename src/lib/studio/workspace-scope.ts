@@ -17,6 +17,7 @@ const SCOPED_CONFLICT: Record<string, string | undefined> = {
   settings: "key",
   briefings: "date",
   research_opportunities: "query,source",
+  gbp_reviews: "name",
 };
 
 function conflictFor(table: string, given: string | undefined) {

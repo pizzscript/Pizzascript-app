@@ -93,7 +93,7 @@ export function moduleForJob(type: string): ModuleId | "content" | "platform" {
   if (["backlink_scan"].includes(type)) return "backlinks";
   if (["find_opportunities"].includes(type)) return "link_building";
   if (["competitor_scan"].includes(type)) return "competitors";
-  if (["local_post", "local_check"].includes(type)) return "local";
+  if (["local_post", "local_check", "gbp_draft_reply"].includes(type)) return "local";
   if (["send_alerts", "monthly_report"].includes(type)) return "reports";
   if (["daily_briefing", "quality_gate", "performance_check", "publish_due", "discuss"].includes(type)) return "platform";
   return "content";

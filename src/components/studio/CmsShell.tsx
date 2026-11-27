@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, Bot, Building2, CalendarDays, Link2, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Plus, Search, Settings, X } from "lucide-react";
+import { Activity, BarChart3, Bot, Building2, CalendarDays, Link2, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Plus, Search, Settings, Store, X } from "lucide-react";
 import { enqueue, signOut } from "@/app/actions";
 import { switchClient } from "@/app/clients";
 import { BrandMark } from "@/components/BrandMark";
@@ -29,6 +29,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/health", label: "Site health", icon: Activity },
       { href: "/links", label: "Links & local", icon: Link2 },
+      { href: "/business-profile", label: "Business Profile", icon: Store },
       { href: "/report", label: "Report", icon: BarChart3 },
     ],
   },

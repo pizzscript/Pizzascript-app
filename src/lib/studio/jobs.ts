@@ -27,6 +27,7 @@ export const JOB_LABELS: Partial<Record<JobType, string>> = {
   competitor_scan: "Competitors",
   local_post: "Business Profile",
   local_check: "Business details",
+  gbp_draft_reply: "Review reply",
 };
 
 export function jobLabel(type: JobType) {
@@ -61,8 +62,9 @@ export const JOB_ACTIVITY: Partial<Record<JobType, string>> = {
   backlink_scan: "Checking backlinks",
   find_opportunities: "Finding link ideas",
   competitor_scan: "Watching competitors",
-  local_post: "Posting to Business Profile",
+  local_post: "Syncing Business Profile",
   local_check: "Checking business details",
+  gbp_draft_reply: "Drafting a review reply",
 };
 
 export function jobActivity(type: JobType) {

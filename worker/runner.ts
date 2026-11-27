@@ -1,6 +1,6 @@
 /** Job handlers, the IST schedule and the queue drain, shared by the CLI loop (index.ts) and the HTTP server (server.ts). */
 import type { JobType, RewritePayload } from "../src/lib/studio/types";
-import { backlinkScan, competitorScan, findOpportunities, localCheck, localPost, scheduleOffsite } from "./jobs/offsite";
+import { backlinkScan, competitorScan, draftReviewReply, findOpportunities, localCheck, localPost, scheduleOffsite } from "./jobs/offsite";
 import { contentGrowth, scheduleGrowth } from "./jobs/growth";
 import { inspectUrls, rankingAlerts, scheduleMonitoring, speedCheck } from "./jobs/monitor";
 import { crawlSite, scheduleCrawl } from "./jobs/crawl";
@@ -52,6 +52,7 @@ const HANDLERS: Record<JobType, Handler> = {
   competitor_scan: () => competitorScan(),
   local_post: () => localPost(),
   local_check: () => localCheck(),
+  gbp_draft_reply: (p) => draftReviewReply(p as { name: string }),
 };
 
 const MAX_ATTEMPTS = 4;

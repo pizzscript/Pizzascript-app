@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { enqueue, saveSetting, setOpportunityStatus } from "@/app/actions";
 import { useStudio } from "./StudioProvider";
@@ -176,12 +177,13 @@ export function LinksView({ data }: { data: LinksData }) {
         <button type="button" className="s-btn s-btn--sm s-btn--primary" disabled={busy || preview} onClick={() => run("Business details saved", () => saveSetting("local_profile", local))}>
           Save details
         </button>
-        {data.localPosts.length > 0 && (
-          <p className="s-faint text-[13px]">
-            Business Profile posts: {data.localPosts.filter((p) => p.status === "posted").length} posted
-            {data.localPosts.some((p) => p.status === "failed") ? ` · last error: ${data.localPosts.find((p) => p.status === "failed")?.detail}` : ""}
-          </p>
-        )}
+        <p className="s-faint text-[13px]">
+          Business Profile posts: {data.localPosts.filter((p) => p.status === "posted").length} posted
+          {data.localPosts.some((p) => p.status === "failed") ? " · some failed" : ""} ·{" "}
+          <Link href="/business-profile" className="underline hover:text-[var(--s-text)]">
+            Manage posts and reviews →
+          </Link>
+        </p>
       </section>
     </div>
   );
