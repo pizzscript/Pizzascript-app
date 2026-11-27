@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { createClientWorkspace, deleteClient, inviteClientUser, removeClientUser, saveClientProfile, setClientStatus, switchClient, updateClient, type NewClient } from "@/app/clients";
 import { MODULES, PLAN_PRESETS, planOf, type ModuleId, type ResearchLevel } from "@/lib/studio/plans";
@@ -419,13 +419,28 @@ const CLIENT_TABS = [
 ] as const;
 type ClientTab = (typeof CLIENT_TABS)[number]["id"];
 
-export function ClientsView({ clients, currentId, initialTab }: { clients: ClientOverview[]; currentId: string; initialTab?: string }) {
+export function ClientsView({
+  clients,
+  currentId,
+  initialTab,
+  openNew = false,
+}: {
+  clients: ClientOverview[];
+  currentId: string;
+  initialTab?: string;
+  openNew?: boolean;
+}) {
   const { run, busy, preview } = useStudio();
   const router = useRouter();
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(openNew);
   const [openId, setOpenId] = useState(currentId);
   const [tab, setTab] = useState<ClientTab>(CLIENT_TABS.find((t) => t.id === initialTab)?.id ?? "overview");
   const open = clients.find((c) => c.workspace.id === openId);
+
+  useEffect(() => {
+    if (openNew) setAdding(true);
+  }, [openNew]);
+
   return (
     <div className="space-y-6">
       <PageHead title="Clients" sub="Each client has its own ideas, articles, keys, limits and reports. The switcher at the top left chooses which one the other pages show.">
@@ -435,7 +450,14 @@ export function ClientsView({ clients, currentId, initialTab }: { clients: Clien
           </button>
         )}
       </PageHead>
-      {adding && <NewClientForm onDone={() => setAdding(false)} />}
+      {adding && (
+        <NewClientForm
+          onDone={() => {
+            setAdding(false);
+            router.replace("/clients");
+          }}
+        />
+      )}
       <ul className="grid gap-3 md:grid-cols-2">
         {clients.map((c) => {
           const plan = planOf(c.workspace.plan, c.workspace.id === DEFAULT_WORKSPACE);

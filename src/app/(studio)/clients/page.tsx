@@ -9,7 +9,14 @@ export const metadata = { title: "Clients" };
 async function Clients({ searchParams }: { searchParams: PageProps<"/clients">["searchParams"] }) {
   const [{ studio }, params] = await Promise.all([getStudio(), searchParams]);
   const clients = await loadClientsOverview(studio);
-  return <ClientsView clients={clients} currentId={studio.workspace.id} initialTab={typeof params.tab === "string" ? params.tab : undefined} />;
+  return (
+    <ClientsView
+      clients={clients}
+      currentId={studio.workspace.id}
+      initialTab={typeof params.tab === "string" ? params.tab : undefined}
+      openNew={params.new === "1"}
+    />
+  );
 }
 
 export default function ClientsPage(props: PageProps<"/clients">) {

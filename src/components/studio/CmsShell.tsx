@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, Bot, Building2, CalendarDays, Link2, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Plus, Search, Settings, Store, X } from "lucide-react";
+import { Activity, BarChart3, Bot, Building2, CalendarDays, Link2, FileText, LayoutDashboard, Lightbulb, LogOut, Menu, Search, Settings, Store, X } from "lucide-react";
 import { enqueue, signOut } from "@/app/actions";
 import { switchClient } from "@/app/clients";
 import { BrandMark } from "@/components/BrandMark";
@@ -68,7 +68,7 @@ export function CmsShell({
   email,
   client,
   clients,
-  siteUrl,
+  siteUrl: _siteUrl,
   children,
 }: {
   tickets: PaletteTicket[];
@@ -76,7 +76,7 @@ export function CmsShell({
   email: string | null;
   client: ShellClient;
   clients: ShellClient[];
-  siteUrl: string;
+  siteUrl?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -119,15 +119,19 @@ export function CmsShell({
             <X size={18} aria-hidden="true" />
           </button>
         </div>
-        <label className="block mb-3">
+        <label className="block mb-4">
           <span className="sr-only">Client</span>
           <select
             className="s-input w-full"
             value={client.id}
-            disabled={preview || clients.length < 2}
+            disabled={preview}
             aria-label="Client you are working on"
             onChange={(e) => {
               const id = e.target.value;
+              if (id === "new" || id === "__new__") {
+                router.push("/clients?new=1");
+                return;
+              }
               run("Switched client", async () => {
                 await switchClient(id);
                 router.refresh();
@@ -140,14 +144,12 @@ export function CmsShell({
                 {c.status !== "active" ? ` (${c.status})` : ""}
               </option>
             ))}
+            <option value="new">+ Add new client</option>
           </select>
         </label>
         {client.status !== "active" && (
           <p className="s-chip s-chip--warn mb-3 w-full justify-center">This client is {client.status}: its jobs wait</p>
         )}
-        <Link href="/ideas?new=1" className="s-btn s-btn--primary w-full mb-4">
-          <Plus size={16} aria-hidden="true" /> New idea
-        </Link>
         <nav aria-label="Studio">
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="cms-nav-section">
@@ -175,17 +177,28 @@ export function CmsShell({
           ))}
         </nav>
         <AgentActivity titles={titles} />
-        <div className="mt-auto pt-4 border-t s-line space-y-2">
-          <a href={siteUrl} target="_blank" rel="noopener noreferrer" className="cms-nav-link">
-            View site ↗
-          </a>
-          {email && <p className="px-2.5 s-faint text-[12px] truncate">{email}</p>}
-          {!preview && (
-            <button type="button" className="cms-nav-link w-full" onClick={() => run("Signed out", () => signOut())}>
-              <LogOut size={18} aria-hidden="true" /> Sign out
-            </button>
-          )}
-        </div>
+        {(email || !preview) && (
+          <div className="mt-auto pt-4 border-t s-line">
+            <div className="flex items-center gap-2 px-2.5 py-1 min-w-0">
+              {!preview && (
+                <button
+                  type="button"
+                  className="s-btn s-btn--ghost s-btn--icon !w-7 !h-7 flex-shrink-0"
+                  onClick={() => run("Signed out", () => signOut())}
+                  title="Sign out"
+                  aria-label="Sign out"
+                >
+                  <LogOut size={16} aria-hidden="true" />
+                </button>
+              )}
+              {email && (
+                <span className="s-faint text-[12px] truncate min-w-0 select-all" title={email}>
+                  {email}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </aside>
 
       <div className="min-w-0">
