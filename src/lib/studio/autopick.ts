@@ -1,5 +1,6 @@
 import { keywordCoverage } from "./content";
 import { QUALITY } from "./quality";
+import { autoPickAllowed } from "./research";
 import type { StudioPost, Topic } from "./types";
 
 /** Every Auto-pick limit, in one place. It ships switched off. */
@@ -52,8 +53,11 @@ const namesClient = (topic: Topic, clients: string[]) => {
   return clients.some((name) => name && text.includes(name.toLowerCase()));
 };
 
-/** The best idea that is scored, passes every filter, and doesn't compete with anything already written or planned. */
-export function chooseTopic(topics: Topic[], posts: StudioPost[], minScore: number, clients: string[]) {
+/**
+ * The best idea that is scored, passes every filter, doesn't compete with anything already written or planned, is a
+ * new article (not a page update or service page) and, when approval is required, was marked OK by the owner.
+ */
+export function chooseTopic(topics: Topic[], posts: StudioPost[], minScore: number, clients: string[], requireApproval = false) {
   const used = new Set(posts.map((post) => post.topic_id).filter(Boolean));
   const existing = [
     ...posts.map((post) => post.seo_plan?.targetQuery ?? post.title),
@@ -63,7 +67,7 @@ export function chooseTopic(topics: Topic[], posts: StudioPost[], minScore: numb
     topics
       .filter((topic) => topic.status === "candidate" && !used.has(topic.id))
       .filter((topic) => topic.score !== null && topic.score !== undefined && topic.score >= minScore && topic.priority !== "P4")
-      .filter((topic) => !failedFilter(topic) && !namesClient(topic, clients))
+      .filter((topic) => !failedFilter(topic) && !namesClient(topic, clients) && autoPickAllowed(topic, requireApproval))
       .filter((topic) => !existing.some((query) => sameIntent(topic.query, query)))
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.created_at.localeCompare(b.created_at))[0] ?? null
   );

@@ -1,3 +1,5 @@
+import type { IdeaResearch } from "./research";
+
 export type Stage = "brief" | "draft" | "image" | "audit" | "slotted" | "live";
 export const STAGES: Stage[] = ["brief", "draft", "image", "audit", "slotted", "live"];
 
@@ -50,7 +52,9 @@ export interface Topic {
   created_at: string;
 }
 
-export interface TopicResearch {
+export interface TopicResearch extends Partial<Omit<IdeaResearch, "group">> {
+  /** The client's topic group id (PizzaScript's old ideas use "core" or "broad"). */
+  group?: string;
   summary?: string;
   angle?: string;
   title?: string;
@@ -246,6 +250,7 @@ export const JOB_TYPES = [
   "discover_ideas",
   "prune_ideas",
   "scan_services",
+  "analyze_site",
   "unpublish_post",
   "crawl_site",
   "speed_check",

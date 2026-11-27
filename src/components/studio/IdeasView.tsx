@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { createTopic, enqueue, setTopicStatus } from "@/app/actions";
+import { createTopic, enqueue, reviewIdea, setTopicStatus } from "@/app/actions";
 import { computeScore } from "@/lib/studio/scoring";
 import { FILTERS, verdictFor, type Cluster, type ScoringSettings, type Topic, type Verdict } from "@/lib/studio/types";
 import { useStudio } from "./StudioProvider";
@@ -24,6 +24,47 @@ const FILTER_LABEL: Record<(typeof FILTERS)[number], string> = {
 };
 
 const ORDER: Record<Verdict, number> = { good: 0, maybe: 1, unresearched: 2, skip: 3 };
+
+const ACTION_LABEL = { new_article: "New article", update_page: "Update an existing page", service_page: "New service page" } as const;
+const LEVEL_LABEL = { measured: "measured", weak: "some signs", unknown: "unknown" } as const;
+
+/** Why research suggested an idea: the evidence, what's still unknown and what to do with it. */
+function IdeaEvidence({ topic }: { topic: Topic }) {
+  const r = topic.research!;
+  return (
+    <div className="space-y-2 text-[13px]">
+      <p>
+        <span className="s-faint">Suggested action:</span> {ACTION_LABEL[r.action!]}
+        {r.updatePath ? ` (${r.updatePath})` : ""}
+        {r.review?.state === "approved" && <span className="s-chip s-chip--ok ml-2">OK for Auto-pick</span>}
+      </p>
+      {r.why && (
+        <p>
+          <span className="s-faint">Why:</span> {r.why}
+        </p>
+      )}
+      {r.customer && (
+        <p>
+          <span className="s-faint">For:</span> {r.customer}
+        </p>
+      )}
+      {r.evidence && r.evidence.length > 0 && (
+        <div>
+          <p className="s-faint">Evidence</p>
+          <ul className="list-disc pl-5 s-dim">
+            {r.evidence.map((e) => (
+              <li key={e.detail}>{e.detail}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="s-dim">
+        Search demand: {LEVEL_LABEL[r.demand ?? "unknown"]} · Ranking chance: {LEVEL_LABEL[r.ranking ?? "unknown"]}
+      </p>
+      {r.unknowns && r.unknowns.length > 0 && <p className="s-faint">Not known yet: {r.unknowns.join(", ")}.</p>}
+    </div>
+  );
+}
 
 export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topic[]; clusters: Cluster[]; scoring: ScoringSettings; openNew: boolean }) {
   const { run, busy } = useStudio();
@@ -173,6 +214,7 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
                       <p>
                         <span className="s-faint">Search phrase:</span> {topic.query}
                       </p>
+                      {topic.research?.action && <IdeaEvidence topic={topic} />}
                       {topic.research?.summary ? (
                         <>
                           <p className="leading-relaxed">{topic.research.summary}</p>
@@ -228,6 +270,22 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
                       )}
                       {tab === "todo" && (
                         <div className="flex flex-wrap gap-2">
+                          {topic.research?.action === "new_article" && topic.research.review?.state !== "approved" && (
+                            <button
+                              type="button"
+                              className="s-btn s-btn--sm"
+                              disabled={busy}
+                              title="Lets Auto-pick schedule and write this idea when a slot is free."
+                              onClick={() => run("OK for Auto-pick", () => reviewIdea(topic.id, "approved"))}
+                            >
+                              OK for Auto-pick
+                            </button>
+                          )}
+                          {topic.research?.review?.state === "approved" && (
+                            <button type="button" className="s-btn s-btn--sm s-btn--ghost" disabled={busy} onClick={() => run("Removed from Auto-pick", () => reviewIdea(topic.id, "pending"))}>
+                              Remove from Auto-pick
+                            </button>
+                          )}
                           {verdict !== "unresearched" && (
                             <button type="button" className="s-btn s-btn--sm" onClick={() => run("Scoring", () => enqueue("score_topic", { topicId: topic.id }))}>
                               Research again
@@ -237,8 +295,10 @@ export function IdeasView({ topics, clusters, scoring, openNew }: { topics: Topi
                             type="button"
                             className="s-btn s-btn--sm s-btn--ghost"
                             onClick={() => {
-                              const reason = window.prompt("Why skip this idea? (optional)");
-                              if (reason !== null) run("Skipped", () => setTopicStatus(topic.id, "rejected", reason || "Skipped"));
+                              const reason = window.prompt("Why skip this idea? Research avoids similar ideas next time. (e.g. not our service, wrong customer, too technical)");
+                              if (reason === null) return;
+                              if (topic.research?.action) run("Skipped", () => reviewIdea(topic.id, "rejected", reason || "Skipped"));
+                              else run("Skipped", () => setTopicStatus(topic.id, "rejected", reason || "Skipped"));
                             }}
                           >
                             Skip idea

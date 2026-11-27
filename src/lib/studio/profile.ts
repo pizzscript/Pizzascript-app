@@ -1,7 +1,9 @@
 /**
- * Who a client is, for every prompt, check and banner. PizzaScript's profile reproduces the original wording exactly;
- * other clients get neutral defaults from their workspace, overridden by their saved "profile" setting.
+ * Who a client is, for every prompt, check and banner: neutral defaults from its workspace, overridden by its saved
+ * "profile" setting. PizzaScript is an ordinary client here; its wording is saved data (see supabase/seed).
  */
+import { countryCodeFor } from "./research-profile";
+
 export interface FeedSource {
   name: string;
   url: string;
@@ -54,49 +56,6 @@ export interface ClientProfile {
   trendFocus: string;
 }
 
-export const PIZZASCRIPT_SERVICES = [
-  "/services/custom-website-development",
-  "/services/business-websites",
-  "/services/landing-page-development",
-  "/services/website-redesign",
-  "/services/seo-friendly-websites",
-  "/services/website-maintenance",
-  "/services/website-speed-optimization",
-];
-
-export const PIZZASCRIPT_PROFILE: ClientProfile = {
-  name: "PizzaScript",
-  agentName: "Pizzascript",
-  domainLabel: "pizzascript.com",
-  description: "a custom web engineering studio in Pune, India (React, Next.js, performance, technical SEO, scroll animation)",
-  shortDescription: "a custom web engineering studio in Pune, India",
-  broadDescription: "a Pune, India studio that builds custom software, automation and websites for small and medium businesses",
-  broadShortDescription: "a studio that builds custom software and automation for small businesses",
-  voiceRule: 'Say "we", never "freelancer".',
-  positioning: 'Studio positioning: never "freelancer"; always "studio" / "we" / "our process". Never imply limited capacity. The India angle is an asset (faster delivery, direct access).',
-  brandQuery: "pizzascript",
-  researchDescription: "a web development studio in Pune, India, that also builds business automation and custom software for small and medium businesses",
-  market: "business owners in Pune first, then the rest of India",
-  country: "India",
-  countryCode: "in",
-  language: "en",
-  siteUrl: "https://www.pizzascript.com",
-  origin: "https://www.pizzascript.com",
-  blogLabel: "pizzascript.com/blog",
-  showLogo: true,
-  articleUrl: "https://www.pizzascript.com/blog/{slug}",
-  servicePaths: PIZZASCRIPT_SERVICES,
-  staticPaths: ["/", "/services", "/portfolio", "/about", "/blog", "/freelance-pune"],
-  feeds: [
-    { name: "Next.js releases", url: "https://github.com/vercel/next.js/releases.atom", stableOnly: true },
-    { name: "React releases", url: "https://github.com/facebook/react/releases.atom", stableOnly: true },
-    { name: "Vercel blog", url: "https://vercel.com/atom" },
-    { name: "Cloudflare blog", url: "https://blog.cloudflare.com/rss/" },
-    { name: "Google Search Central", url: "https://developers.google.com/search/blog/feed.xml" },
-  ],
-  trendFocus: "builds React/Next.js sites with GSAP/Lenis animation on Vercel/Cloudflare, focused on performance and technical SEO",
-};
-
 export interface WorkspaceRow {
   id: string;
   name: string;
@@ -105,19 +64,21 @@ export interface WorkspaceRow {
   language?: string | null;
 }
 
-/** Builds a client's profile: PizzaScript's original one, or neutral defaults for any other client, plus saved overrides. */
-export function profileFor(workspace: WorkspaceRow | null, isDefault: boolean, saved: Partial<ClientProfile> = {}, scannedServices: string[] = []): ClientProfile {
-  if (isDefault || !workspace) return { ...PIZZASCRIPT_PROFILE, ...saved };
+/**
+ * Builds a client's profile from its workspace (name, website, location, language) plus its saved profile and scanned
+ * service pages. Every client, PizzaScript included, goes through here: nothing about a client is built into the code.
+ */
+export function profileFor(workspace: WorkspaceRow | null, saved: Partial<ClientProfile> = {}, scannedServices: string[] = []): ClientProfile {
   // A missing or mistyped address must not stop the client's jobs; links then simply count as external.
   const url = (() => {
     try {
-      return new URL(workspace.site_url);
+      return new URL(workspace?.site_url ?? "");
     } catch {
       return new URL("https://example.invalid");
     }
   })();
-  const name = workspace.name?.trim() || url.hostname.replace(/^www\./, "");
-  const location = workspace.location?.trim() || "India";
+  const name = workspace?.name?.trim() || url.hostname.replace(/^www\./, "");
+  const location = workspace?.location?.trim() || "India";
   const country = location.split(",").at(-1)!.trim() || "India";
   const base: ClientProfile = {
     name,
@@ -131,8 +92,8 @@ export function profileFor(workspace: WorkspaceRow | null, isDefault: boolean, s
     researchDescription: `a business in ${location}`,
     market: `customers in ${location}`,
     country,
-    countryCode: country.toLowerCase() === "india" ? "in" : "us",
-    language: workspace.language || "en",
+    countryCode: countryCodeFor(country) || "us",
+    language: workspace?.language || "en",
     siteUrl: url.origin,
     origin: url.origin,
     blogLabel: `${url.hostname.replace(/^www\./, "")}/blog`,

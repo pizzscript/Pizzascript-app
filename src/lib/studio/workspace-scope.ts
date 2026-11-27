@@ -16,6 +16,7 @@ const SCOPED_CONFLICT: Record<string, string | undefined> = {
   gsc_daily: undefined,
   settings: "key",
   briefings: "date",
+  research_opportunities: "query,source",
 };
 
 function conflictFor(table: string, given: string | undefined) {

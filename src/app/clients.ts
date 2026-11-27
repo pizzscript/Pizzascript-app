@@ -141,7 +141,6 @@ export interface ProfileChanges {
 /** What the agent says about this client. Blank fields fall back to neutral wording. */
 export async function saveClientProfile(id: string, changes: ProfileChanges) {
   await admin();
-  if (id === DEFAULT_WORKSPACE) throw new Error("PizzaScript's profile is built in.");
   const clean = Object.fromEntries(
     Object.entries(changes)
       .filter(([, v]) => v !== undefined)
@@ -151,9 +150,12 @@ export async function saveClientProfile(id: string, changes: ProfileChanges) {
     clean.feeds = clean.feeds.filter((f) => f.name.trim() && /^https:\/\//.test(f.url.trim())).slice(0, 10).map((f) => ({ name: f.name.trim(), url: f.url.trim() }));
   }
   if (clean.articleUrl && !/^https:\/\/[^\s]+\{slug\}/.test(clean.articleUrl)) throw new Error("The article address must start with https:// and contain {slug}.");
-  // Empty strings mean "use the default", so they aren't saved.
-  const value = Object.fromEntries(Object.entries(clean).filter(([, v]) => v !== ""));
   const raw = await supabaseServer();
+  // Merge into what's saved: the editor shows only some fields, and the rest (feeds, writing rules, article address…)
+  // must survive a save. An emptied field means "use the default", so it's removed.
+  const { data: current } = await raw.from("settings").select("value").eq("workspace_id", id).eq("key", "profile").maybeSingle();
+  const merged: Record<string, unknown> = { ...((current?.value as Record<string, unknown>) ?? {}), ...clean };
+  const value = Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== ""));
   const { error } = await raw.from("settings").upsert({ workspace_id: id, key: "profile", value }, { onConflict: "workspace_id,key" });
   if (error) throw new Error(error.message);
   refresh();

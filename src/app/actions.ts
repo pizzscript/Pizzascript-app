@@ -300,6 +300,20 @@ export async function createTopic(input: { query: string; clusterId: string | nu
   return data!.id as string;
 }
 
+/**
+ * The owner's decision on a researched idea. "approved" lets Auto-pick write it; "rejected" removes it and its reason
+ * steers future research. Neither writes anything now ("Write it" does that).
+ */
+export async function reviewIdea(topicId: string, state: "approved" | "rejected" | "pending", reason?: string) {
+  const db = await live();
+  const { data, error } = await db.from("topics").select("research").eq("id", topicId).single();
+  fail(error);
+  const research = (data?.research ?? {}) as Record<string, unknown>;
+  const review = { state, at: new Date().toISOString(), ...(reason ? { reason: reason.slice(0, 200) } : {}) };
+  fail((await db.from("topics").update({ research: { ...research, review }, ...(state === "rejected" ? { status: "rejected", reason: reason || "Rejected" } : {}) }).eq("id", topicId)).error);
+  revalidatePath("/ideas");
+}
+
 export async function setTopicStatus(topicId: string, status: TopicStatus, reason?: string) {
   const db = await live();
   fail((await db.from("topics").update({ status, reason: reason ?? null }).eq("id", topicId)).error);

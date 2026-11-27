@@ -81,7 +81,7 @@ export const hasModule = (plan: ClientPlan, module: ModuleId) => plan.modules.in
 
 /** Which module a job's AI requests and work count against. */
 export function moduleForJob(type: string): ModuleId | "content" | "platform" {
-  if (["discover_ideas", "prune_ideas", "scan_services", "score_topic"].includes(type)) return "research";
+  if (["discover_ideas", "prune_ideas", "scan_services", "analyze_site", "score_topic"].includes(type)) return "research";
   if (["crawl_site"].includes(type)) return "site_health";
   if (["speed_check"].includes(type)) return "speed";
   if (["inspect_urls"].includes(type)) return "indexing";

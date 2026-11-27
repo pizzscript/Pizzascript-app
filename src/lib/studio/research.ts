@@ -1,4 +1,5 @@
 import { keywordCoverage } from "./content";
+import { isAvoided, placeAllowed, type ResearchLocation, type TopicGroup } from "./research-profile";
 import type { Topic } from "./types";
 
 /** Every research limit, in one place. */
@@ -6,7 +7,7 @@ export const RESEARCH_DEFAULTS = {
   enabled: true,
   /** Good ideas to keep waiting. Discovery runs only below this. */
   poolTarget: 40,
-  /** Share of broad business, automation and tools ideas; the rest is web development. */
+  /** Share of broad business, automation and tools ideas; the rest is web development. Used only without a profile. */
   broadShare: 60,
   maxNewPerRun: 6,
   minScore: 60,
@@ -14,6 +15,12 @@ export const RESEARCH_DEFAULTS = {
   trendDays: 14,
   /** Unscored ideas older than this are archived. */
   staleDays: 45,
+  /** Auto-pick writes only ideas the owner marked as OK. On unless a client's research settings switch it off. */
+  requireApproval: undefined as boolean | undefined,
+  /** Search Console searches below this many impressions in 30 days are ignored. */
+  gscMinImpressions: 15,
+  /** Opportunities shown to the AI per run. */
+  maxOpportunities: 60,
 };
 export type ResearchSettings = typeof RESEARCH_DEFAULTS;
 
@@ -103,6 +110,204 @@ export function neededGroup(pool: Pick<Topic, "research">[], broadShare: number)
   if (!pool.length) return "broad";
   const broad = pool.filter((t) => (t.research as { group?: string } | undefined)?.group === "broad").length;
   return (broad / pool.length) * 100 < broadShare ? "broad" : "core";
+}
+
+// ───────────────────────── client research: opportunities → ranked ideas ─────────────────────────
+
+export type OpportunitySource = "gsc" | "autocomplete" | "question" | "site_gap" | "feed" | "competitor";
+export type IdeaAction = "new_article" | "update_page" | "service_page";
+
+/** One piece of raw evidence: a search, question or gap, with where it came from. */
+export interface Opportunity {
+  query: string;
+  source: OpportunitySource;
+  evidence: { impressions?: number; clicks?: number; position?: number; page?: string; covered?: boolean; seed?: string; service?: string; note?: string };
+}
+
+/** What the AI says about a group of opportunities. Code does the scoring. */
+export interface JudgedIdea {
+  query: string;
+  group: string;
+  service: string;
+  customer: string;
+  fit: number;
+  intent: number;
+  why: string;
+  angle: string;
+}
+
+export interface IdeaResearch {
+  group: string;
+  service: string;
+  customer: string;
+  action: IdeaAction;
+  updatePath?: string;
+  why: string;
+  angle: string;
+  evidence: { source: OpportunitySource; detail: string }[];
+  demand: "measured" | "weak" | "unknown";
+  ranking: "measured" | "unknown";
+  unknowns: string[];
+  ratings: { fit: number; intent: number; demand: number | null; ranking: number | null };
+  review: { state: "pending" | "approved" | "rejected"; at?: string; reason?: string };
+  needsService: boolean;
+  evidenceSource: string;
+}
+
+export interface RankedIdea extends JudgedIdea {
+  score: number;
+  research: IdeaResearch;
+}
+
+const SOURCE_LABEL: Record<OpportunitySource, string> = {
+  gsc: "Search Console",
+  autocomplete: "Google suggestion",
+  question: "Customer question",
+  site_gap: "Website gap",
+  feed: "News feed",
+  competitor: "Competitor",
+};
+
+/** Search demand from Search Console impressions (log scale, 0–10). Suggestions prove wording, not volume. */
+export function demandOf(evidence: Opportunity[]): { level: IdeaResearch["demand"]; value: number | null } {
+  const impressions = Math.max(0, ...evidence.map((o) => o.evidence.impressions ?? 0));
+  if (impressions > 0) return { level: "measured", value: Math.round(Math.min(10, Math.log10(impressions) * 3.3) * 10) / 10 };
+  if (evidence.some((o) => o.source === "autocomplete" || o.source === "question")) return { level: "weak", value: null };
+  return { level: "unknown", value: null };
+}
+
+/** How realistic it is to rank higher, from the site's current Google position for the search. */
+export function rankingOf(evidence: Opportunity[]): { level: IdeaResearch["ranking"]; value: number | null } {
+  const positions = evidence.map((o) => o.evidence.position).filter((p): p is number => typeof p === "number" && p > 0);
+  if (!positions.length) return { level: "unknown", value: null };
+  const p = Math.min(...positions);
+  return { level: "measured", value: p <= 3 ? 5 : p <= 15 ? 8 : p <= 30 ? 6 : p <= 60 ? 4 : 2 };
+}
+
+const clamp10 = (n: unknown) => Math.max(0, Math.min(10, Number(n) || 0));
+
+/** Score 0–100: fit 40%, intent 30%, demand 20%, ranking 10%. Unknown parts are left out and the rest rescaled. */
+export function opportunityScore(r: { fit: number; intent: number; demand: number | null; ranking: number | null }) {
+  const parts: [number, number][] = [
+    [clamp10(r.fit), 0.4],
+    [clamp10(r.intent), 0.3],
+    ...(r.demand === null ? [] : [[clamp10(r.demand), 0.2] as [number, number]]),
+    ...(r.ranking === null ? [] : [[clamp10(r.ranking), 0.1] as [number, number]]),
+  ];
+  const weight = parts.reduce((s, [, w]) => s + w, 0);
+  return Math.round((parts.reduce((s, [v, w]) => s + v * w, 0) / weight) * 10);
+}
+
+/** New article, update of an existing page that already ranks 8–30, or a service page for "hire a provider" searches. */
+export function actionFor(query: string, evidence: Opportunity[]): { action: IdeaAction; updatePath?: string } {
+  const ranked = evidence.find((o) => o.source === "gsc" && o.evidence.covered && o.evidence.page && (o.evidence.position ?? 0) >= 8 && (o.evidence.position ?? 99) <= 30);
+  if (ranked) return { action: "update_page", updatePath: ranked.evidence.page };
+  if (isServiceIntent(query) || evidence.some((o) => o.source === "site_gap" && o.evidence.note === "no service page")) return { action: "service_page" };
+  return { action: "new_article" };
+}
+
+/** Which topic group is furthest below its share of the waiting pool. */
+export function groupToFill(pool: Pick<Topic, "research">[], groups: TopicGroup[]) {
+  if (!groups.length) return "general";
+  const count = (id: string) => pool.filter((t) => (t.research as { group?: string } | undefined)?.group === id).length;
+  const total = pool.length || 1;
+  return [...groups].sort((a, b) => count(a.id) / total - a.share / 100 - (count(b.id) / total - b.share / 100))[0].id;
+}
+
+/**
+ * Turns the AI's judgements into ranked ideas. Code makes every keep/drop decision: the idea must come from a real
+ * opportunity, fit the client's area and avoid list, not repeat existing content, and clear the minimum score.
+ */
+export function rankIdeas(
+  judged: JudgedIdea[],
+  opportunities: Opportunity[],
+  context: { existing: string[]; avoid: string[]; locations: ResearchLocation[]; groups: TopicGroup[]; services: string[]; minScore: number },
+) {
+  const byQuery = new Map<string, Opportunity[]>();
+  for (const o of opportunities) byQuery.set(o.query.toLowerCase(), [...(byQuery.get(o.query.toLowerCase()) ?? []), o]);
+  const groupIds = new Set(context.groups.map((g) => g.id));
+  const kept: RankedIdea[] = [];
+  const dropped: { query: string; reason: string }[] = [];
+  for (const raw of judged) {
+    if (!raw || typeof raw.query !== "string" || !raw.query.trim()) continue;
+    const query = raw.query.trim().toLowerCase();
+    const evidence = byQuery.get(query) ?? [];
+    const reason = !evidence.length
+      ? "not one of the collected searches"
+      : WRONG_INTENT.test(query)
+        ? "wrong intent"
+        : !placeAllowed(query, context.locations)
+          ? "outside the client's area"
+          : isAvoided(query, context.avoid)
+            ? "on the avoid list"
+            : clamp10(raw.fit) < 6
+              ? "weak business fit"
+              : evidence.every((o) => !o.evidence.covered) && context.existing.some((q) => sameIntent(query, q))
+                ? "already covered"
+                : kept.some((k) => sameIntent(query, k.query))
+                  ? "same search as a stronger idea"
+                  : null;
+    if (reason) {
+      dropped.push({ query, reason });
+      continue;
+    }
+    const demand = demandOf(evidence);
+    const ranking = rankingOf(evidence);
+    const ratings = { fit: clamp10(raw.fit), intent: clamp10(raw.intent), demand: demand.value, ranking: ranking.value };
+    const score = opportunityScore(ratings);
+    if (score < context.minScore) {
+      dropped.push({ query, reason: `score ${score}` });
+      continue;
+    }
+    const { action, updatePath } = actionFor(query, evidence);
+    const service = context.services.includes(raw.service) ? raw.service : "";
+    const unknowns = [
+      ...(demand.level === "unknown" ? ["search demand"] : demand.level === "weak" ? ["how many people search for it"] : []),
+      ...(ranking.level === "unknown" ? ["how hard it is to rank"] : []),
+      ...(!service && action !== "update_page" ? ["no matching service page"] : []),
+    ];
+    kept.push({
+      ...raw,
+      query,
+      group: groupIds.has(raw.group) ? raw.group : (context.groups[0]?.id ?? "general"),
+      service,
+      score,
+      research: {
+        group: groupIds.has(raw.group) ? raw.group : (context.groups[0]?.id ?? "general"),
+        service,
+        customer: String(raw.customer ?? "").slice(0, 160),
+        action,
+        ...(updatePath ? { updatePath } : {}),
+        why: String(raw.why ?? "").slice(0, 300),
+        angle: String(raw.angle ?? "").slice(0, 300),
+        evidence: evidence.map((o) => ({
+          source: o.source,
+          detail:
+            o.source === "gsc"
+              ? `${SOURCE_LABEL.gsc}: ${o.evidence.impressions ?? 0} impressions, position ${(o.evidence.position ?? 0).toFixed(1)}${o.evidence.page ? ` (${o.evidence.page})` : ""}`
+              : o.source === "autocomplete"
+                ? `${SOURCE_LABEL.autocomplete}${o.evidence.seed ? ` for "${o.evidence.seed}"` : ""}`
+                : `${SOURCE_LABEL[o.source]}${o.evidence.note ? `: ${o.evidence.note}` : ""}`,
+        })),
+        demand: demand.level,
+        ranking: ranking.level,
+        unknowns,
+        ratings,
+        review: { state: "pending" },
+        needsService: !service,
+        evidenceSource: [...new Set(evidence.map((o) => SOURCE_LABEL[o.source]))].join(", "),
+      },
+    });
+  }
+  kept.sort((a, b) => b.score - a.score);
+  return { kept, dropped };
+}
+
+/** True when an idea may be written by Auto-pick: a new article, and approved when approval is required. */
+export function autoPickAllowed(topic: Pick<Topic, "research">, requireApproval: boolean) {
+  const r = topic.research as Partial<IdeaResearch> | undefined;
+  if (r?.action && r.action !== "new_article") return false;
+  return !requireApproval || r?.review?.state === "approved";
 }
 
 /** Waiting ideas to archive, each with a reason. Ideas already approved, written or published are never touched. */

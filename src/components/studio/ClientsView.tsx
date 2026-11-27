@@ -8,6 +8,7 @@ import type { ClientOverview } from "@/lib/studio/server";
 import { DEFAULT_WORKSPACE } from "@/lib/studio/workspace-scope";
 import { useStudio } from "./StudioProvider";
 import { PageHead } from "./ui";
+import { ResearchProfileView } from "./ResearchProfileView";
 
 const APPROVAL_LABEL = { owner: "You approve each article", client: "The client approves", automatic: "Publish automatically when checks pass" } as const;
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 39);
@@ -211,7 +212,6 @@ function DetailsEditor({ client }: { client: ClientOverview }) {
   const { run, busy, preview } = useStudio();
   const w = client.workspace;
   const [d, setD] = useState({ name: w.name, siteUrl: w.site_url, location: w.location ?? "", language: w.language, approvalMode: w.approval_mode });
-  const isDefault = w.id === DEFAULT_WORKSPACE;
   return (
     <section className="space-y-3">
       <h3 className="font-medium">Details</h3>
@@ -228,20 +228,18 @@ function DetailsEditor({ client }: { client: ClientOverview }) {
           <span className="s-dim text-[13px]">City and country</span>
           <input className="s-input w-full" value={d.location} onChange={(e) => setD({ ...d, location: e.target.value })} />
         </label>
-        {!isDefault && (
-          <label className="space-y-1">
-            <span className="s-dim text-[13px]">Approval</span>
-            <select className="s-input w-full" value={d.approvalMode} onChange={(e) => setD({ ...d, approvalMode: e.target.value as typeof d.approvalMode })}>
-              {Object.entries(APPROVAL_LABEL).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+        <label className="space-y-1">
+          <span className="s-dim text-[13px]">Approval</span>
+          <select className="s-input w-full" value={d.approvalMode} onChange={(e) => setD({ ...d, approvalMode: e.target.value as typeof d.approvalMode })}>
+            {Object.entries(APPROVAL_LABEL).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
-      <button type="button" className="s-btn s-btn--primary s-btn--sm" disabled={busy || preview} onClick={() => run("Details saved", () => updateClient(w.id, isDefault ? { name: d.name, siteUrl: d.siteUrl, location: d.location } : d))}>
+      <button type="button" className="s-btn s-btn--primary s-btn--sm" disabled={busy || preview} onClick={() => run("Details saved", () => updateClient(w.id, d))}>
         Save details
       </button>
     </section>
@@ -478,7 +476,8 @@ export function ClientsView({ clients, currentId }: { clients: ClientOverview[];
           <SetupChecklist client={open} />
           <DetailsEditor client={open} />
           <PlanEditor client={open} />
-          {open.workspace.id !== DEFAULT_WORKSPACE && <ProfileEditor client={open} />}
+          <ResearchProfileView client={open} />
+          <ProfileEditor client={open} />
           <Access client={open} />
           <Lifecycle client={open} />
         </div>

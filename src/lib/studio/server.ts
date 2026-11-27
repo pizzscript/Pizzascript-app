@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SCORING } from "./scoring";
+import { PROFILE_KEYS, type ResearchProfile } from "./research-profile";
 import { DEFAULT_WORKSPACE, scopeClient } from "./workspace-scope";
 import type {
   AgentMessage,
@@ -293,6 +294,8 @@ export interface ClientOverview {
   /** This month (IST): articles drafted and AI requests; today's AI requests. */
   usage: { articles: number; aiMonth: number; aiToday: number };
   profile: Record<string, unknown>;
+  /** The client's research profile: the draft being edited and the approved copy research uses. */
+  research: { draft: ResearchProfile | null; approved: ResearchProfile | null; analysing: boolean };
   members: { email: string; role: string }[];
   /** Setup checklist for a new client. */
   setup: { profile: boolean; searchConsole: boolean; competitors: boolean; local: boolean; autopilot: boolean; crawled: boolean; live: number };
@@ -302,11 +305,11 @@ export interface ClientOverview {
 export async function loadClientsOverview(studio: Studio): Promise<ClientOverview[]> {
   if (studio.mode === "preview") {
     const setup = { profile: true, searchConsole: false, competitors: false, local: false, autopilot: false, crawled: false, live: 0 };
-    return studio.workspaces.map((workspace) => ({ workspace, usage: { articles: 0, aiMonth: 0, aiToday: 0 }, profile: {}, members: [], setup }));
+    return studio.workspaces.map((workspace) => ({ workspace, usage: { articles: 0, aiMonth: 0, aiToday: 0 }, profile: {}, research: { draft: null, approved: null, analysing: false }, members: [], setup }));
   }
   const raw = await supabaseServer();
   const month = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 8) + "01";
-  const [{ data: usage }, { data: profiles }, { data: members }, { data: flags }, { data: crawls }, { data: livePosts }, gsc] = await Promise.all([
+  const [{ data: usage }, { data: profiles }, { data: members }, { data: flags }, { data: crawls }, { data: livePosts }, gsc, { data: research }, { data: analysing }] = await Promise.all([
     raw.from("usage_ledger").select("workspace_id,day,ai_requests,articles").gte("day", month).limit(10_000),
     raw.from("settings").select("workspace_id,value").eq("key", "profile"),
     raw.from("workspace_members").select("workspace_id,email,role"),
@@ -314,7 +317,10 @@ export async function loadClientsOverview(studio: Studio): Promise<ClientOvervie
     raw.from("crawl_runs").select("workspace_id").limit(1000),
     raw.from("posts").select("workspace_id").eq("stage", "live").limit(10_000),
     Promise.all(studio.workspaces.map(async (w) => [w.id, ((await raw.rpc("connection_status", { ws: w.id })).data ?? []) as { name: string; in_vault: boolean }[]] as const)),
+    raw.from("settings").select("workspace_id,key,value").in("key", [PROFILE_KEYS.draft, PROFILE_KEYS.approved]),
+    raw.from("jobs").select("workspace_id").eq("type", "analyze_site").in("status", ["queued", "running"]),
   ]);
+  const researchFor = (ws: string, key: string) => (((research ?? []) as { workspace_id: string; key: string; value: ResearchProfile }[]).find((r) => r.workspace_id === ws && r.key === key)?.value ?? null);
   const flag = (ws: string, key: string) => ((flags ?? []) as { workspace_id: string; key: string; value: unknown }[]).find((f) => f.workspace_id === ws && f.key === key)?.value;
   const today = todayIst();
   return studio.workspaces.map((workspace) => {
@@ -327,9 +333,14 @@ export async function loadClientsOverview(studio: Studio): Promise<ClientOvervie
         aiToday: rows.filter((r) => r.day === today).reduce((s, r) => s + r.ai_requests, 0),
       },
       profile: ((profiles ?? []) as { workspace_id: string; value: Record<string, unknown> }[]).find((p) => p.workspace_id === workspace.id)?.value ?? {},
+      research: {
+        draft: researchFor(workspace.id, PROFILE_KEYS.draft),
+        approved: researchFor(workspace.id, PROFILE_KEYS.approved),
+        analysing: ((analysing ?? []) as { workspace_id: string }[]).some((j) => j.workspace_id === workspace.id),
+      },
       members: ((members ?? []) as { workspace_id: string; email: string; role: string }[]).filter((m) => m.workspace_id === workspace.id).map(({ email, role }) => ({ email, role })),
       setup: {
-        profile: Boolean(((profiles ?? []) as { workspace_id: string; value: Record<string, unknown> }[]).find((p) => p.workspace_id === workspace.id)?.value?.description) || workspace.id === DEFAULT_WORKSPACE,
+        profile: Boolean(((profiles ?? []) as { workspace_id: string; value: Record<string, unknown> }[]).find((p) => p.workspace_id === workspace.id)?.value?.description),
         searchConsole: Boolean(new Map(gsc).get(workspace.id)?.find((c) => c.name === "gsc_site_url")?.in_vault) || (workspace.id === DEFAULT_WORKSPACE && Boolean(process.env.GSC_SITE_URL)),
         competitors: ((flag(workspace.id, "competitors") as string[] | undefined) ?? []).length > 0,
         local: Boolean((flag(workspace.id, "local_profile") as { phone?: string } | undefined)?.phone),

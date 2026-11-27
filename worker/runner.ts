@@ -18,6 +18,7 @@ import { applyConnections } from "./connections";
 import { autoPick } from "./jobs/autopick";
 import { discoverIdeas, pruneIdeas, scheduleResearch } from "./jobs/research";
 import { scanServices } from "./research/services";
+import { analyzeSite } from "./jobs/analyze";
 import { advancePipeline, approvalReminders, publishDue, unpublishPost } from "./jobs/publish";
 
 type Handler = (payload: Record<string, unknown>) => Promise<unknown>;
@@ -39,6 +40,7 @@ const HANDLERS: Record<JobType, Handler> = {
   discover_ideas: () => discoverIdeas(),
   prune_ideas: () => pruneIdeas(),
   scan_services: () => scanServices(),
+  analyze_site: () => analyzeSite(),
   unpublish_post: (p) => unpublishPost(p as { postId: string }),
   crawl_site: () => crawlSite(),
   speed_check: () => speedCheck(),

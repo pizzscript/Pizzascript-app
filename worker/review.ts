@@ -1,11 +1,11 @@
-import { REVIEW_RETRY_MS, SERVICE_PATHS, removeUnknownLinks } from "../src/lib/studio/content";
+import { REVIEW_RETRY_MS, removeUnknownLinks } from "../src/lib/studio/content";
 import { QUALITY, canDispute, cleanSeo, issueBlocks, type ReviewCode, type ReviewIssue, type SeoFields } from "../src/lib/studio/quality";
 import type { AuditCheck, StudioPost } from "../src/lib/studio/types";
 import { runAgent } from "./agent";
 import { db, enqueue, raiseSignal, saveVersion } from "./db";
 import { isTransientError, json, parseLenient } from "./gemini";
 import { bodyHash } from "./quality";
-import { WRITING } from "./rules";
+import { SERVICE_PAGES, WRITING } from "./rules";
 
 interface ReviewResult {
   issues: ReviewIssue[];
@@ -170,7 +170,19 @@ export async function repairPost(post: StudioPost, failing: AuditCheck[], posts:
 
   const last = post.seo_plan?.reviewRepair as { to?: string; count?: number } | undefined;
   const count = last?.to === hash ? (last.count ?? 1) : 0;
-  if (count >= QUALITY.maxRepairs) return false;
+  if (count >= QUALITY.maxRepairs) {
+    const labels = [...errors.map((e) => e.claim), ...seoProblems.map((c) => c.label)];
+    await raiseSignal({
+      kind: "quality_gate",
+      title: `Needs a human: auto-repair gave up on "${post.title}" (${labels.slice(0, 2).join("; ")}${labels.length > 2 ? "…" : ""})`,
+      detail: { labels, attempts: count },
+      priority: "P1",
+      post_id: post.id,
+      topic_id: null,
+      dedupe_key: `repair-exhausted:${post.id}:${hash}`,
+    });
+    return false;
+  }
 
   // For a missing related link: the exact pages the funnel rule accepts, same category first.
   const linkTargets = !seoProblems.some((c) => c.id === "funnel")
@@ -181,7 +193,7 @@ export async function repairPost(post: StudioPost, failing: AuditCheck[], posts:
           .sort((a, b) => Number(b.cluster_id === post.cluster_id) - Number(a.cluster_id === post.cluster_id))
           .slice(0, 6)
           .map((p) => `/blog/${p.slug}`)
-      : [...SERVICE_PATHS];
+      : [...SERVICE_PAGES()];
 
   let reply: RepairReply = {};
   try {

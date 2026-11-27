@@ -7,8 +7,9 @@ import { aiKeyOwner } from "../connections";
 import { currentPlan } from "../profile";
 import { aiBudgetLeft, articlesThisMonth } from "../usage";
 import { isBillingError } from "../gemini";
+import { approvalRequired } from "./research";
 
-const BUSY_JOBS = ["daily_briefing", "score_topic", "write_brief", "write_draft", "generate_image", "run_audit", "discover_ideas", "prune_ideas", "scan_services"];
+const BUSY_JOBS = ["daily_briefing", "score_topic", "write_brief", "write_draft", "generate_image", "run_audit", "discover_ideas", "prune_ideas", "scan_services", "analyze_site"];
 const PIPELINE_JOBS = ["write_brief", "write_draft", "generate_image", "run_audit"];
 
 const saveState = async (state: AutoPickState) => check(await db.from("settings").upsert({ key: "autopick_state", value: state }), "autopick state");
@@ -102,7 +103,8 @@ export async function autoPick(): Promise<boolean> {
     return false;
   }
 
-  const topic = chooseTopic(topics, posts, config.minScore, facts.map((fact) => fact.subject));
+  const requireApproval = await approvalRequired();
+  const topic = chooseTopic(topics, posts, config.minScore, facts.map((fact) => fact.subject), requireApproval);
   if (!topic) {
     const next = (state.scored?.length ?? 0) < config.maxScoringPerDay ? nextToScore(topics, state.scored ?? []) : null;
     if (next) {
@@ -111,7 +113,13 @@ export async function autoPick(): Promise<boolean> {
       return true;
     }
     await saveState({ ...state, doneDate: today });
-    await notify(today, "no-idea", `Auto-pick found no idea scoring ${config.minScore}+ that doesn't overlap existing content.`);
+    await notify(
+      today,
+      "no-idea",
+      requireApproval
+        ? `Auto-pick found no approved idea to write. Mark ideas "OK for Auto-pick" on the Ideas page.`
+        : `Auto-pick found no idea scoring ${config.minScore}+ that doesn't overlap existing content.`,
+    );
     return false;
   }
 
